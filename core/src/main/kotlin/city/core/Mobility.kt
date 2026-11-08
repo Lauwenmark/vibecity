@@ -413,7 +413,7 @@ internal class MobilityRouter(
         workspace: SearchWorkspace,
         start: Int,
         goal: Int? = null,
-        blocked: Set<Int> = emptySet(),
+        blocked: BooleanArray? = null,
     ) {
         val distance = workspace.distance
         val parent = workspace.parent
@@ -433,7 +433,7 @@ internal class MobilityRouter(
                 val next = edges[edge]
                 val total = visit.cost + edges[edge + 2]
                 edge += 3
-                if (next in blocked) continue
+                if (blocked != null && blocked[next]) continue
                 if (total < distance[next] && total <= 180) {
                     if (distance[next] == Int.MAX_VALUE) workspace.touched[workspace.count++] = next
                     distance[next] = total
@@ -464,8 +464,16 @@ internal class MobilityRouter(
         start: Int,
         goal: Int,
         blocked: Set<Int> = emptySet(),
+    ): TravelPath? = route(start, goal, if (blocked.isEmpty()) null else BooleanArray(size * 4).also { mask -> blocked.forEach { if (it in mask.indices) mask[it] = true } })
+
+    /** The caller owns the mask exclusively until this call returns; searches only read it. */
+    suspend fun route(
+        start: Int,
+        goal: Int,
+        blocked: BooleanArray?,
     ): TravelPath? =
         withWorkspace { workspace ->
+            require(blocked == null || blocked.size == size * 4)
             search(workspace, start, goal, blocked)
             reconstruct(goal, workspace.distance, workspace.parent)
         }

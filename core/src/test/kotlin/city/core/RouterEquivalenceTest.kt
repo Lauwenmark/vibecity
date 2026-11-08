@@ -57,6 +57,11 @@ class RouterEquivalenceTest {
                     val blocked = List(16) { random.nextInt(city.tiles.size * 4) }.toSet()
                     val expected = reference.route(start, goal, blocked)
                     assertEquals(expected, router.route(start, goal, blocked))
+                    val mask = BooleanArray(city.tiles.size * 4)
+                    blocked.forEach { mask[it] = true }
+                    assertEquals(expected, router.route(start, goal, mask))
+                    mask.fill(false)
+                    assertEquals(reference.route(start, goal), router.route(start, goal, mask))
                     if (expected != null) {
                         assertTrue(router.valid(expected))
                         assertEquals(expected, router.path(expected.nodes))

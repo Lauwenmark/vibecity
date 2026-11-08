@@ -278,3 +278,7 @@ y compris pour les vues utilisées comme clés par le registre de chemins. La s�
 migration des sauvegardes ni nouvelle version du protocole n’est nécessaire. Les opérations `copy`,
 la déstructuration et les constructeurs à listes restent disponibles malgré le remplacement de la
 `data class` par une classe immuable explicite.
+
+L’exécuteur séquentiel réutilise un masque primitif pour les détours : routes saturées et cases de
+marche associées, prochain nœud bloqué, puis exception du départ. Chaque recherche lit le masque
+exclusivement jusqu’à son retour ; il est reconstruit avant la recherche suivante.

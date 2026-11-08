@@ -216,6 +216,7 @@ internal class DayExecutor(
 ) {
     private val rules = city.trafficRules
     private val occupancy = IntArray(city.tiles.size)
+    private val blockedNodes = BooleanArray(city.tiles.size * 4)
     private val peak = IntArray(city.tiles.size)
     private val admittedAt = IntArray(city.tiles.size) { -1 }
     private val admitted = IntArray(city.tiles.size)
@@ -428,25 +429,28 @@ internal class DayExecutor(
         blockedNext: Int,
     ): Int? {
         val leg = agent.leg!!
-        val blocked =
-            occupancy.indices
-                .filter { occupancy[it] >= rules.roadSlots }
-                .map { it * 4 + 1 }
-                .toMutableSet()
-        blocked.add(blockedNext)
-        blocked.addAll(blocked.map { it / 4 * 4 })
-        blocked.remove(agent.node)
+        val blocked = blockedNodes
+        blocked.fill(false)
+        for (cell in occupancy.indices) {
+            if (occupancy[cell] >= rules.roadSlots) {
+                blocked[cell * 4] = true
+                blocked[cell * 4 + 1] = true
+            }
+        }
+        blocked[blockedNext] = true
+        blocked[blockedNext / 4 * 4] = true
+        blocked[agent.node] = false
         val goal = leg.path.nodes.last()
         val alternatives =
             agent.person.routes.filter { memory ->
                 if (memory.weekday != day % 7 || memory.need != leg.need || memory.returning != leg.returning) return@filter false
                 val path = registry(agent).paths[memory.path]
                 val index = path.nodes.indexOf(agent.node)
-                index >= 0 && path.nodes.last() == goal && path.nodes.drop(index + 1).none { it in blocked }
+                index >= 0 && path.nodes.last() == goal && (index + 1 until path.nodes.size).none { blocked[path.nodes[it]] }
             }
         val known = chooseRoute(alternatives, city.seed xor agent.person.id xor (minute.toLong() shl 16))
         val candidate =
-            known?.let { registry(agent).paths[it.path].let { path -> router.path(path.nodes.drop(path.nodes.indexOf(agent.node))) } }
+            known?.let { registry(agent).paths[it.path].let { path -> router.path(path.nodes.subList(path.nodes.indexOf(agent.node), path.nodes.size)) } }
                 ?: router.route(agent.node, goal, blocked)
         if (candidate == null || candidate.nodes.size < 2) {
             leg.decisions.add(RouteDecision(minute, agent.node, "Aucun détour accessible"))
