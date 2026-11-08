@@ -31,7 +31,8 @@ object Persistence {
         path: Path,
         catalog: Catalog,
     ): City {
-        require(Files.size(path) <= 64L * 1024 * 1024) { "Save too large" }
+        // Local snapshots include persistent citizens and routes and can exceed 64 MiB.
+        // Keep loading compatible with save(), which has no serialized-size limit.
         val encoded = wireJson.parseToJsonElement(Files.readString(path)).jsonObject
         // Versions 3/4 had no temporal execution or persistent citizens. Rebuild only their derived cache.
         val legacyMobility = (encoded["mobility"] as? JsonObject)?.let { "executionVersion" !in it } == true

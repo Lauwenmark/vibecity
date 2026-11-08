@@ -56,7 +56,8 @@ class Connection(
                     }
                 }
                 while (isActive) {
-                    val line = readFrame(reader, 64 * 1024 * 1024) ?: break
+                    // Full city snapshots grow with persistent citizens and routes, like local saves.
+                    val line = readFrame(reader, Int.MAX_VALUE) ?: break
                     val response = wireJson.decodeFromString<Response>(line)
                     require(response.version == PROTOCOL_VERSION)
                     if (response.type == "STATE") {
