@@ -7,12 +7,12 @@ ce projet sont des paramètres de gameplay explicitement choisis et modifiables.
 
 | Domaine | Réalisé | Différences / reste à développer |
 | --- | --- | --- |
-| Terrain | Relief discret, rivière, arbres, élévation/abaissement, ponts | Pas de lacs/océan configurables, de pente continue, d’érosion ni de nivellement par rectangle |
+| Terrain | Sommets partagés, pentes par case, rivière, arbres, élévation/abaissement avec raccords, aplanissement à altitude choisie, ponts | 13 altitudes (0–12), pas de lacs/océan configurables, d’érosion ni de nivellement par rectangle dans l’interface |
 | Vue | Isométrie, altitude, bâtiments procéduraux, zoom, inspection, mini-carte | Pas de rotation, de sprites originaux, d’animations de véhicules ou de sons |
 | Zonage | R/C/I léger et dense, croissance/déclin, demande, desserte, fiscalité | Développement par case ; pas de regroupement des lots en immeubles multi-cases ni de styles par époque |
-| Électricité | 9 familles : charbon, fioul, gaz, nucléaire, éolien, solaire, hydro, micro-ondes, fusion | Capacités abstraites ; pas de durée de vie, de renouvellement des centrales, de saisonnalité ni d’accident nucléaire |
+| Électricité | 9 familles : charbon, fioul, gaz, nucléaire, éolien, solaire, hydro, micro-ondes, fusion | Barrages neufs sur rampe couverte d’eau, sans modèle de débit ; capacités abstraites ; pas de durée de vie, de renouvellement des centrales, de saisonnalité ni d’accident nucléaire |
 | Eau | Pompes alimentées, conduites, château d’eau, dessalement, épuration | Château d’eau traité comme une source fixe, sans réservoir dynamique ; pas de sécheresse ni de salinité |
-| Transports | Routes, rails, ponts, métro souterrain, gares, bus, stations de métro | Accessibilité par distance ; trafic agrégé ; pas de recherche d’itinéraire, d’autoroute, d’échangeur ou de tunnel routier |
+| Transports | Routes, rails, ponts, métro souterrain, gares, bus, stations de métro | Rampes simples dans le sens de la montée ; accessibilité par distance ; trafic agrégé ; pas de recherche d’itinéraire, d’autoroute, d’échangeur ou de tunnel routier |
 | Services | Police, pompiers, hôpitaux, écoles, universités, bibliothèques, prison | Champs d’influence agrégés, pas de capacités de patients/élèves ou d’agents individuels |
 | Loisirs | Parcs, musée, zoo, stade | Effets sur valeur foncière et croissance, sans fréquentation détaillée |
 | Économie | Impôts, entretien, financement global, dette/intérêts/remboursement | Pas d’ordonnances, de financement par service ni de commerce régional détaillé |
@@ -28,7 +28,7 @@ ce projet sont des paramètres de gameplay explicitement choisis et modifiables.
 
 La capacité maximale par case est 12/80 habitants en résidentiel, 8/60 emplois en commercial et
 12/70 en industriel, respectivement léger/dense. Sans eau, le plafond tombe à 60 %.
-La croissance exige de l’électricité, une infrastructure de transport à trois cases au plus,
+La croissance exige une case plane, de l’électricité, une infrastructure de transport à trois cases au plus,
 une demande positive et une pollution inférieure à 65 sauf en industriel. Les zones mal desservies
 se dépeuplent progressivement. La demande réagit aux habitants, emplois et impôts.
 

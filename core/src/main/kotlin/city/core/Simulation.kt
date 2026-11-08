@@ -60,7 +60,7 @@ class Simulation(
                                         else -> iDemand + service("industry") / 3
                                     }
                                 val capacity = t.zone.capacity * (if (water.supplied[i]) 100 else 60) / 100
-                                val desirable = power.supplied[i] && access[i] && demand > 0 && (t.zone.industrial || pollution < 65)
+                                val desirable = city.surface(i).flat && power.supplied[i] && access[i] && demand > 0 && (t.zone.industrial || pollution < 65)
                                 val growth = if (desirable) max(1, city.rules.growthRate + demand / 25 + land / 40) else -max(1, t.occupants / 8)
                                 var fire = if (t.fire > 0) (t.fire + 1 - service("fire") / 10).coerceAtLeast(0) else 0
                                 if (city.rules.disasters && t.fire == 0 && (t.occupants > 0 || t.building != null) &&
@@ -87,7 +87,7 @@ class Simulation(
                                         fire = fire,
                                     )
                                 for (rule in plugins) result = rule.apply(TileContext(city, i, catalog), result)
-                                require(result.occupants >= 0 && result.elevation in 0..12) { "Invalid plugin tile $i" }
+                                require(result.occupants >= 0 && result.elevation in 0..12 && (city.terrain == null || result.elevation == t.elevation)) { "Invalid plugin tile $i" }
                                 result
                             }
                         }

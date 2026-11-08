@@ -1,4 +1,4 @@
-# Protocole TCP v1
+# Protocole TCP v2
 
 Chaque trame est un objet JSON UTF-8 terminé par LF (`\n`). CRLF est également accepté. Les retours
 à la ligne dans les chaînes sont échappés par JSON. Aucune sérialisation Java n’est utilisée.
@@ -10,7 +10,7 @@ caractères maximum. Une fin de connexion avant LF ne valide jamais une commande
 Envoyer dans les 10 secondes :
 
 ```json
-{"type":"HELLO","version":1,"name":"Alice","token":""}
+{"type":"HELLO","version":2,"name":"Alice","token":""}
 ```
 
 Le nom contient 1 à 24 lettres, chiffres, espaces, `_` ou `-`. La version doit correspondre.
@@ -45,8 +45,17 @@ coroutine par socket, ce qui empêche l’entrelacement de deux lignes.
 | `PING` | `id` | Réponse `PONG` |
 
 `tool` accepte `road`, `rail`, `power`, `pipe`, `subway`, `bulldoze`, `clear_underground`, `raise`,
-`lower`, `trees`, `zone:RESIDENTIAL_LIGHT`, `zone:RESIDENTIAL_DENSE`, `zone:COMMERCIAL_LIGHT`,
+`lower`, `level`, `water`, `trees`, `zone:RESIDENTIAL_LIGHT`, `zone:RESIDENTIAL_DENSE`, `zone:COMMERCIAL_LIGHT`,
 `zone:COMMERCIAL_DENSE`, `zone:INDUSTRIAL_LIGHT`, `zone:INDUSTRIAL_DENSE`, ou un ID de `catalog`.
+
+Pour `level`, `value` indique l’altitude cible de 0 à 12. `raise`/`lower` modifient les quatre
+sommets de la case, avec propagation des raccords de pente. Les modifications induites sont validées
+et facturées dans la même transaction. `water` pose de l’eau de surface (5 $ si la case était sèche).
+
+`STATE.city.terrain` contient `width`, `height` et `vertices`, une liste de `(width+1) × (height+1)`
+entiers en ordre ligne par ligne. La case `(x,y)` utilise les sommets `(x,y)`, `(x+1,y)`, `(x+1,y+1)`
+et `(x,y+1)`. `Tile.elevation` reste transmis, mais représente seulement leur altitude minimale.
+Les clients v1 doivent être mis à jour ; ils ne peuvent interpréter cette géométrie correctement.
 
 Exemple de commande et d’accusé de réception (champs par défaut omis pour la lisibilité) :
 

@@ -9,7 +9,7 @@ import java.nio.file.Files
 import kotlin.test.*
 
 class ServerTest {
-    private fun flat() = City(width = 16, height = 16, tiles = List(256) { Tile() }, rules = Rules(speed = 0))
+    private fun flat() = City(width = 16, height = 16, tiles = List(256) { Tile() }, rules = Rules(speed = 0), terrain = Terrain.flat(16, 16))
 
     private class Peer(
         port: Int,
@@ -184,6 +184,32 @@ class ServerTest {
                     assertEquals(0, stopped.month)
                     peer.send(Request("BUILD", id = 1, tool = "park", x = 2, y = 2))
                     assertEquals("ACK", peer.until { it.id == 1L }.type)
+                }
+            } finally {
+                server.shutdown()
+            }
+        }
+
+    @Test fun `two clients receive identical shared vertices after earthworks`() =
+        runBlocking {
+            val server = CityServer(flat(), port = 0, savePath = null)
+            try {
+                Peer(server.port, "Alice").use { a ->
+                    Peer(server.port, "Bob").use { b ->
+                        a.until { it.type == "STATE" }
+                        b.until { it.type == "STATE" }
+                        a.send(Request("BUILD", id = 1, tool = "raise", x = 8, y = 8))
+                        a.until { it.type == "ACK" && it.id == 1L }
+                        val ca = a.until { it.city?.revision == 1L }.city!!
+                        val cb = b.until { it.city?.revision == 1L }.city!!
+                        assertEquals(ca, cb)
+                        assertTrue(ca.surface(ca.index(7, 8)).ramp)
+                        b.send(Request("BUILD", id = 1, tool = "park", x = 7, y = 8))
+                        assertEquals("ERROR", b.until { it.id == 1L }.type)
+                        b.send(Request("BUILD", id = 2, tool = "level", x = 7, y = 8, value = 2))
+                        b.until { it.type == "ACK" && it.id == 2L }
+                        assertEquals(a.until { it.city?.revision == 2L }.city, b.until { it.city?.revision == 2L }.city)
+                    }
                 }
             } finally {
                 server.shutdown()

@@ -85,12 +85,15 @@ class Commands(
                 tiles[i] = tile.copy(pipe = false, subway = false)
             }
 
-            r.tool == "raise" || r.tool == "lower" -> {
-                require(tile.building == null && tile.zone == Zone.NONE && !tile.road && !tile.rail && !tile.powerLine) { "Dégagez le terrain" }
-                val elevation = tile.elevation + if (r.tool == "raise") 1 else -1
-                require(elevation in 0..12) { "Limite du relief" }
-                cost = 10
-                tiles[i] = tile.copy(elevation = elevation, water = elevation == 0, trees = false)
+            r.tool in listOf("raise", "lower", "level") -> {
+                return city.terraform(r.x, r.y, r.tool, r.value)
+            }
+
+            r.tool == "water" -> {
+                require(!tile.protectedTerrain()) { "Dégagez le terrain" }
+                require(city.surface(i).flat || city.surface(i).ramp) { "L’eau de surface exige un terrain plat ou une rampe simple" }
+                cost = if (tile.water) 0 else 5
+                tiles[i] = tile.copy(water = true, trees = false)
             }
 
             r.tool == "pipe" -> {
@@ -111,6 +114,7 @@ class Commands(
 
             r.tool in listOf("road", "rail", "power") -> {
                 require(tile.building == null && tile.zone == Zone.NONE) { "Emplacement occupé" }
+                if (r.tool != "power") require(city.surface(i).flat || city.surface(i).ramp) { "Route ou rail : aplanissez cette pente irrégulière" }
                 cost =
                     when (r.tool) {
                         "road" -> if (tile.road) 0 else 10
@@ -149,7 +153,11 @@ class Commands(
                 require(r.x + def.size <= city.width && r.y + def.size <= city.height) { "Bâtiment hors carte" }
                 val footprint = (r.y until r.y + def.size).flatMap { y -> (r.x until r.x + def.size).map { x -> city.index(x, y) } }
                 require(footprint.all { n -> city.tiles[n].let { it.building == null && it.zone == Zone.NONE && !it.road && !it.rail && !it.powerLine && (if (def.id == "hydro") it.water else !it.water) } }) { "Emplacement occupé ou terrain incompatible" }
-                require(footprint.all { city.tiles[it].elevation == tile.elevation }) { "Aplanissez l’emplacement" }
+                if (def.id == "hydro") {
+                    require(city.surface(i).ramp) { "Le barrage exige de l’eau sur une rampe" }
+                } else {
+                    require(footprint.all { city.surface(it).flat && city.surface(it).minimum == city.surface(i).minimum }) { "Aplanissez toute l’emprise du bâtiment" }
+                }
                 if (def.id == "seaport" || def.id == "desalination") require(footprint.any { n -> city.neighbors(n).any { city.tiles[it].water } }) { "Nécessite une rive" }
                 cost = def.cost
                 footprint.forEach { n -> tiles[n] = tiles[n].copy(building = def.id, anchor = i, trees = false) }

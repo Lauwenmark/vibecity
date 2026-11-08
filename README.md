@@ -27,6 +27,19 @@ automatiquement chaque année simulée, sur demande et à la fermeture normale d
 Sans `--local`, le client affiche un accueil avec les boutons **Ville locale** et **Rejoindre…**.
 Pour recommencer, arrêter le jeu puis déplacer la sauvegarde locale vers un autre nom.
 
+## Mise à jour du relief et anciennes villes
+
+Le relief utilise désormais des sommets partagés : les pentes sont des surfaces du modèle de jeu,
+pas un raccord graphique entre plateformes. Les sauvegardes antérieures sont converties à l’ouverture.
+Une copie du fichier original est conservée à côté de celui-ci, avec le suffixe `.pre-slopes.json`
+(ou un suffixe numéroté si ce nom correspond déjà à une autre sauvegarde). Les constructions, réseaux,
+finances et données des plugins sont conservés. Les secteurs développés sont convertis en plateformes
+planes ; leur altitude et le relief voisin peuvent être relevés pour réconcilier les anciennes cases.
+Les anciens barrages sont conservés, même s’ils étaient construits sur de l’eau plate.
+
+Le protocole passe en **version 2** : redémarrer **le serveur et tous les clients** avec cette version.
+Recompiler les plugins contre le nouveau `core` avant de les redéployer, car le modèle `City` a changé.
+
 ## Jouer à plusieurs
 
 Sur la machine qui héberge la ville :
@@ -60,11 +73,20 @@ sauvegarde et arrête le serveur autonome ; l’arrêt forcé du processus ne le
 
 - Choisir un outil à gauche, cliquer ou glisser sur la carte ; survoler pour inspecter une case.
 - Placer une centrale sur une emprise **plate et dégagée**. Les outils Élever/Abaisser modifient
-  une case ; l’altitude zéro devient de l’eau. Une démolition retire tout le bâtiment sélectionné.
-- Zoner en résidentiel, commercial et industriel, avec densité légère ou dense. Les zones et les
+  les quatre sommets d’une case et raccordent les pentes voisines. **Aplanir** utilise l’altitude
+  cible du sélecteur (0–12). Le coût est de 5 $ par sommet effectivement modifié, y compris les
+  raccords. Une opération touchant une zone, un bâtiment ou un réseau existant est refusée en entier.
+  Les cases dont tous les sommets atteignent zéro deviennent de l’eau. Une démolition retire tout
+  le bâtiment sélectionné.
+- Zoner en résidentiel, commercial et industriel, avec densité légère ou dense. Une zone en pente
+  reste sans développement jusqu’à son aplanissement ; retirer d’abord le zonage pour terrasser. Les zones et les
   bâtiments transmettent l’électricité ; les routes nécessitent une ligne électrique pour la franchir.
 - Mettre des transports à trois cases au plus des zones. Les routes et rails sur l’eau deviennent
-  des ponts, coûtant cinq fois le prix normal.
+  des ponts, coûtant cinq fois le prix normal. Les routes et rails acceptent les rampes simples,
+  orientées dans le sens de la montée ; les pentes composées exigent un aplanissement.
+- L’outil **Eau / cascade** pose de l’eau de surface sur une case plane ou une rampe. Un barrage
+  hydroélectrique neuf nécessite une rampe couverte d’eau. Ce modèle n’effectue pas de simulation
+  hydraulique ni de propagation automatique du débit.
 - Alimenter une pompe et poser des conduites **sous chaque zone à desservir**, reliées à la pompe.
   Une pompe voisine de l’eau a une capacité doublée. Le calque Eau montre les réseaux souterrains.
 - Ajuster impôts et financement des services ; ajouter écoles, police, pompiers, parcs et hôpitaux.

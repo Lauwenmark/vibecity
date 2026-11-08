@@ -53,6 +53,21 @@ fun main() =
                 canvas.dispatchEvent(MouseEvent(canvas, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(), 0, screenX, screenY, 1, false, MouseEvent.BUTTON1))
             }
             awaitText("Validation Swing : park")
+            for ((label, tool) in listOf("Élever" to "raise", "Aplanir" to "level")) {
+                SwingUtilities.invokeAndWait {
+                    components(window).filterIsInstance<JToggleButton>().single { it.text.startsWith(label) }.doClick()
+                    val canvas = components(window).filterIsInstance<CityCanvas>().single()
+                    val city = requireNotNull(canvas.city)
+                    val projection = CityProjection(city.width, city.height, 1.0)
+                    val x = 26
+                    val y = 35
+                    val screenX = projection.screenX(x, y)
+                    val screenY = projection.centerY(x, y, city.surface(city.index(x, y)))
+                    canvas.dispatchEvent(MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), 0, screenX, screenY, 1, false, MouseEvent.BUTTON1))
+                    canvas.dispatchEvent(MouseEvent(canvas, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(), 0, screenX, screenY, 1, false, MouseEvent.BUTTON1))
+                }
+                awaitText("Validation Swing : $tool")
+            }
             SwingUtilities.invokeAndWait {
                 check(components(window).filterIsInstance<JToggleButton>().any { it.text.contains("Centrale à charbon") })
                 val image = BufferedImage(window.width, window.height, BufferedImage.TYPE_INT_RGB)
@@ -63,7 +78,7 @@ fun main() =
                 ImageIO.write(image, "png", Path.of("build/previews/application.png").toFile())
                 window.dispatchEvent(WindowEvent(window, WindowEvent.WINDOW_CLOSING))
             }
-            println("Swing smoke OK: connected, catalog loaded, shared bond and map construction acknowledged, screenshot rendered.")
+            println("Swing smoke OK: connected, catalog loaded, shared bond, construction and terrain edits acknowledged, screenshot rendered.")
         } finally {
             if (::window.isInitialized) SwingUtilities.invokeAndWait { window.dispose() }
             server.shutdown()

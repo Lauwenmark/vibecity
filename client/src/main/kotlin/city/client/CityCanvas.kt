@@ -39,9 +39,10 @@ class CityCanvas(
                 repaint()
                 return
             }
+            val changedTerrain = previous.terrain != value.terrain
             var dirty: Rectangle? = null
             for (i in value.tiles.indices) {
-                if (!sameAppearance(previous.tiles[i], value.tiles[i])) {
+                if (!sameAppearance(previous.tiles[i], value.tiles[i]) || (changedTerrain && previous.surface(i) != value.surface(i))) {
                     val bounds = projection!!.visualBounds(i)
                     cache.invalidate(bounds)
                     if (dirty == null) dirty = bounds else dirty.add(bounds)
@@ -142,7 +143,7 @@ class CityCanvas(
     private fun selectionBounds(index: Int): Rectangle? {
         val c = city ?: return null
         if (index !in c.tiles.indices) return null
-        return projection?.diamond(index % c.width, index / c.width, c.tiles[index].elevation)?.bounds?.apply { grow(3, 3) }
+        return projection?.polygon(c, index)?.bounds?.apply { grow(3, 3) }
     }
 
     private fun updateSize() {
@@ -168,7 +169,8 @@ class CityCanvas(
             } else {
                 "Terrain"
             }
-        return "${i % c.width}, ${i / c.width} · $name · ${t.occupants} occupants"
+        val s = c.surface(i)
+        return "${i % c.width}, ${i / c.width} · $name · altitude ${s.minimum}–${s.maximum} · ${t.occupants} occupants"
     }
 
     override fun paintComponent(graphics: Graphics) {
@@ -182,7 +184,7 @@ class CityCanvas(
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
                 g.color = Color(0xffe1a0)
                 g.stroke = BasicStroke(2f)
-                g.drawPolygon(projection!!.diamond(selected % c.width, selected / c.width, c.tiles[selected].elevation))
+                g.drawPolygon(projection!!.polygon(c, selected))
             }
         } finally {
             g.dispose()

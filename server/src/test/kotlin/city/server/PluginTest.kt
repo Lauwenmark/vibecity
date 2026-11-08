@@ -16,7 +16,7 @@ class PluginTest {
                 PluginLoader(directory, catalog).use { plugins ->
                     assertEquals("Jardin communautaire", catalog["community_garden"].name)
                     assertEquals(listOf("example.garden-attraction"), plugins.rules.map { it.id })
-                    var city = City(width = 16, height = 16, tiles = List(256) { Tile() })
+                    var city = City(width = 16, height = 16, tiles = List(256) { Tile() }, terrain = Terrain.flat(16, 16))
                     city = Commands(catalog).apply(city, Request("BUILD", tool = "community_garden", x = 5, y = 5))
                     city = Commands(catalog).apply(city, Request("BUILD", tool = "coal", x = 1, y = 2))
                     city = Commands(catalog).apply(city, Request("BUILD", tool = "zone:RESIDENTIAL_LIGHT", x = 5, y = 6))

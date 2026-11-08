@@ -3,6 +3,7 @@ package city.core
 /** A small serviced starter district, built through the same transactions as human players. */
 fun demoCity(): City {
     var city = City.generate()
+    city = city.withTerrain(requireNotNull(city.terrain).level(24, 18, 26, 23, 2))
     city = city.copy(tiles = city.tiles.mapIndexed { i, t -> if (i % 64 in 24..49 && i / 64 in 18..40) Tile(elevation = 2) else t })
     val commands = Commands(Catalog())
 

@@ -24,6 +24,7 @@ enum class Zone(
 /** A value snapshot. Server systems replace cells; neither clients nor plugins own mutable city state. */
 @Serializable
 data class Tile(
+    /** Compatibility altitude: minimum of the shared corners when City.terrain is present. */
     val elevation: Int = 2,
     val water: Boolean = false,
     val trees: Boolean = false,
@@ -83,9 +84,11 @@ data class City(
     val history: List<Statistics> = emptyList(),
     val notices: List<String> = emptyList(),
     val pluginData: Map<String, String> = emptyMap(),
+    val terrain: Terrain? = null,
 ) {
     init {
         require(width in 16..256 && height in 16..256 && tiles.size == width * height)
+        require(terrain == null || (terrain.width == width && terrain.height == height))
     }
 
     fun index(
@@ -111,16 +114,14 @@ data class City(
             size: Int = 64,
         ): City {
             require(size in 16..256)
+            val terrain = Terrain.generate(seed, size)
             val tiles =
                 List(size * size) { i ->
-                    val x = i % size
-                    val y = i / size
-                    val river = size * .24 + sin(y * .13 + seed % 17) * size * .055
-                    val water = abs(x - river) < 2
-                    val elevation = if (water) 0 else (2 + 2 * sin(x * .09 + seed % 13) * cos(y * .1)).roundToInt().coerceIn(1, 5)
-                    Tile(elevation, water, !water && noise(seed, i, 0) % 11 == 0)
+                    val surface = terrain.surface(i % size, i / size)
+                    val water = surface.maximum == 0
+                    Tile(elevation = surface.minimum, water = water, trees = !water && noise(seed, i, 0) % 11 == 0)
                 }
-            return City(width = size, height = size, seed = seed, tiles = tiles)
+            return City(width = size, height = size, seed = seed, tiles = tiles, terrain = terrain)
         }
     }
 }

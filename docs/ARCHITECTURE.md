@@ -39,6 +39,51 @@ l’occupation et le relief. Elle retourne une nouvelle ville avec une révision
 exception laisse la ville d’origine intacte. Les outils idempotents ne facturent pas une deuxième
 fois un réseau déjà présent. Rezoner une zone existante nécessite de la démolir au préalable.
 
+## Relief partagé
+
+`City.terrain` porte une grille de `(width+1) × (height+1)` sommets entiers de 0 à 12. Chaque case
+référence implicitement quatre sommets, sans copies indépendantes des bords : nord `(x,y)`, est
+`(x+1,y)`, sud `(x+1,y+1)`, ouest `(x,y+1)`. La différence entre le sommet le plus haut et le plus
+bas d’une case ne dépasse jamais un niveau. `Surface` expose le minimum, le maximum, la planéité
+et l’orientation des rampes simples. Le rendu triangule le quadrilatère suivant sa diagonale
+nord-sud et ombre les pentes. Le centre repose sur cette diagonale, y compris pour les coins relevés.
+
+L’altitude `Tile.elevation` est conservée pour les inspections et les plugins existants au niveau
+source, mais c’est une valeur dérivée égale au minimum des quatre sommets. Elle ne suffit plus à
+caractériser un terrain. `City.surface(index)` est l’accès commun aux règles et au client.
+
+Élever/abaisser déplace les quatre sommets d’une case d’un niveau. Chaque autre sommet est ramené
+dans l’intervalle compatible avec ces ancrages et leur distance de Chebyshev, afin de raccorder le
+relief sans sauts. Aplanir fixe une altitude pour les quatre coins et raccorde également le voisinage.
+Le serveur calcule toute la transformation avant d’accepter l’opération : chaque sommet modifié coûte
+5 $, et toute modification d’une case comportant zone, bâtiment ou réseau, y compris souterrain,
+refuse la transaction. Les finances et la géométrie restent intactes en cas de refus.
+
+Les bâtiments ordinaires exigent une emprise plane à une même altitude. Le zonage sur pente reste
+possible, mais la croissance de base exige une case plane. Routes et rails acceptent le plat et les
+rampes simples ; leurs connexions suivent l’axe de la pente. Les coins et selles ne sont pas des
+rampes routières. Les conduites et lignes électriques suivent la géométrie de surface dans le rendu.
+Le transport reste un modèle agrégé de proximité, sans calcul de trajet domicile-travail.
+
+L’eau naturelle occupe les cases entièrement à l’altitude zéro. L’outil Eau peut également couvrir
+une surface plane ou une rampe en altitude ; un barrage neuf exige une rampe couverte d’eau.
+Il ne s’agit pas d’un solveur hydraulique : le débit et l’écoulement automatique ne sont pas simulés.
+Terrasser une case recalcule son eau à partir du niveau zéro et retire ses arbres.
+
+Le champ nullable `terrain` permet de reconnaître une ancienne sauvegarde. `withSharedTerrain()`
+crée les sommets à partir de ses altitudes, puis rassemble les cases développées qui partagent des
+sommets en plateformes planes. Leur altitude est relevée si nécessaire pour respecter les anciens
+hauts niveaux ; les terrains libres voisins sont raccordés. Aucune construction n’est supprimée.
+La migration est déterministe et ne débite pas le budget, mais peut modifier sensiblement le relief
+d’un quartier déjà bâti. Les barrages existants bénéficient de la conservation des constructions.
+Le chargement sauvegarde les octets originaux sous `.pre-slopes.json` avant de rendre la ville
+convertie au serveur ; un nom numéroté évite d’écraser une sauvegarde de secours différente.
+
+Les nouveaux états TCP (protocole 2) et les villes créées par le générateur possèdent toujours la
+grille partagée. Le serveur normalise aussi les villes anciennes fournies directement à son
+constructeur. La sélection et le cache utilisent les quatre sommets : une modification d’un coin
+invalide les portions concernées même si le minimum de la case n’a pas changé.
+
 ## Ordonnancement et coroutines
 
 1. Chaque socket dispose d’une coroutine de lecture et d’une coroutine d’écriture sur une vue de `Dispatchers.IO` réservant assez de slots pour les deux sens des 32 sockets.

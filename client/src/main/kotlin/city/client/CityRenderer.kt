@@ -31,15 +31,31 @@ internal class CityRenderer(
                 val i = y * city.width + x
                 val t = city.tiles[i]
                 val sx = projection.screenX(x, y)
-                val sy = projection.screenY(x, y, t.elevation)
-                val diamond = projection.diamond(x, y, t.elevation)
+                val surface = city.surface(i)
+                val sy = projection.centerY(x, y, surface)
+                val diamond = projection.polygon(city, i)
                 if (x == city.width - 1 || y == city.height - 1) {
-                    val depth = (12 + t.elevation * 3) * zoom
                     g.color = Color(0x344b3e)
-                    g.fillPolygon(intArrayOf(sx - w, sx, sx + w, sx + w, sx, sx - w), intArrayOf(sy, sy + h, sy, sy + depth.toInt(), sy + h + depth.toInt(), sy + depth.toInt()), 6)
+                    val bottom = (85 + (x + y) * th + 12 * zoom).toInt()
+                    if (x == city.width - 1) g.fillPolygon(intArrayOf(diamond.xpoints[1], diamond.xpoints[2], diamond.xpoints[2], diamond.xpoints[1]), intArrayOf(diamond.ypoints[1], diamond.ypoints[2], bottom + h, bottom), 4)
+                    if (y == city.height - 1) g.fillPolygon(intArrayOf(diamond.xpoints[2], diamond.xpoints[3], diamond.xpoints[3], diamond.xpoints[2]), intArrayOf(diamond.ypoints[2], diamond.ypoints[3], bottom, bottom + h), 4)
                 }
                 g.color = tileColor(t)
                 g.fillPolygon(diamond)
+                if (!surface.flat && (layer == Layer.SURFACE || layer == Layer.ZONES)) {
+                    // Two triangles share the north/south diagonal, matching the surface geometry.
+                    fun shade(
+                        a: Int,
+                        b: Int,
+                        c: Int,
+                        gradient: Int,
+                    ) {
+                        g.color = if (gradient >= 0) Color(255, 255, 255, (gradient * 18).coerceAtMost(60)) else Color(0, 0, 0, (-gradient * 18).coerceAtMost(60))
+                        g.fillPolygon(intArrayOf(diamond.xpoints[a], diamond.xpoints[b], diamond.xpoints[c]), intArrayOf(diamond.ypoints[a], diamond.ypoints[b], diamond.ypoints[c]), 3)
+                    }
+                    shade(0, 1, 2, surface.east - surface.north)
+                    shade(0, 2, 3, surface.north - surface.west)
+                }
                 g.color = Color(255, 255, 255, 17)
                 g.drawPolygon(diamond)
                 if (t.water && layer == Layer.SURFACE) {
@@ -50,10 +66,9 @@ internal class CityRenderer(
                     g.color = if (t.road) Color(0x47535a) else Color(0x938d80)
                     g.stroke = BasicStroke((if (t.road) 6 else 3) * zoom.toFloat())
                     for (n in city.neighbors(i)) {
-                        if (if (t.road) city.tiles[n].road else city.tiles[n].rail) {
-                            val dx = n % city.width - x
-                            val dy = n / city.width - y
-                            g.drawLine(sx, sy, sx + ((dx - dy) * tw).toInt(), sy + ((dx + dy) * th).toInt())
+                        if ((if (t.road) city.tiles[n].road else city.tiles[n].rail) && city.transportConnects(i, n)) {
+                            val edge = edgePoint(diamond, n % city.width - x, n / city.width - y)
+                            g.drawLine(sx, sy, edge.x, edge.y)
                         }
                     }
                     g.fillOval(sx - 3, sy - 2, 6, 4)
@@ -63,7 +78,13 @@ internal class CityRenderer(
                     if (t.pipe || t.subway) {
                         g.color = if (t.pipe) Color(0x63dcf2) else Color(0xc1a1df)
                         g.stroke = BasicStroke(3 * zoom.toFloat())
-                        g.drawLine(sx - w, sy, sx + w, sy)
+                        for (n in city.neighbors(i)) {
+                            if (if (t.pipe) city.tiles[n].pipe || city.tiles[n].building != null else city.tiles[n].subway) {
+                                val edge = edgePoint(diamond, n % city.width - x, n / city.width - y)
+                                g.drawLine(sx, sy, edge.x, edge.y)
+                            }
+                        }
+                        g.fillOval(sx - 2, sy - 2, 4, 4)
                         g.stroke = BasicStroke(1f)
                     }
                 } else if (layer != Layer.ZONES) {
@@ -112,7 +133,13 @@ internal class CityRenderer(
                     if (t.powerLine) {
                         g.color = Color(0xe3d785)
                         g.drawLine(sx, sy, sx, sy - (15 * zoom).toInt())
-                        g.drawLine(sx - w, sy - (12 * zoom).toInt(), sx + w, sy - (12 * zoom).toInt())
+                        g.drawLine(sx - (4 * zoom).toInt(), sy - (12 * zoom).toInt(), sx + (4 * zoom).toInt(), sy - (12 * zoom).toInt())
+                        for (n in city.neighbors(i)) {
+                            if (city.tiles[n].powerLine) {
+                                val edge = edgePoint(diamond, n % city.width - x, n / city.width - y)
+                                g.drawLine(sx, sy - (12 * zoom).toInt(), edge.x, edge.y - (12 * zoom).toInt())
+                            }
+                        }
                     }
                 }
                 if (t.fire > 0) {
@@ -121,6 +148,22 @@ internal class CityRenderer(
                 }
             }
         }
+    }
+
+    private fun edgePoint(
+        polygon: Polygon,
+        dx: Int,
+        dy: Int,
+    ): Point {
+        val a =
+            when {
+                dx > 0 -> 1
+                dx < 0 -> 3
+                dy > 0 -> 2
+                else -> 0
+            }
+        val b = (a + 1) % 4
+        return Point((polygon.xpoints[a] + polygon.xpoints[b]) / 2, (polygon.ypoints[a] + polygon.ypoints[b]) / 2)
     }
 
     private fun tileColor(t: Tile): Color {

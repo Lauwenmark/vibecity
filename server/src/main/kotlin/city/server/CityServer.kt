@@ -47,7 +47,7 @@ class CityServer(
     private val commands = Commands(catalog)
     private val simulation = Simulation(catalog, rules, systems = systems)
     private val sessions = linkedSetOf<Session>() // owned by actor only
-    private var city = initial
+    private var city = initial.withSharedTerrain()
 
     private sealed interface Event {
         data class Join(
@@ -202,7 +202,7 @@ class CityServer(
                 val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
                 val writer = socket.getOutputStream().bufferedWriter(Charsets.UTF_8)
                 val hello = wireJson.decodeFromString<Request>(readFrame(reader, 8192) ?: return@coroutineScope)
-                require(hello.type == "HELLO" && hello.version == PROTOCOL_VERSION) { "HELLO version 1 attendu" }
+                require(hello.type == "HELLO" && hello.version == PROTOCOL_VERSION) { "HELLO version $PROTOCOL_VERSION attendu" }
                 require(hello.name.matches(Regex("[\\p{L}\\p{N} _-]{1,24}"))) { "Nom invalide" }
                 require(MessageDigest.isEqual(token.toByteArray(Charsets.UTF_8), hello.token.toByteArray(Charsets.UTF_8))) { "Jeton incorrect" }
                 val connected = Session(socket, hello.name)

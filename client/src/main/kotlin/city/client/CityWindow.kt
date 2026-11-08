@@ -33,6 +33,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
     private val notices = JTextArea()
     private val players = JLabel("Hors ligne")
     private val disasters = JCheckBox("Incendies aléatoires")
+    private val terrainAltitude = JSpinner(SpinnerNumberModel(2, 0, Terrain.MAX_HEIGHT, 1))
     private val tools = JPanel()
     private val chart = HistoryChart()
     private val minimap = MiniMap()
@@ -63,7 +64,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         actions.add(button("Ville locale") { startLocal() })
         actions.add(button("Rejoindre…") { joinDialog() })
         actions.add(button("Sauvegarder") { send(Request("SAVE")) })
-        actions.add(button("Guide") { JOptionPane.showMessageDialog(this, "1. Choisissez une centrale et un terrain plat (ou utilisez le relief).\n2. Reliez les zones résidentielles, commerciales et industrielles à l’électricité.\n3. Placez des routes à trois cases au plus des zones.\n4. Ajoutez une pompe alimentée et des conduites sous les zones.\n5. Surveillez demandes R/C/I, budget, pollution et services.\n\nClic / glisser : construire. Survol : inspecter. Ctrl+molette : zoom.\nLes constructions, impôts et vitesses sont partagés entre tous les joueurs.\nLa ville locale contient un quartier de départ ; le serveur autonome commence vide.", "Guide du maire", JOptionPane.INFORMATION_MESSAGE) })
+        actions.add(button("Guide") { JOptionPane.showMessageDialog(this, "1. Choisissez une centrale et une emprise plane ; utilisez Aplanir avec son altitude cible si nécessaire.\n2. Reliez les zones résidentielles, commerciales et industrielles à l’électricité.\n3. Placez des routes à trois cases au plus des zones.\n4. Ajoutez une pompe alimentée et des conduites sous les zones.\n5. Surveillez demandes R/C/I, budget, pollution et services.\n\nClic / glisser : construire. Survol : inspecter. Ctrl+molette : zoom.\nLes constructions, impôts et vitesses sont partagés entre tous les joueurs.\nLa ville locale contient un quartier de départ ; le serveur autonome commence vide.", "Guide du maire", JOptionPane.INFORMATION_MESSAGE) })
         header.add(actions, BorderLayout.EAST)
         add(header, BorderLayout.NORTH)
         tools.layout = BoxLayout(tools, BoxLayout.Y_AXIS)
@@ -224,8 +225,15 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         section("RÉSEAUX")
         listOf(Triple("road", "Route / pont", 10), Triple("rail", "Rail / pont", 20), Triple("power", "Ligne électrique", 2), Triple("pipe", "Conduite d’eau", 3), Triple("subway", "Tunnel de métro", 20), Triple("clear_underground", "Retirer le sous-sol", 1)).forEach { tool(it.first, it.second, it.third) }
         section("TERRAIN")
-        tool("raise", "Élever", 10)
-        tool("lower", "Abaisser", 10)
+        tool("raise", "Élever (5 $ / sommet)")
+        tool("lower", "Abaisser (5 $ / sommet)")
+        tool("level", "Aplanir à l’altitude choisie")
+        tools.add(label("ALTITUDE CIBLE (0–12)"))
+        terrainAltitude.maximumSize = Dimension(210, 28)
+        terrainAltitude.alignmentX = Component.LEFT_ALIGNMENT
+        terrainAltitude.toolTipText = "Altitude de l’outil Aplanir. Le terrassement coûte 5 $ par sommet modifié."
+        tools.add(terrainAltitude)
+        tool("water", "Eau / cascade", 5)
         tool("trees", "Planter des arbres", 3)
         section("BÂTIMENTS & SERVICES")
         definitions.sortedWith(compareBy({ it.year }, { it.name })).forEach { tool(it.id, "${it.name}${if (it.year > 1900) " (${it.year})" else ""}", it.cost) }
@@ -236,7 +244,15 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
 
     private fun build(i: Int) {
         val c = current ?: return
-        send(Request("BUILD", tool = selectedTool, x = i % c.width, y = i / c.width))
+        if (selectedTool == "level") {
+            try {
+                terrainAltitude.commitEdit()
+            } catch (_: java.text.ParseException) {
+                status.text = "Indiquez une altitude entière entre 0 et ${Terrain.MAX_HEIGHT}."
+                return
+            }
+        }
+        send(Request("BUILD", tool = selectedTool, x = i % c.width, y = i / c.width, value = if (selectedTool == "level") terrainAltitude.value as Int else 0))
     }
 
     private fun send(r: Request) {
@@ -246,7 +262,16 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
     private fun inspect(i: Int) {
         val c = current ?: return
         val t = c.tiles.getOrNull(i) ?: return
-        val text = "Case ${i % c.width}, ${i / c.width} · altitude ${t.elevation}\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\nOccupants : ${t.occupants}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Trafic ${t.traffic}"
+        val surface = c.surface(i)
+        val slope =
+            if (surface.flat) {
+                "plat"
+            } else if (surface.ramp) {
+                "rampe"
+            } else {
+                "pente composée"
+            }
+        val text = "Case ${i % c.width}, ${i / c.width} · altitude ${surface.minimum}–${surface.maximum} ($slope)\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\nOccupants : ${t.occupants}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Trafic ${t.traffic}"
         if (inspector.text != text) inspector.text = text
     }
 

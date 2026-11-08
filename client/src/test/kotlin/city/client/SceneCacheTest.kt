@@ -14,6 +14,7 @@ class SceneCacheTest {
     private fun fixture(): City {
         val c = City.generate(size = 32)
         return c.copy(
+            terrain = null,
             tiles =
                 c.tiles.mapIndexed { i, t ->
                     when {

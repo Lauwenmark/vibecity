@@ -62,6 +62,19 @@ et statistiques. La taille et le coût de sérialisation de cet état restent à
 - Une exception met la simulation en pause. Un plugin est du **code JVM de confiance**, sans sandbox
   ni quota CPU ; ne pas charger un JAR non vérifié.
 
+## Relief partagé
+
+Utiliser `city.surface(index)` pour les quatre coins, la planéité et l’orientation ;
+`Tile.elevation` n’est que l’altitude minimale. Une `TileRule` ne doit plus modifier cette propriété
+isolément. Pour un système global qui transforme le terrain, construire un `Terrain` valide puis
+utiliser `city.withTerrain(terrain)` pour synchroniser les altitudes dérivées ; pour les mêmes
+protections et coûts que les joueurs, passer par les commandes de terrassement. Un système global
+reste responsable de ne pas déformer des emprises occupées et de préserver les statistiques.
+
+Le changement du modèle `City` nécessite de **recompiler les JAR de plugins** contre cette version
+de `core`. Le protocole réseau 2 et l’API de plugins 1 sont deux numérotations distinctes ; comme
+annoncé, cette API ne garantit pas une compatibilité binaire des modèles entre versions du jeu.
+
 ## Compatibilité et distribution
 
 Compiler avec Kotlin 2.4.21 et une cible JVM 21 contre `core` en `compileOnly`.

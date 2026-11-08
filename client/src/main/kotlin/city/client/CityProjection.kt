@@ -1,6 +1,6 @@
 package city.client
 
-import city.core.City
+import city.core.*
 import java.awt.Point
 import java.awt.Polygon
 import java.awt.Rectangle
@@ -44,6 +44,39 @@ internal class CityProjection(
         return Polygon(intArrayOf(sx, sx + w, sx, sx - w), intArrayOf(sy - h, sy, sy + h, sy), 4)
     }
 
+    fun centerY(
+        x: Int,
+        y: Int,
+        surface: Surface,
+    ): Int = (85 + (x + y) * th - surface.centerHeight * 3 * zoom).toInt()
+
+    /** Every shared vertex projects to the same pixel from either adjacent tile. */
+    fun polygon(
+        city: City,
+        index: Int,
+    ): Polygon {
+        val x = index % width
+        val y = index / width
+        val s = city.surface(index)
+        if (city.terrain == null) return diamond(x, y, s.minimum)
+
+        fun vx(
+            px: Int,
+            py: Int,
+        ) = (originX + (px - py) * tw).toInt()
+
+        fun vy(
+            px: Int,
+            py: Int,
+            z: Int,
+        ) = (85 + (px + py) * th - th - z * 3 * zoom).toInt()
+        return Polygon(
+            intArrayOf(vx(x, y), vx(x + 1, y), vx(x + 1, y + 1), vx(x, y + 1)),
+            intArrayOf(vy(x, y, s.north), vy(x + 1, y, s.east), vy(x + 1, y + 1, s.south), vy(x, y + 1, s.west)),
+            4,
+        )
+    }
+
     /** Covers a changed cell and the connecting strokes drawn by its neighboring road/rail cells. */
     fun visualBounds(index: Int): Rectangle {
         val sx = screenX(index % width, index / width)
@@ -64,7 +97,7 @@ internal class CityProjection(
             for (y in endY downTo startY) {
                 val x = diagonal - y
                 val i = y * width + x
-                if (diamond(x, y, city.tiles[i].elevation).contains(point)) return i
+                if (polygon(city, i).contains(point)) return i
             }
         }
         return -1
