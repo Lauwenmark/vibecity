@@ -41,6 +41,30 @@ class RoadTrafficAnimationTest {
         assertTrue(view.isEmpty)
     }
 
+    @Test fun `construction retains decorative traffic until recalculation but demolished roads stay empty`() {
+        val city = fixture()
+        val view = RoadTrafficAnimation()
+        view.update(city, 8, 1.0)
+        val original = view.segments.map { it.from to it.to }
+        val built = Commands(Catalog()).apply(city, Request("BUILD", tool = "park", x = 2, y = 2))
+        assertNull(built.mobility)
+        view.update(built, 8, 1.0)
+        assertEquals(original, view.segments.map { it.from to it.to })
+        val gap = 6 * 16 + 7
+        val demolished = built.copy(revision = 2, tiles = built.tiles.mapIndexed { i, tile -> if (i == gap) Tile() else tile })
+        view.update(demolished, 8, 1.0)
+        assertFalse(view.isEmpty)
+        assertTrue(view.segments.none { it.from == gap || it.to == gap })
+        view.update(built.copy(revision = 3), 8, 1.0)
+        assertTrue(view.segments.none { it.from == gap || it.to == gap })
+        view.update(city.copy(revision = 4, mobility = city.mobility!!.copy(homes = emptyList())), 8, 1.0)
+        assertTrue(view.isEmpty)
+        view.update(city, 8, 1.0)
+        view.update(null, 8, 1.0)
+        view.update(built, 8, 1.0)
+        assertTrue(view.isEmpty)
+    }
+
     @Test fun `cars never cross missing roads or fire and respect terrain projection`() {
         val source = fixture()
         val gap = 6 * 16 + 7

@@ -24,6 +24,8 @@ internal class RoadTrafficAnimation {
     internal var segments: List<Segment> = emptyList()
         private set
     private var zoom = 1.0
+    private var source: City? = null
+    private var roadLoads: List<TrafficLoad> = emptyList()
     val isEmpty: Boolean get() = segments.isEmpty()
 
     fun update(
@@ -33,14 +35,25 @@ internal class RoadTrafficAnimation {
         catalog: Map<String, BuildingDef> = emptyMap(),
     ) {
         this.zoom = zoom
-        val mobility = city?.mobility
-        if (city == null || mobility == null) {
+        val previous = source
+        if (city == null || previous?.seed != city.seed || previous.width != city.width || previous.height != city.height || city.revision < previous.revision) {
+            roadLoads = emptyList()
+        }
+        if (city == null) {
+            source = null
             segments = emptyList()
             return
         }
+        // Only decorative counts survive invalidation; planned/actual citizen paths remain invalid.
+        val mobility = city.mobility
+        if (mobility != null && (previous?.mobility !== mobility || roadLoads.isEmpty())) {
+            roadLoads = mobility.aggregateLoads().filter { it.mode == TravelMode.ROAD }
+        }
+        roadLoads = roadLoads.filter { city.tiles[it.cell].road && city.tiles[it.cell].fire == 0 }
+        source = city
         val volumes = IntArray(city.tiles.size)
-        for (load in mobility.aggregateLoads()) {
-            if (load.mode == TravelMode.ROAD) volumes[load.cell] = if (hour in 0..23) load.hours[hour] else load.hours.max()
+        for (load in roadLoads) {
+            volumes[load.cell] = if (hour in 0..23) load.hours[hour] else load.hours.max()
         }
         if (volumes.none { it > 0 }) {
             segments = emptyList()

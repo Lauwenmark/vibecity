@@ -32,7 +32,7 @@ class CityServer(
     }
 
     // Enough blocking-IO slots for both directions of every peer plus the listener.
-    // The CPU actor uses Default and can evict slow writers even when all sockets block.
+    // The transaction actor stays on IO; expensive simulation and encoding use Default.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(MAX_CLIENTS * 2 + 4))
     private val listener =
         ServerSocket().apply {
@@ -49,7 +49,28 @@ class CityServer(
     private val sessions = linkedSetOf<Session>() // owned by actor only
     private var city = initial.withSharedTerrain()
 
+    private var simulationJob: Job? = null
+    private var snapshotSequence = 0L
+
+    private data class Snapshot(
+        val sequence: Long,
+        val response: Response,
+    )
+
+    private val snapshots = Channel<Snapshot>(Channel.CONFLATED)
+
     private sealed interface Event {
+        data class Simulated(
+            val revision: Long,
+            val result: City?,
+            val failure: Exception?,
+        ) : Event
+
+        data class Encoded(
+            val sequence: Long,
+            val frame: String,
+        ) : Event
+
         data class Join(
             val session: Session,
         ) : Event
@@ -86,7 +107,7 @@ class CityServer(
     }
 
     private val actor =
-        scope.launch(Dispatchers.Default) {
+        scope.launch {
             for (event in events) {
                 when (event) {
                     is Event.Join -> {
@@ -124,6 +145,7 @@ class CityServer(
 
                                 else -> {
                                     city = commands.apply(city, r)
+                                    simulationJob?.cancel()
                                     send(s, Response("ACK", id = r.id, message = "${s.name} : ${r.tool.ifEmpty { r.type }}"))
                                     broadcast()
                                 }
@@ -135,24 +157,56 @@ class CityServer(
                     }
 
                     is Event.Tick -> {
-                        try {
-                            if (city.rules.speed > 0) {
-                                val previousYear = city.month / 12
-                                repeat(city.rules.speed) { city = simulation.step(city) }
-                                if (city.month / 12 > previousYear && savePath != null) withContext(Dispatchers.IO) { Persistence.save(savePath, city) }
-                                broadcast()
-                            }
-                        } catch (e: Exception) {
-                            if (e is CancellationException) throw e
-                            System.err.println("Simulation paused: ${e.message}")
-                            city = city.copy(rules = city.rules.copy(speed = 0), notices = listOf("Simulation arrêtée : ${e.message}"))
-                            broadcast()
-                        } finally {
+                        if (city.rules.speed == 0) {
                             event.done.complete(Unit)
+                        } else {
+                            val base = city
+                            simulationJob =
+                                scope
+                                    .launch(Dispatchers.Default) {
+                                        try {
+                                            var result = base
+                                            repeat(base.rules.speed) { result = simulation.step(result) }
+                                            events.send(Event.Simulated(base.revision, result, null))
+                                        } catch (e: Exception) {
+                                            if (e is CancellationException) throw e
+                                            events.send(Event.Simulated(base.revision, null, e))
+                                        }
+                                    }.also { job ->
+                                        // Also completes if cancellation happens before the coroutine starts.
+                                        job.invokeOnCompletion { event.done.complete(Unit) }
+                                    }
+                        }
+                    }
+
+                    is Event.Simulated -> {
+                        // A command may have invalidated this calculation, even after it finished.
+                        if (event.revision != city.revision) continue
+                        val previousYear = city.month / 12
+                        if (event.failure != null) {
+                            System.err.println("Simulation paused: ${event.failure.message}")
+                            city = city.copy(rules = city.rules.copy(speed = 0), notices = listOf("Simulation arrêtée : ${event.failure.message}"))
+                        } else {
+                            city = checkNotNull(event.result)
+                            if (city.month / 12 > previousYear && savePath != null) withContext(Dispatchers.IO) { Persistence.save(savePath, city) }
+                        }
+                        broadcast()
+                    }
+
+                    is Event.Encoded -> {
+                        if (event.sequence != snapshotSequence) continue
+                        val iterator = sessions.iterator()
+                        while (iterator.hasNext()) {
+                            val session = iterator.next()
+                            if (!session.outgoing.trySend(event.frame).isSuccess) {
+                                session.close()
+                                iterator.remove()
+                            }
                         }
                     }
 
                     is Event.Stop -> {
+                        simulationJob?.cancel()
                         try {
                             if (savePath != null) withContext(Dispatchers.IO) { Persistence.save(savePath, city) }
                             event.done.complete(Unit)
@@ -166,6 +220,12 @@ class CityServer(
         }
 
     init {
+        scope.launch(Dispatchers.Default) {
+            for (snapshot in snapshots) {
+                val frame = wireJson.encodeToString(snapshot.response)
+                events.send(Event.Encoded(snapshot.sequence, frame))
+            }
+        }
         scope.launch {
             try {
                 while (running.get()) {
@@ -261,15 +321,7 @@ class CityServer(
     }
 
     private fun broadcast() {
-        val frame = wireJson.encodeToString(Response("STATE", city = city, players = sessions.map { it.name }))
-        val iterator = sessions.iterator()
-        while (iterator.hasNext()) {
-            val s = iterator.next()
-            if (!s.outgoing.trySend(frame).isSuccess) {
-                s.close()
-                iterator.remove()
-            }
-        }
+        snapshots.trySend(Snapshot(++snapshotSequence, Response("STATE", city = city, players = sessions.map { it.name })))
     }
 
     /** Drains commands already admitted, then saves; socket closure unblocks all blocking IO. */

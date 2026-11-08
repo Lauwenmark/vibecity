@@ -73,6 +73,67 @@ class ServerTest {
             }
         }
 
+    @Test fun `construction and pause respond while simulation is blocked and stale result is discarded`() =
+        runBlocking {
+            val entered = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val finished = CompletableDeferred<Unit>()
+            val slow =
+                object : CityRule {
+                    override val id = "test.slow"
+
+                    override suspend fun evolve(
+                        city: City,
+                        catalog: Catalog,
+                    ): City {
+                        entered.complete(Unit)
+                        // Deliberately emulate a plugin that finishes despite cancellation.
+                        return withContext(NonCancellable) {
+                            release.await()
+                            finished.complete(Unit)
+                            city
+                        }
+                    }
+                }
+            val server = CityServer(flat().copy(rules = Rules(speed = 1)), port = 0, savePath = null, tickMillis = 40, systems = listOf(slow))
+            try {
+                Peer(server.port).use { peer ->
+                    peer.until { it.type == "STATE" }
+                    withTimeout(5000) { entered.await() }
+                    peer.send(Request("BUILD", id = 1, tool = "park", x = 2, y = 2))
+                    assertEquals("ACK", peer.until { it.id == 1L }.type)
+                    val built =
+                        peer
+                            .until {
+                                it.city
+                                    ?.tiles
+                                    ?.get(34)
+                                    ?.building == "park"
+                            }.city!!
+                    assertEquals(1, built.revision)
+                    assertNull(built.day)
+                    peer.send(Request("SPEED", id = 2, value = 0))
+                    peer.until { it.type == "ACK" && it.id == 2L }
+                    peer.until { it.city?.rules?.speed == 0 }
+                    release.complete(Unit)
+                    withTimeout(5000) { finished.await() }
+                    peer.send(Request("TAX", id = 3, value = 8))
+                    val latest = peer.until { it.city?.rules?.taxRate == 8 }.city!!
+                    assertEquals("park", latest.tiles[34].building)
+                    assertEquals(3, latest.revision)
+                    assertNull(latest.day)
+                    peer.send(Request("SPEED", id = 4, value = 1))
+                    val resumed = peer.until { (it.city?.day ?: 0) >= 1 }.city!!
+                    assertEquals("park", resumed.tiles[34].building)
+                    assertEquals(8, resumed.rules.taxRate)
+                    assertTrue(resumed.revision >= 5)
+                }
+            } finally {
+                release.complete(Unit)
+                server.shutdown()
+            }
+        }
+
     @Test fun `bad token is disconnected while valid peer keeps working`() =
         runBlocking {
             val server = CityServer(flat(), port = 0, token = "secret", savePath = null)

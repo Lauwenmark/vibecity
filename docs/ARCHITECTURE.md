@@ -145,7 +145,17 @@ financement et intérêts des emprunts. Les formules sont visibles dans `Simulat
 
 ## Réplication et pression réseau
 
-Le serveur publie un instantané complet après chaque transaction et tick, avec sa révision.
+L’acteur traite les commandes sans attendre les calculs de trafic. La simulation travaille sur
+un instantané immuable dans une coroutine `Default` ; l’acteur reste l’unique propriétaire de la
+ville. Toute transaction acceptée annule le calcul en cours. Un résultat (ou une erreur) portant
+une ancienne révision est ignoré : il ne peut écraser ni une construction ni une pause. Le prochain
+tick reprend le calcul depuis la ville modifiée. Une séquence continue de constructions peut donc
+retarder l’avancement du calendrier ; les journées ne sont jamais fusionnées avec des commandes
+après coup. Il n’y a qu’un calcul de simulation à la fois, et aucun tick accumulé.
+
+Le serveur demande un instantané complet après chaque transaction et tick, avec sa révision.
+La sérialisation JSON se fait hors de l’acteur, avec une seule demande en attente (la plus récente).
+Les états intermédiaires remplacés ne sont pas publiés ; les ACK/ERROR restent individuels.
 Les journées sont exécutées entièrement avant publication ; l’inspecteur rejoue la dernière journée.
 Les clients peuvent ainsi rejoindre ou se reconnecter sans historique d’opérations. Une reconnexion
 est une nouvelle session ; aucune commande n’est automatiquement rejouée.
@@ -169,6 +179,10 @@ changements d’état, d’heure, de catalogue ou de zoom. Un timer Swing coales
 Les liaisons hors du clip ne sont pas dessinées. Les voitures restent sous les surcouches de
 trajet et de sélection. Le timer s’arrête en pause, sur les calques techniques, lorsque la vue
 est masquée ou retirée, ou quand l’utilisateur décoche Voitures.
+Après une construction, les dernières charges routières connues restent utilisées pour les voitures
+décoratives jusqu’au prochain résultat de simulation. Les routes supprimées ou en feu sont retirées
+immédiatement de ce cache ; une route reconstruite attend de nouvelles mesures. Ce cache ne restaure
+aucun itinéraire individuel invalidé et est vidé à la déconnexion ou au changement de ville.
 
 `SceneCache` conserve des portions d’image
 RGB de 256 × 256 pixels logiques, avec une bordure technique de deux pixels. Le cache LRU est limité

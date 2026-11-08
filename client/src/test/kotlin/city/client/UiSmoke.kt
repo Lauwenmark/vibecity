@@ -46,6 +46,8 @@ fun main() =
                 check(!canvas.trafficAnimationRunning)
                 canvas.city = snapshot.copy(rules = snapshot.rules.copy(speed = 1))
                 check(canvas.trafficAnimationRunning)
+                canvas.city = canvas.city!!.copy(mobility = null, revision = snapshot.revision + 1)
+                check(canvas.trafficAnimationRunning) // Construction invalidation must not stop decorative cars.
                 canvas.layer = Layer.WATER
                 check(!canvas.trafficAnimationRunning)
                 canvas.layer = Layer.SURFACE
