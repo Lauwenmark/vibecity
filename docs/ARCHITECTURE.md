@@ -251,3 +251,11 @@ Les plugins sont du code de confiance dans le processus serveur. Une exception d
 la ville en pause et affiche une notification ; un blocage infini de plugin n’est pas isolé.
 Les joueurs sont des pairs de confiance : pas de permissions par maire, d’authentification par compte,
 de modération ou de TLS natif. Le serveur ne propose aucun chemin de fichier contrôlé par le client.
+
+Le routeur de mobilité préconstruit pour chaque instantané un graphe immuable de voisins et de
+coûts primitifs, avec et sans congestion. Les surfaces sont calculées une seule fois. Chaque recherche
+emprunte exclusivement un espace de travail (distances, parents, file de priorité), conservé jusqu’à
+la reconstruction des chemins puis remis au pool dans un `finally`, y compris en cas d’annulation.
+Seuls les nœuds visités sont réinitialisés. Le verrou du pool n’est jamais gardé pendant le calcul ;
+la propriété de l’espace suit l’appel, indépendamment du thread exécutant la coroutine. L’ordre des
+voisins, les départages, les coûts et les points de vérification d’annulation restent inchangés.

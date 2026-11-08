@@ -229,6 +229,7 @@ internal class MobilityRouter(
     previous: Mobility?,
 ) {
     private val size = city.tiles.size
+    private val surfaces = Array(size) { city.surface(it) }
     private val neighbors = Array(size) { city.neighbors(it) }
     private val transfers = Array(size) { mutableListOf<Int>() }
     private val delay = IntArray(size * 4)
@@ -274,12 +275,32 @@ internal class MobilityRouter(
         }
     }
 
+    // Triples (destination, base minutes, congested minutes), in the original neighbor order.
+    // Built once per immutable city snapshot; no collections or terrain objects during traversal.
+    private val adjacency =
+        Array(size * 4) { node ->
+            val edges = buildEdges(node)
+            IntArray(edges.size * 3).also { data ->
+                edges.forEachIndexed { index, (next, cost) ->
+                    data[index * 3] = next
+                    data[index * 3 + 1] = cost
+                    data[index * 3 + 2] = cost + if (node % 4 != 0 && node % 4 == next % 4) delay[next] else 0
+                }
+            }
+        }
+
+    private fun connects(
+        a: Int,
+        b: Int,
+    ): Boolean {
+        val dx = b % city.width - a % city.width
+        val dy = b / city.width - a / city.width
+        return abs(dx) + abs(dy) == 1 && surfaces[a].allowsTransport(dx, dy) && surfaces[b].allowsTransport(-dx, -dy)
+    }
+
     private fun walkable(i: Int) = (!city.tiles[i].water || city.tiles[i].road) && city.tiles[i].fire == 0
 
-    fun edges(
-        node: Int,
-        congested: Boolean = false,
-    ): List<Pair<Int, Int>> {
+    private fun buildEdges(node: Int): List<Pair<Int, Int>> {
         val i = node / 4
         if (i !in city.tiles.indices || city.tiles[i].fire > 0) return emptyList()
         val mode = TravelMode.entries[node % 4]
@@ -287,7 +308,7 @@ internal class MobilityRouter(
             when (mode) {
                 TravelMode.WALK -> {
                     if (walkable(i)) {
-                        for (n in neighbors[i]) if (walkable(n) && abs(city.surface(i).minimum - city.surface(n).minimum) <= 1) add(n * 4 to 5)
+                        for (n in neighbors[i]) if (walkable(n) && abs(surfaces[i].minimum - surfaces[n].minimum) <= 1) add(n * 4 to 5)
                         if (city.tiles[i].road) add(i * 4 + 1 to 2)
                         for (target in transfers[i]) if (city.tiles[target / 4].fire == 0) add(target to 5)
                     }
@@ -296,7 +317,7 @@ internal class MobilityRouter(
                 TravelMode.ROAD -> {
                     if (city.tiles[i].road) {
                         add(i * 4 to 2)
-                        for (n in neighbors[i]) if (city.tiles[n].road && city.tiles[n].fire == 0 && city.transportConnects(i, n)) add(n * 4 + 1 to (2 + if (congested) delay[n * 4 + 1] else 0))
+                        for (n in neighbors[i]) if (city.tiles[n].road && city.tiles[n].fire == 0 && connects(i, n)) add(n * 4 + 1 to 2)
                     }
                 }
 
@@ -304,8 +325,8 @@ internal class MobilityRouter(
                     val exists = if (mode == TravelMode.RAIL) city.tiles[i].rail else city.tiles[i].subway
                     if (exists) {
                         for (n in neighbors[i]) {
-                            val connects = if (mode == TravelMode.RAIL) city.tiles[n].rail && city.transportConnects(i, n) else city.tiles[n].subway
-                            if (connects && city.tiles[n].fire == 0) add(n * 4 + mode.ordinal to (1 + if (congested) delay[n * 4 + mode.ordinal] else 0))
+                            val connects = if (mode == TravelMode.RAIL) city.tiles[n].rail && connects(i, n) else city.tiles[n].subway
+                            if (connects && city.tiles[n].fire == 0) add(n * 4 + mode.ordinal to 1)
                         }
                         for (n in neighbors[i] + i) if (node in transfers[n] && walkable(n)) add(n * 4 to 5)
                     }
@@ -317,9 +338,25 @@ internal class MobilityRouter(
     fun duration(
         from: Int,
         to: Int,
-    ): Int? = edges(from).firstOrNull { it.first == to }?.second
+    ): Int? {
+        if (from !in adjacency.indices) return null
+        val edges = adjacency[from]
+        var edge = 0
+        while (edge < edges.size) {
+            if (edges[edge] == to) return edges[edge + 1]
+            edge += 3
+        }
+        return null
+    }
 
-    fun valid(path: TravelPath): Boolean = path.nodes.isNotEmpty() && path.nodes.all { it in 0 until size * 4 } && path.nodes.zipWithNext().all { (a, b) -> duration(a, b) != null }
+    fun valid(path: TravelPath): Boolean {
+        if (path.nodes.isEmpty()) return false
+        for (index in path.nodes.indices) {
+            if (path.nodes[index] !in adjacency.indices) return false
+            if (index > 0 && duration(path.nodes[index - 1], path.nodes[index]) == null) return false
+        }
+        return true
+    }
 
     fun serves(
         need: Need,
@@ -330,27 +367,63 @@ internal class MobilityRouter(
         if (nodes.isEmpty()) return null
         var elapsed = 0
         val minutes = mutableListOf(0)
-        for ((a, b) in nodes.zipWithNext()) {
-            elapsed += duration(a, b) ?: return null
+        for (index in 1 until nodes.size) {
+            elapsed += duration(nodes[index - 1], nodes[index]) ?: return null
             minutes.add(elapsed)
         }
         return TravelPath(nodes, minutes)
     }
 
+    private data class Visit(
+        val node: Int,
+        val cost: Int,
+    )
+
+    private class SearchWorkspace(
+        size: Int,
+    ) {
+        val distance = IntArray(size) { Int.MAX_VALUE }
+        val parent = IntArray(size) { -1 }
+        val queue = PriorityQueue<Visit>(compareBy<Visit> { it.cost }.thenBy { it.node })
+        val touched = IntArray(size)
+        var count = 0
+
+        fun reset() {
+            for (index in 0 until count) {
+                val node = touched[index]
+                distance[node] = Int.MAX_VALUE
+                parent[node] = -1
+            }
+            count = 0
+            queue.clear()
+        }
+    }
+
+    // A lease belongs to one call, not a JVM thread: safe even if a coroutine changes threads.
+    // Only pool access is synchronized. Search and reconstruction never hold its monitor.
+    private val workspaces = java.util.ArrayDeque<SearchWorkspace>()
+
+    private suspend fun <T> withWorkspace(action: suspend (SearchWorkspace) -> T): T {
+        val workspace = synchronized(workspaces) { workspaces.pollFirst() } ?: SearchWorkspace(size * 4)
+        try {
+            return action(workspace)
+        } finally {
+            workspace.reset()
+            synchronized(workspaces) { workspaces.addFirst(workspace) }
+        }
+    }
+
     private suspend fun search(
+        workspace: SearchWorkspace,
         start: Int,
         goal: Int? = null,
         blocked: Set<Int> = emptySet(),
-    ): Pair<IntArray, IntArray> {
-        val distance = IntArray(size * 4) { Int.MAX_VALUE }
-        val parent = IntArray(size * 4) { -1 }
-
-        data class Visit(
-            val node: Int,
-            val cost: Int,
-        )
-        val queue = PriorityQueue<Visit>(compareBy<Visit> { it.cost }.thenBy { it.node })
+    ) {
+        val distance = workspace.distance
+        val parent = workspace.parent
+        val queue = workspace.queue
         distance[start] = 0
+        workspace.touched[workspace.count++] = start
         queue.add(Visit(start, 0))
         var visits = 0
         while (queue.isNotEmpty()) {
@@ -358,17 +431,21 @@ internal class MobilityRouter(
             val visit = queue.remove()
             if (distance[visit.node] != visit.cost) continue
             if (visit.node == goal) break
-            for ((next, cost) in edges(visit.node, true)) {
+            val edges = adjacency[visit.node]
+            var edge = 0
+            while (edge < edges.size) {
+                val next = edges[edge]
+                val total = visit.cost + edges[edge + 2]
+                edge += 3
                 if (next in blocked) continue
-                val total = visit.cost + cost
                 if (total < distance[next] && total <= 180) {
+                    if (distance[next] == Int.MAX_VALUE) workspace.touched[workspace.count++] = next
                     distance[next] = total
                     parent[next] = visit.node
                     queue.add(Visit(next, total))
                 }
             }
         }
-        return distance to parent
     }
 
     private fun reconstruct(
@@ -391,21 +468,25 @@ internal class MobilityRouter(
         start: Int,
         goal: Int,
         blocked: Set<Int> = emptySet(),
-    ): TravelPath? {
-        val (distance, parent) = search(start, goal, blocked)
-        return reconstruct(goal, distance, parent)
-    }
-
-    suspend fun from(home: Int): Map<Need, List<TravelPath>> {
-        val (distance, parent) = search(home * 4)
-        return destinations.filterKeys { it != Need.REST }.mapValues { (_, targets) ->
-            targets
-                .filter { distance[it * 4] < Int.MAX_VALUE }
-                .sortedWith(compareBy<Int> { distance[it * 4] }.thenBy { it })
-                .take(2)
-                .mapNotNull { reconstruct(it * 4, distance, parent) }
+    ): TravelPath? =
+        withWorkspace { workspace ->
+            search(workspace, start, goal, blocked)
+            reconstruct(goal, workspace.distance, workspace.parent)
         }
-    }
+
+    suspend fun from(home: Int): Map<Need, List<TravelPath>> =
+        withWorkspace { workspace ->
+            search(workspace, home * 4)
+            val distance = workspace.distance
+            val parent = workspace.parent
+            destinations.filterKeys { it != Need.REST }.mapValues { (_, targets) ->
+                targets
+                    .filter { distance[it * 4] < Int.MAX_VALUE }
+                    .sortedWith(compareBy<Int> { distance[it * 4] }.thenBy { it })
+                    .take(2)
+                    .mapNotNull { reconstruct(it * 4, distance, parent) }
+            }
+        }
 }
 
 /** Validate serialized derived data before exposing it to the inspector or the next simulation. */
