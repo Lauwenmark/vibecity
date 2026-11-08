@@ -1,0 +1,437 @@
+package city.client
+
+import city.core.*
+import city.server.*
+import kotlinx.coroutines.*
+import java.awt.*
+import java.awt.event.*
+import java.nio.file.*
+import javax.swing.*
+import javax.swing.border.EmptyBorder
+import kotlin.math.*
+
+private val ink = Color(0xe2e9e6)
+private val panel = Color(0x1b2a35)
+private val accent = Color(0xd8bb7d)
+
+/** Swing components and view state are accessed exclusively from the EDT. */
+class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var connection: Connection? = null
+    private var localServer: CityServer? = null
+    private var startupJob: Job? = null
+    private var starting = false
+    private var closing = false
+    private var pluginLoader: PluginLoader? = null
+    private var current: City? = null
+    private var definitions = emptyList<BuildingDef>()
+    private var selectedTool = "inspect"
+    private val heading = JLabel("SHARED CITY / 2000")
+    private val status = JLabel("Bienvenue — ouvrez une ville locale ou rejoignez un serveur.")
+    private val metrics = JLabel("UNE VILLE. PLUSIEURS MAIRES.")
+    private val inspector = JTextArea()
+    private val notices = JTextArea()
+    private val players = JLabel("Hors ligne")
+    private val disasters = JCheckBox("Incendies aléatoires")
+    private val tools = JPanel()
+    private val chart = HistoryChart()
+    private val minimap = MiniMap()
+    private val canvas = CityCanvas(::inspect, ::build)
+    private val scroll = JScrollPane(canvas)
+    private val buttons = ButtonGroup()
+
+    init {
+        defaultCloseOperation = DO_NOTHING_ON_CLOSE
+        minimumSize = Dimension(1100, 720)
+        size = Dimension(1450, 900)
+        layout = BorderLayout(0, 0)
+        contentPane.background = panel
+        val header = JPanel(BorderLayout(12, 8))
+        header.background = panel
+        header.border = EmptyBorder(16, 20, 14, 20)
+        heading.font = Font("Dialog", Font.BOLD, 23)
+        heading.foreground = accent
+        metrics.foreground = ink
+        metrics.font = Font("Monospaced", Font.PLAIN, 13)
+        val brand = JPanel(GridLayout(2, 1, 0, 8))
+        brand.isOpaque = false
+        brand.add(heading)
+        brand.add(metrics)
+        header.add(brand, BorderLayout.CENTER)
+        val actions = JPanel(FlowLayout(FlowLayout.RIGHT, 8, 0))
+        actions.isOpaque = false
+        actions.add(button("Ville locale") { startLocal() })
+        actions.add(button("Rejoindre…") { joinDialog() })
+        actions.add(button("Sauvegarder") { send(Request("SAVE")) })
+        actions.add(button("Guide") { JOptionPane.showMessageDialog(this, "1. Choisissez une centrale et un terrain plat (ou utilisez le relief).\n2. Reliez les zones résidentielles, commerciales et industrielles à l’électricité.\n3. Placez des routes à trois cases au plus des zones.\n4. Ajoutez une pompe alimentée et des conduites sous les zones.\n5. Surveillez demandes R/C/I, budget, pollution et services.\n\nClic / glisser : construire. Survol : inspecter. Ctrl+molette : zoom.\nLes constructions, impôts et vitesses sont partagés entre tous les joueurs.\nLa ville locale contient un quartier de départ ; le serveur autonome commence vide.", "Guide du maire", JOptionPane.INFORMATION_MESSAGE) })
+        header.add(actions, BorderLayout.EAST)
+        add(header, BorderLayout.NORTH)
+        tools.layout = BoxLayout(tools, BoxLayout.Y_AXIS)
+        tools.background = panel
+        tools.border = EmptyBorder(8, 10, 12, 10)
+        val toolScroll = JScrollPane(tools)
+        toolScroll.preferredSize = Dimension(242, 0)
+        toolScroll.border = null
+        toolScroll.horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
+        toolScroll.verticalScrollBar.unitIncrement = 24
+        add(toolScroll, BorderLayout.WEST)
+        addTools()
+        val center = JPanel(BorderLayout())
+        center.background = panel
+        val viewBar = JPanel(FlowLayout(FlowLayout.LEFT, 8, 8))
+        viewBar.background = Color(0x243743)
+        viewBar.add(JLabel("CALQUE").apply { foreground = accent })
+        val layers = JComboBox(Layer.entries.map { it.label }.toTypedArray())
+        layers.addActionListener { canvas.layer = Layer.entries[layers.selectedIndex] }
+        viewBar.add(layers)
+        viewBar.add(button("−") { canvas.zoom -= .15 })
+        viewBar.add(button("+") { canvas.zoom += .15 })
+        viewBar.add(JLabel("   TEMPS").apply { foreground = accent })
+        listOf("Ⅱ", "▶", "▶▶", "▶▶▶").forEachIndexed { i, label -> viewBar.add(button(label) { send(Request("SPEED", value = i)) }) }
+        center.add(viewBar, BorderLayout.NORTH)
+        scroll.border = null
+        scroll.viewport.background = canvas.background
+        scroll.horizontalScrollBar.unitIncrement = 32
+        scroll.verticalScrollBar.unitIncrement = 24
+        center.add(scroll, BorderLayout.CENTER)
+        add(center, BorderLayout.CENTER)
+        val sidebar = JPanel()
+        sidebar.layout = BoxLayout(sidebar, BoxLayout.Y_AXIS)
+        sidebar.background = panel
+        sidebar.border = EmptyBorder(14, 14, 14, 14)
+        sidebar.preferredSize = Dimension(258, 0)
+        sidebar.add(label("OBSERVATOIRE"))
+        sidebar.add(Box.createVerticalStrut(10))
+        minimap.preferredSize = Dimension(220, 160)
+        minimap.maximumSize = Dimension(230, 160)
+        sidebar.add(minimap)
+        sidebar.add(Box.createVerticalStrut(12))
+        sidebar.add(label("ÉVOLUTION · 120 MOIS"))
+        chart.preferredSize = Dimension(220, 100)
+        chart.maximumSize = Dimension(230, 100)
+        sidebar.add(chart)
+        sidebar.add(Box.createVerticalStrut(12))
+        sidebar.add(label("INSPECTION"))
+        for (area in listOf(inspector, notices)) {
+            area.isEditable = false
+            area.lineWrap = true
+            area.wrapStyleWord = true
+            area.background = panel
+            area.foreground = ink
+            area.font = Font("Dialog", Font.PLAIN, 12)
+            area.border = EmptyBorder(8, 0, 8, 0)
+        }
+        inspector.text = "Survolez une case pour afficher ses informations."
+        inspector.maximumSize = Dimension(230, 180)
+        sidebar.add(inspector)
+        sidebar.add(label("CONSEIL MUNICIPAL"))
+        notices.text = "Votre ville vous attend."
+        notices.maximumSize = Dimension(230, 150)
+        sidebar.add(notices)
+        val budget = JPanel(GridLayout(0, 2, 5, 5))
+        budget.isOpaque = false
+        budget.maximumSize = Dimension(230, 100)
+        budget.add(button("Impôts…") { numberDialog("Taux d’imposition (0–20 %)", current?.rules?.taxRate ?: 7, 0, 20) { send(Request("TAX", value = it)) } })
+        budget.add(button("Services…") { numberDialog("Financement des services (0–100 %)", current?.rules?.serviceFunding ?: 100, 0, 100) { send(Request("FUNDING", value = it)) } })
+        budget.add(button("Emprunter") { send(Request("BOND")) })
+        budget.add(button("Rembourser") { send(Request("REPAY")) })
+        sidebar.add(budget)
+        disasters.background = panel
+        disasters.foreground = ink
+        disasters.addActionListener { send(Request("DISASTERS", value = if (disasters.isSelected) 1 else 0)) }
+        sidebar.add(disasters)
+        sidebar.add(Box.createVerticalGlue())
+        players.foreground = accent
+        sidebar.add(players)
+        sidebar.components.filterIsInstance<JComponent>().forEach { it.alignmentX = Component.LEFT_ALIGNMENT }
+        add(sidebar, BorderLayout.EAST)
+        status.foreground = ink
+        status.background = Color(0x263b46)
+        status.isOpaque = true
+        status.border = EmptyBorder(10, 16, 10, 16)
+        add(status, BorderLayout.SOUTH)
+        addWindowListener(
+            object : WindowAdapter() {
+                override fun windowClosing(e: WindowEvent) {
+                    shutdown()
+                }
+            },
+        )
+        setLocationRelativeTo(null)
+    }
+
+    private fun label(text: String) =
+        JLabel(text).apply {
+            foreground = accent
+            font = Font("Dialog", Font.BOLD, 11)
+            alignmentX = Component.LEFT_ALIGNMENT
+        }
+
+    private fun button(
+        text: String,
+        action: () -> Unit,
+    ) = JButton(text).apply {
+        addActionListener { action() }
+        isFocusPainted = false
+    }
+
+    private fun numberDialog(
+        title: String,
+        value: Int,
+        min: Int,
+        max: Int,
+        action: (Int) -> Unit,
+    ) {
+        val spinner = JSpinner(SpinnerNumberModel(value, min, max, 1))
+        if (JOptionPane.showConfirmDialog(this, spinner, title, JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) action(spinner.value as Int)
+    }
+
+    private fun addTools() {
+        tools.removeAll()
+        buttons.elements.toList().forEach { buttons.remove(it) }
+
+        fun section(title: String) {
+            tools.add(Box.createVerticalStrut(14))
+            tools.add(label(title))
+            tools.add(Box.createVerticalStrut(6))
+        }
+
+        fun tool(
+            id: String,
+            name: String,
+            cost: Int? = null,
+        ) {
+            val b = JToggleButton(if (cost == null) name else "$name · $$cost")
+            b.alignmentX = Component.LEFT_ALIGNMENT
+            b.maximumSize = Dimension(220, 29)
+            b.horizontalAlignment = SwingConstants.LEFT
+            b.font = Font("Dialog", Font.PLAIN, 11)
+            b.toolTipText = b.text
+            b.isSelected = id == selectedTool
+            b.addActionListener {
+                selectedTool = id
+                canvas.tool = id
+                status.text = "Outil : $name — clic ou glisser sur la carte"
+            }
+            buttons.add(b)
+            tools.add(b)
+        }
+        section("OUTILS DU MAIRE")
+        tool("inspect", "Inspection")
+        tool("bulldoze", "Démolition", 2)
+        section("ZONES")
+        listOf("Résidentiel léger", "Résidentiel dense", "Commercial léger", "Commercial dense", "Industriel léger", "Industriel dense").zip(Zone.entries.drop(1)).forEach { (name, z) -> tool("zone:${z.name}", name, if (z.name.endsWith("DENSE")) 10 else 5) }
+        section("RÉSEAUX")
+        listOf(Triple("road", "Route / pont", 10), Triple("rail", "Rail / pont", 20), Triple("power", "Ligne électrique", 2), Triple("pipe", "Conduite d’eau", 3), Triple("subway", "Tunnel de métro", 20), Triple("clear_underground", "Retirer le sous-sol", 1)).forEach { tool(it.first, it.second, it.third) }
+        section("TERRAIN")
+        tool("raise", "Élever", 10)
+        tool("lower", "Abaisser", 10)
+        tool("trees", "Planter des arbres", 3)
+        section("BÂTIMENTS & SERVICES")
+        definitions.sortedWith(compareBy({ it.year }, { it.name })).forEach { tool(it.id, "${it.name}${if (it.year > 1900) " (${it.year})" else ""}", it.cost) }
+        tools.preferredSize = Dimension(220, tools.layout.preferredLayoutSize(tools).height)
+        tools.revalidate()
+        tools.repaint()
+    }
+
+    private fun build(i: Int) {
+        val c = current ?: return
+        send(Request("BUILD", tool = selectedTool, x = i % c.width, y = i / c.width))
+    }
+
+    private fun send(r: Request) {
+        if (connection == null) status.text = "Connectez-vous à une ville d’abord." else connection?.send(r)
+    }
+
+    private fun inspect(i: Int) {
+        val c = current ?: return
+        val t = c.tiles.getOrNull(i) ?: return
+        inspector.text = "Case ${i % c.width}, ${i / c.width} · altitude ${t.elevation}\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\nOccupants : ${t.occupants}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Trafic ${t.traffic}"
+    }
+
+    fun connect(
+        host: String,
+        port: Int,
+        name: String,
+        token: String = "",
+    ) {
+        connection?.close()
+        current = null
+        canvas.city = null
+        status.text = "Connexion à $host:$port…"
+        connection =
+            Connection(host, port, name, token, { response ->
+                when (response.type) {
+                    "WELCOME" -> {
+                        definitions = response.catalog
+                        canvas.catalog = definitions.associateBy { it.id }
+                        addTools()
+                        status.text = "Connecté à $host:$port"
+                    }
+
+                    "STATE" -> {
+                        response.city?.let { city ->
+                            val first = current == null
+                            current = city
+                            canvas.city = city
+                            if (canvas.selected >= 0) inspect(canvas.selected)
+                            chart.city = city
+                            minimap.city = city
+                            disasters.isSelected = city.rules.disasters
+                            val s = city.stats
+                            metrics.text = "${1900 + city.month / 12} / ${city.month % 12 + 1}   |   ${s.population} HAB.   |   ${city.treasury} $   |   R ${s.residentialDemand}  C ${s.commercialDemand}  I ${s.industrialDemand}"
+                            heading.text = "SHARED CITY / ${if (city.rules.speed == 0) "PAUSE" else "2000"}"
+                            notices.text = "Recettes : ${s.income} $ / mois\nDépenses : ${s.expenses} $ / mois\nDette : ${city.debt} $\nImpôts : ${city.rules.taxRate} %\n" + city.notices.joinToString("\n")
+                            players.text = "${response.players.size} maire(s) · rév. ${city.revision}"
+                            players.toolTipText = response.players.joinToString(", ")
+                            if (first) SwingUtilities.invokeLater { scroll.viewport.viewPosition = Point(max(0, (canvas.preferredSize.width - scroll.viewport.width) / 2), max(0, (canvas.preferredSize.height - scroll.viewport.height) / 2)) }
+                        }
+                    }
+
+                    "ERROR" -> {
+                        status.text = "Refus : ${response.message}"
+                        Toolkit.getDefaultToolkit().beep()
+                    }
+
+                    "ACK" -> {
+                        status.text = response.message
+                    }
+                }
+            }, { message -> status.text = "Connexion : $message" })
+        connection!!.start()
+    }
+
+    fun startLocal() {
+        if (localServer != null) {
+            connect("127.0.0.1", localServer!!.port, "Maire local")
+            return
+        }
+        if (starting || closing) return
+        starting = true
+        status.text = "Ouverture de la ville locale…"
+        startupJob =
+            scope.launch {
+                try {
+                    val catalog = Catalog()
+                    val loader = PluginLoader(Path.of("plugins"), catalog)
+                    val path = Path.of("saves/local-city.json")
+                    val city = if (Files.exists(path)) Persistence.load(path, catalog) else demoCity()
+                    val server = CityServer(city, catalog, loader.rules, port = 0, savePath = path, systems = loader.systems)
+                    SwingUtilities.invokeAndWait {
+                        pluginLoader = loader
+                        localServer = server
+                        starting = false
+                        if (!closing) connect("127.0.0.1", server.port, "Maire local")
+                    }
+                } catch (e: Exception) {
+                    SwingUtilities.invokeLater {
+                        starting = false
+                        status.text = "Impossible d’ouvrir la ville : ${e.message}"
+                    }
+                }
+            }
+    }
+
+    private fun joinDialog() {
+        val host = JTextField("127.0.0.1")
+        val port = JTextField("2000")
+        val name = JTextField("Maire")
+        val token = JPasswordField()
+        val form = JPanel(GridLayout(0, 2, 8, 8))
+        listOf("Serveur" to host, "Port" to port, "Nom" to name, "Jeton" to token).forEach {
+            form.add(JLabel(it.first))
+            form.add(it.second)
+        }
+        if (JOptionPane.showConfirmDialog(this, form, "Rejoindre une ville", JOptionPane.OK_CANCEL_OPTION) == JOptionPane.OK_OPTION) {
+            val p = port.text.toIntOrNull()
+            if (p == null || p !in 1..65535) {
+                status.text = "Port invalide"
+                return
+            }
+            connect(host.text, p, name.text, String(token.password))
+        }
+    }
+
+    private fun shutdown() {
+        if (closing) return
+        closing = true
+        isEnabled = false
+        status.text = "Sauvegarde et arrêt…"
+        connection?.close()
+        scope.launch {
+            try {
+                startupJob?.join()
+                localServer?.shutdown()
+                pluginLoader?.close()
+                SwingUtilities.invokeLater { dispose() }
+                scope.cancel()
+            } catch (e: Exception) {
+                SwingUtilities.invokeLater {
+                    closing = false
+                    isEnabled = true
+                    status.text = "Erreur de sauvegarde : ${e.message}"
+                }
+            }
+        }
+    }
+}
+
+private class HistoryChart : JPanel() {
+    var city: City? = null
+        set(value) {
+            field = value
+            repaint()
+        }
+
+    init {
+        background = panel
+    }
+
+    override fun paintComponent(g: Graphics) {
+        super.paintComponent(g)
+        val history = city?.history ?: return
+        g.color = Color(0x3b4e56)
+        g.drawLine(0, height - 12, width, height - 12)
+        if (history.size < 2) return
+        val maximum = max(10, history.maxOf { max(it.population, it.jobs) })
+        listOf(Color(0x86bd8b) to { s: Statistics -> s.population }, Color(0x74b7d5) to { s: Statistics -> s.jobs }).forEach { (color, value) ->
+            g.color = color
+            for (i in 1 until history.size) g.drawLine((i - 1) * width / (history.size - 1), height - 12 - value(history[i - 1]) * (height - 34) / maximum, i * width / (history.size - 1), height - 12 - value(history[i]) * (height - 34) / maximum)
+        }
+        g.color = ink
+        g.font = Font("Dialog", Font.PLAIN, 10)
+        g.drawString("Population / emplois", 2, 12)
+    }
+}
+
+private class MiniMap : JPanel() {
+    var city: City? = null
+        set(value) {
+            field = value
+            repaint()
+        }
+
+    init {
+        background = panel
+    }
+
+    override fun paintComponent(g: Graphics) {
+        super.paintComponent(g)
+        val c = city ?: return
+        c.tiles.forEachIndexed { i, t ->
+            g.color =
+                when {
+                    t.water -> Color(0x4486a6)
+                    t.building != null -> accent
+                    t.road -> Color(0x9dada8)
+                    t.zone.residential -> Color(0x85c583)
+                    t.zone.commercial -> Color(0x72b9d7)
+                    t.zone.industrial -> Color(0xd3bb72)
+                    else -> Color(0x3c6049)
+                }
+            val x = i % c.width
+            val y = i / c.width
+            g.fillRect(x * width / c.width, y * height / c.height, ceil(width.toDouble() / c.width).toInt(), ceil(height.toDouble() / c.height).toInt())
+        }
+    }
+}
