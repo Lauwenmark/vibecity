@@ -102,7 +102,7 @@ internal class MobilityPanel(
         if (c != null && h != null && mobility != null) {
             val person = Resident(h.cell, (resident.value as Int) - 1, c.seed)
             for (trip in mobility.itinerary(person, h)) {
-                val path = trip.path?.let { mobility.paths[it] }
+                val path = trip.path?.let { h.paths[it] }
                 val destination = path?.destination ?: if (trip.need == Need.REST) h.cell else null
                 model.addRow(arrayOf(trip.need.label, if (trip.scheduled) time(trip.departure) else "—", destination?.let { "${it % c.width}, ${it / c.width}" } ?: "—", path?.let { "${it.duration} min" } ?: "—", trip.status))
             }
@@ -126,7 +126,7 @@ internal class MobilityPanel(
         val person = Resident(h.cell, (resident.value as Int) - 1, c.seed)
         val trips = mobility.itinerary(person, h)
         val trip = trips.getOrNull(table.selectedRow)
-        val path = trip?.path?.let { mobility.paths[it] }
+        val path = trip?.path?.let { h.paths[it] }
         val position = mobility.position(person, h, minute)
         heading.text = "${person.label} · ${time(minute)} · position ${position % c.width}, ${position / c.width}"
         detail.text =

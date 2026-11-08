@@ -1,7 +1,9 @@
 package city.core
 
+import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import java.util.PriorityQueue
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.*
 
 @Serializable
@@ -49,6 +51,10 @@ data class MobilityHome(
     val cell: Int,
     val residents: Int,
     val options: List<NeedOptions>,
+    val paths: List<TravelPath> = emptyList(),
+    val loads: List<TrafficLoad> = emptyList(),
+    val completedNeeds: Long = 0,
+    val unmetNeeds: Long = 0,
 )
 
 /** Sparse hourly counts: one entry per used infrastructure cell and mode, 24 hours per entry. */
@@ -63,8 +69,6 @@ data class TrafficLoad(
 data class Mobility(
     val month: Int,
     val homes: List<MobilityHome>,
-    val paths: List<TravelPath>,
-    val loads: List<TrafficLoad>,
     val completedNeeds: Long,
     val unmetNeeds: Long,
 )
@@ -123,7 +127,7 @@ fun Mobility.itinerary(
                 Need.HEALTH -> 10 * 60 + variation % 360
                 Need.REST -> 22 * 60
             }
-        val duration = path?.let { paths[it].duration } ?: 0
+        val duration = path?.let { home.paths[it].duration } ?: 0
         val stay =
             when (need) {
                 Need.WORK -> 8 * 60
@@ -158,7 +162,7 @@ fun Mobility.position(
 ): Int {
     for (trip in itinerary(resident, home)) {
         if (!trip.fulfilled || trip.path == null || minute < trip.departure || minute >= trip.arrivalHome) continue
-        val path = paths[trip.path]
+        val path = home.paths[trip.path]
         if (minute < trip.departure + path.duration) {
             val elapsed = minute - trip.departure
             return path.nodes[path.minutes.indexOfLast { it <= elapsed }.coerceAtLeast(0)] / 4
@@ -170,40 +174,89 @@ fun Mobility.position(
     return resident.home
 }
 
-/** Deterministic daily demand assignment; path search is shared per home, never per person. */
+/** Derived city-wide totals; paths and source counts remain owned by each home. */
+fun Mobility.aggregateLoads(): List<TrafficLoad> {
+    val totals = sortedMapOf<Int, IntArray>()
+    for (home in homes) {
+        for (load in home.loads) {
+            val hours = totals.getOrPut(load.cell * 4 + load.mode.ordinal) { IntArray(24) }
+            for (hour in 0..23) hours[hour] += load.hours[hour]
+        }
+    }
+    return totals.map { (node, hours) -> TrafficLoad(node / 4, TravelMode.entries[node % 4], hours.toList()) }
+}
+
+/** A bounded number of workers claim homes dynamically; each worker owns its result list. */
+internal suspend fun calculateHomes(
+    homes: List<MobilityHome>,
+    workers: Int,
+    calculate: suspend (MobilityHome) -> MobilityHome,
+): List<MobilityHome> =
+    coroutineScope {
+        val next = AtomicInteger()
+        List(workers.coerceAtLeast(1).coerceAtMost(homes.size)) {
+            async(Dispatchers.Default) {
+                val results = mutableListOf<MobilityHome>()
+                while (true) {
+                    ensureActive()
+                    val index = next.getAndIncrement()
+                    if (index >= homes.size) break
+                    results.add(calculate(homes[index]))
+                }
+                results
+            }
+        }.awaitAll().flatten().sortedBy { it.cell }
+    }
+
+/** Independent routing and daily assignment per home, with structured cancellation. */
 class MobilitySimulation(
     private val catalog: Catalog,
+    private val workers: Int = Runtime.getRuntime().availableProcessors(),
 ) {
-    fun simulate(
+    suspend fun simulate(
         city: City,
         previous: Mobility? = city.mobility,
-    ): City {
-        val router = MobilityRouter(city, catalog, previous)
-        val paths = mutableListOf<TravelPath>()
-        val homes =
-            city.tiles.mapIndexedNotNull { i, tile ->
-                val count =
-                    if (tile.zone.residential) {
-                        tile.occupants
-                    } else if (tile.anchor == i && tile.powered && tile.building != null) {
-                        catalog[tile.building].residents
-                    } else {
-                        0
-                    }
-                if (count == 0) return@mapIndexedNotNull null
-                val options =
-                    router.from(i).map { (need, choices) ->
-                        NeedOptions(
-                            need,
-                            choices.map { path ->
-                                paths.add(path)
-                                paths.lastIndex
-                            },
-                        )
-                    }
-                MobilityHome(i, count, options)
-            }
-        val planned = Mobility(city.month, homes, paths, emptyList(), 0, 0)
+    ): City =
+        withContext(Dispatchers.Default) {
+            val router = MobilityRouter(city, catalog, previous)
+            val residents =
+                city.tiles.mapIndexedNotNull { i, tile ->
+                    val count =
+                        if (tile.zone.residential) {
+                            tile.occupants
+                        } else if (tile.anchor == i && tile.powered && tile.building != null) {
+                            catalog[tile.building].residents
+                        } else {
+                            0
+                        }
+                    if (count > 0) MobilityHome(i, count, emptyList()) else null
+                }
+            val homes =
+                calculateHomes(residents, workers) { home ->
+                    val paths = mutableListOf<TravelPath>()
+                    val options =
+                        router.from(home.cell).map { (need, choices) ->
+                            NeedOptions(
+                                need,
+                                choices.map { path ->
+                                    paths.add(path)
+                                    paths.lastIndex
+                                },
+                            )
+                        }
+                    countDay(city, home.copy(options = options, paths = paths))
+                }
+            val mobility = Mobility(city.month, homes, homes.sumOf { it.completedNeeds }, homes.sumOf { it.unmetNeeds })
+            val peak = IntArray(city.tiles.size)
+            for (load in mobility.aggregateLoads()) peak[load.cell] = max(peak[load.cell], (load.hours.max().toLong() * 100 / load.mode.capacity).coerceAtMost(100).toInt())
+            city.copy(tiles = city.tiles.mapIndexed { i, tile -> tile.copy(traffic = peak[i]) }, mobility = mobility)
+        }
+
+    private suspend fun countDay(
+        city: City,
+        home: MobilityHome,
+    ): MobilityHome {
+        val planned = Mobility(city.month, emptyList(), 0, 0)
         val loads = sortedMapOf<Int, IntArray>()
         var completed = 0L
         var unmet = 0L
@@ -213,42 +266,37 @@ class MobilitySimulation(
             start: Int,
             returning: Boolean,
         ) {
-            // Count each infrastructure visit in its actual hour, including both directions.
             for (j in path.nodes.indices) {
                 val node = path.nodes[j]
-                val mode = TravelMode.entries[node % 4]
-                if (mode == TravelMode.WALK) continue
+                if (node % 4 == TravelMode.WALK.ordinal) continue
                 val minute = start + if (returning) path.duration - path.minutes[j] else path.minutes[j]
                 if (minute in 0 until 1440) loads.getOrPut(node) { IntArray(24) }[minute / 60]++
             }
         }
-        for (home in homes) {
-            for (slot in 0 until home.residents) {
-                val resident = Resident(home.cell, slot, city.seed)
-                for (trip in planned.itinerary(resident, home)) {
-                    if (!trip.scheduled) continue
-                    if (!trip.fulfilled) {
-                        unmet++
-                        continue
-                    }
-                    completed++
-                    if (trip.path != null) {
-                        record(paths[trip.path], trip.departure, false)
-                        record(paths[trip.path], trip.returnDeparture, true)
-                    }
+        for (slot in 0 until home.residents) {
+            if (slot % 64 == 0) currentCoroutineContext().ensureActive()
+            for (trip in planned.itinerary(Resident(home.cell, slot, city.seed), home)) {
+                if (!trip.scheduled) continue
+                if (!trip.fulfilled) {
+                    unmet++
+                    continue
+                }
+                completed++
+                if (trip.path != null) {
+                    record(home.paths[trip.path], trip.departure, false)
+                    record(home.paths[trip.path], trip.returnDeparture, true)
                 }
             }
         }
-        val traffic = loads.map { (node, hours) -> TrafficLoad(node / 4, TravelMode.entries[node % 4], hours.toList()) }
-        val peak = IntArray(city.tiles.size)
-        for (load in traffic) peak[load.cell] = max(peak[load.cell], (load.hours.max().toLong() * 100 / load.mode.capacity).coerceAtMost(100).toInt())
-        return city.copy(
-            tiles = city.tiles.mapIndexed { i, t -> t.copy(traffic = peak[i]) },
-            mobility = planned.copy(loads = traffic, completedNeeds = completed, unmetNeeds = unmet),
+        return home.copy(
+            loads = loads.map { (node, hours) -> TrafficLoad(node / 4, TravelMode.entries[node % 4], hours.toList()) },
+            completedNeeds = completed,
+            unmetNeeds = unmet,
         )
     }
 }
 
+/** Built once before workers start; all graph fields are read-only during searches. */
 private class MobilityRouter(
     val city: City,
     val catalog: Catalog,
@@ -276,7 +324,7 @@ private class MobilityRouter(
         }
 
     init {
-        previous?.loads?.forEach { load ->
+        previous?.aggregateLoads()?.forEach { load ->
             if (load.cell in city.tiles.indices && load.mode.capacity > 0) {
                 delay[load.cell * 4 + load.mode.ordinal] = ((load.hours.max().toLong() * 2 / load.mode.capacity) - 1).coerceIn(0, 8).toInt()
             }
@@ -302,7 +350,7 @@ private class MobilityRouter(
 
     private fun walkable(i: Int) = (!city.tiles[i].water || city.tiles[i].road) && city.tiles[i].fire == 0
 
-    fun from(home: Int): Map<Need, List<TravelPath>> {
+    suspend fun from(home: Int): Map<Need, List<TravelPath>> {
         val distance = IntArray(size * 4) { Int.MAX_VALUE }
         val parent = IntArray(size * 4) { -1 }
 
@@ -327,7 +375,9 @@ private class MobilityRouter(
                 queue.add(Visit(to, next))
             }
         }
+        var visits = 0
         while (queue.isNotEmpty()) {
+            if (visits++ % 256 == 0) currentCoroutineContext().ensureActive()
             val visit = queue.remove()
             val node = visit.node
             if (distance[node] != visit.cost) continue
@@ -401,21 +451,28 @@ fun Mobility.validate(
         for (option in home.options) {
             require(option.paths.size <= 2 && option.need != Need.REST)
             for (index in option.paths) {
-                require(index in paths.indices)
-                require(paths[index].nodes.firstOrNull() == home.cell * 4)
+                require(index in home.paths.indices)
+                require(home.paths[index].nodes.firstOrNull() == home.cell * 4)
             }
         }
+        require(home.completedNeeds >= 0 && home.unmetNeeds >= 0)
+        for (path in home.paths) {
+            require(path.nodes.isNotEmpty() && path.nodes.size == path.minutes.size)
+            require(path.nodes.all { it in 0 until city.tiles.size * 4 })
+            require(path.minutes.first() == 0 && path.minutes.last() in 0..180)
+            require(path.minutes.zipWithNext().all { (a, b) -> b > a })
+            require(path.nodes.first() % 4 == 0 && path.nodes.last() % 4 == 0)
+        }
+        require(
+            home.loads
+                .map { it.cell * 4 + it.mode.ordinal }
+                .distinct()
+                .size == home.loads.size,
+        )
+        for (load in home.loads) {
+            require(load.cell in city.tiles.indices && load.mode.capacity > 0)
+            require(load.hours.size == 24 && load.hours.all { it >= 0 })
+        }
     }
-    for (path in paths) {
-        require(path.nodes.isNotEmpty() && path.nodes.size == path.minutes.size)
-        require(path.nodes.all { it in 0 until city.tiles.size * 4 })
-        require(path.minutes.first() == 0 && path.minutes.last() in 0..180)
-        require(path.minutes.zipWithNext().all { (a, b) -> b > a })
-        require(path.nodes.first() % 4 == 0 && path.nodes.last() % 4 == 0)
-    }
-    require(loads.map { it.cell * 4 + it.mode.ordinal }.distinct().size == loads.size)
-    for (load in loads) {
-        require(load.cell in city.tiles.indices && load.mode.capacity > 0)
-        require(load.hours.size == 24 && load.hours.all { it >= 0 })
-    }
+    require(completedNeeds == homes.sumOf { it.completedNeeds } && unmetNeeds == homes.sumOf { it.unmetNeeds })
 }

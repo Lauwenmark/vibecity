@@ -3,6 +3,7 @@ package city.server
 import city.core.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.*
 import java.nio.file.*
 
 /** A complete snapshot is written to a sibling temp file and atomically replaces the old save. */
@@ -31,7 +32,12 @@ object Persistence {
         catalog: Catalog,
     ): City {
         require(Files.size(path) <= 64L * 1024 * 1024) { "Save too large" }
-        val original = wireJson.decodeFromString<City>(Files.readString(path))
+        val encoded = wireJson.parseToJsonElement(Files.readString(path)).jsonObject
+        // Version 3 used global route indices. Discard only this derived cache; rebuild next month.
+        val legacyMobility = (encoded["mobility"] as? JsonObject)?.containsKey("paths") == true
+        val normalized = if (legacyMobility) JsonObject(encoded + ("mobility" to JsonNull)) else encoded
+        val decoded = wireJson.decodeFromJsonElement<City>(normalized)
+        val original = if (legacyMobility) decoded.copy(tiles = decoded.tiles.map { it.copy(traffic = 0) }) else decoded
         val city = original.withSharedTerrain()
         require(city.month >= 0 && city.revision >= 0 && city.debt in 0..100_000)
         require(city.rules.taxRate in 0..20 && city.rules.speed in 0..3 && city.rules.serviceFunding in 0..100)

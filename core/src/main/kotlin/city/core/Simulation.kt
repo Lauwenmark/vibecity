@@ -143,7 +143,7 @@ class Simulation(
                 )
             for (system in systems) result = system.evolve(result, catalog)
             require(result.width == city.width && result.height == city.height && result.revision == city.revision + 1) { "Plugin changed snapshot identity" }
-            MobilitySimulation(catalog).simulate(result, city.mobility)
+            MobilitySimulation(catalog, workers).simulate(result, city.mobility)
         }
 
     /** Connected components allocate finite capacity independently; disconnected plants cannot help. */

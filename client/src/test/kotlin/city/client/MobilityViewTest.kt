@@ -1,6 +1,7 @@
 package city.client
 
 import city.core.*
+import kotlinx.coroutines.runBlocking
 import java.awt.*
 import java.awt.image.BufferedImage
 import javax.swing.*
@@ -12,7 +13,7 @@ class MobilityViewTest {
         tiles[17] = Tile(zone = Zone.RESIDENTIAL_LIGHT, occupants = 12, powered = true)
         tiles[30] = Tile(zone = Zone.COMMERCIAL_DENSE, occupants = 60, powered = true)
         for (x in 1..14) tiles[32 + x] = Tile(road = true)
-        return MobilitySimulation(Catalog()).simulate(City(width = 16, height = 16, tiles = tiles))
+        return runBlocking { MobilitySimulation(Catalog()).simulate(City(width = 16, height = 16, tiles = tiles)) }
     }
 
     @Test fun `inspector selects individual need and clears invalidated plans`() {
@@ -66,7 +67,12 @@ class MobilityViewTest {
             }
             val initial = paint()
             val rendered = canvas.renderedChunkCount
-            canvas.itinerary = c.mobility!!.paths.first()
+            canvas.itinerary =
+                c.mobility!!
+                    .homes
+                    .single()
+                    .paths
+                    .first()
             canvas.residentPosition = 17
             assertFalse(initial.contentEquals(paint()))
             assertEquals(rendered, canvas.renderedChunkCount)
@@ -78,7 +84,21 @@ class MobilityViewTest {
     }
 
     @Test fun `hourly traffic colors change with observed hour`() {
-        val c = city().let { it.copy(mobility = it.mobility!!.copy(loads = listOf(TrafficLoad(40, TravelMode.ROAD, List(24) { h -> if (h == 8) 120 else 0 })))) }
+        val c =
+            city().let {
+                it.copy(
+                    mobility =
+                        it.mobility!!.copy(
+                            homes =
+                                listOf(
+                                    it.mobility!!
+                                        .homes
+                                        .single()
+                                        .copy(loads = listOf(TrafficLoad(40, TravelMode.ROAD, List(24) { h -> if (h == 8) 120 else 0 }))),
+                                ),
+                        ),
+                )
+            }
 
         fun image(hour: Int): IntArray {
             val image = BufferedImage(700, 500, BufferedImage.TYPE_INT_RGB)

@@ -37,7 +37,7 @@ finances et données des plugins sont conservés. Les secteurs développés sont
 planes ; leur altitude et le relief voisin peuvent être relevés pour réconcilier les anciennes cases.
 Les anciens barrages sont conservés, même s’ils étaient construits sur de l’eau plate.
 
-Le protocole passe en **version 3** : redémarrer **le serveur et tous les clients** avec cette version.
+Le protocole passe en **version 4** : redémarrer **le serveur et tous les clients** avec cette version.
 Recompiler les plugins contre le nouveau `core` avant de les redéployer, car le modèle `City` a changé.
 
 ## Habitants et trafic
@@ -45,6 +45,8 @@ Recompiler les plugins contre le nouveau `core` avant de les redéployer, car le
 Chaque mois simule une journée de déplacements individuels : travail ou éducation, courses,
 loisirs, soins et repos. Routes, marche, trains et métro participent à la recherche d’itinéraires ;
 la fréquentation horaire détermine la charge des voies et influence la planification suivante.
+Les domiciles sont traités en parallèle par des coroutines ; chacun conserve ses chemins et ses
+compteurs de trafic.
 
 Cliquer **Habitants / trajets…** ou double-cliquer un domicile avec l’outil Inspection. Choisir
 un habitant et un besoin pour tracer son parcours ; déplacer le curseur horaire pour voir sa

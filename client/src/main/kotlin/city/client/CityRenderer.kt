@@ -15,7 +15,7 @@ internal class CityRenderer(
     private val hourlyTraffic =
         if (layer == Layer.TRAFFIC && trafficHour in 0..23) {
             IntArray(city.tiles.size).also { values ->
-                city.mobility?.loads?.forEach { load ->
+                city.mobility?.aggregateLoads()?.forEach { load ->
                     values[load.cell] = max(values[load.cell], (load.hours[trafficHour].toLong() * 100 / load.mode.capacity).coerceAtMost(100).toInt())
                 }
             }

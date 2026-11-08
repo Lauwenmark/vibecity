@@ -80,7 +80,7 @@ d’un quartier déjà bâti. Les barrages existants bénéficient de la conserv
 Le chargement sauvegarde les octets originaux sous `.pre-slopes.json` avant de rendre la ville
 convertie au serveur ; un nom numéroté évite d’écraser une sauvegarde de secours différente.
 
-Les nouveaux états TCP (protocole 3) et les villes créées par le générateur possèdent toujours la
+Les nouveaux états TCP (protocole 4) et les villes créées par le générateur possèdent toujours la
 grille partagée. Le serveur normalise aussi les villes anciennes fournies directement à son
 constructeur. La sélection et le cache utilisent les quatre sommets : une modification d’un coin
 invalide les portions concernées même si le minimum de la case n’a pas changé.
@@ -98,7 +98,8 @@ invalide les portions concernées même si le minimum de la case n’a pas chang
    une coroutine par case. `awaitAll()` réunit les résultats dans l’ordre de la carte.
 5. Une réduction calcule les finances, les statistiques et la destruction des emprises incendiées.
    Les systèmes globaux des plugins s’exécutent ensuite dans leur ordre d’enregistrement, puis
-   la mobilité simule une journée individuelle et calcule les charges horaires.
+   la mobilité simule une journée individuelle et calcule les charges horaires par domicile,
+   via un nombre borné de coroutines sur `Dispatchers.Default`, puis additionne les charges.
 6. L’acteur publie la nouvelle ville, puis accepte la prochaine transaction. Le ticker attend la fin
    du tick avant de planifier le suivant : aucun empilement de ticks en cas de calcul lent.
 
@@ -128,7 +129,8 @@ s’additionnent ; parcs, éducation, santé, police et épuration modifient des
 Le transport autorise toujours le développement dans un rayon de trois cases. Le trafic est désormais
 issu des déplacements de chaque habitant pendant une journée représentative : besoins individuels,
 recherche de chemins multimodaux, horaires, retours au domicile et congestion retardée d’un mois.
-`City.mobility` mutualise les chemins par domicile et conserve les charges horaires. Les contrats,
+`City.mobility.homes` conserve les chemins et charges horaires propres à chaque domicile.
+Le graphe est partagé en lecture seule ; aucune liste globale de chemins n’est nécessaire. Les contrats,
 limites et règles d’inspection sont décrits dans [Mobilité](MOBILITY.md).
 
 Chaque mois : demande R/C/I dépendant population/emplois/impôts ; croissance ou déclin selon desserte,

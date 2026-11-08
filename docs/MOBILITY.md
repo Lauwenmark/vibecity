@@ -100,13 +100,31 @@ besoins inaccessibles. Les destinations n’ont pas encore de quotas d’emplois
 
 ## Contrats techniques et validation
 
-`City.mobility` contient les domiciles et effectifs, les chemins partagés avec modes et temps
-cumulés, les compteurs horaires clairsemés et le bilan des besoins. Il est nullable pour les anciens
-états et les plans invalidés. Les champs sont sérialisés dans la sauvegarde et le protocole **3**.
+`City.mobility` contient les domiciles et le bilan total des besoins. Chaque `MobilityHome`
+possède ses effectifs, ses options, sa liste locale `paths` (modes et temps cumulés), sa liste
+`loads` (charges horaires clairsemées) et son bilan des besoins. Les indices de chemins dans les
+options et les trajets désignent exclusivement la liste du domicile concerné. Aucune liste globale
+de chemins ou de charges n’est stockée. `aggregateLoads()` calcule temporairement la somme des
+charges pour le rendu et la congestion ; il additionne les heures avant de chercher la pointe. Il est nullable pour les anciens
+états et les plans invalidés. Les champs sont sérialisés dans la sauvegarde et le protocole **4**.
 Le chargement vérifie les indices, les effectifs, les durées, les dimensions horaires et les modes.
 Les plugins doivent être recompilés contre ce nouveau modèle.
 
-Le calcul reste déterministe, indépendant du nombre de workers de croissance. Les systèmes de
+Le calcul est suspendable et s’exécute sur `Dispatchers.Default`. Un nombre borné de coroutines
+(`workers`, par défaut le nombre de processeurs disponibles, au plus le nombre de domiciles)
+réclament les domiciles à traiter via un compteur atomique. Chaque coroutine calcule pour un
+domicile les chemins, horaires individuels, passages et bilans, puis passe au suivant. Il n’y a
+ni coroutine par habitant, ni création de milliers de recherches simultanées.
+
+Le graphe et les coûts du mois précédent sont construits avant les workers, puis partagés en
+lecture seule. Chaque recherche possède ses tableaux de distances, prédécesseurs et sa file de
+priorité ; chaque domicile possède ses compteurs. Les workers conservent des résultats locaux,
+réunis avec `awaitAll()` puis ordonnés par case de domicile. Les boucles de recherche vérifient
+l’annulation toutes les 256 visites et celles de comptage tous les 64 habitants. Une erreur annule
+les autres workers ; aucun instantané partiel n’est publié. La préparation du graphe et la somme
+finale des charges restent séquentielles.
+
+Le calcul reste déterministe, indépendant du nombre de workers. Les systèmes de
 plugins s’exécutent avant la mobilité pour que les trajets reflètent leur ville finale ; la mobilité
 est propriétaire du champ `traffic`. L’affichage des parcours est une surcouche qui ne reconstruit
 pas les portions de paysage du cache. Seul le calque Trafic est invalidé lors d’un changement d’heure.
@@ -114,7 +132,14 @@ pas les portions de paysage du cache. Seul le calque Trafic est invalidé lors d
 Les tests couvrent profils et horaires individuels, retours et positions, coupure par l’eau et pont,
 stations et financement, congestion et changement de mode, arcologies sans échantillonnage,
 invalidation après construction, sauvegarde/ancien format, sélection dans l’inspecteur et rendu.
-Le smoke test Swing ouvre également la fenêtre des trajets via une connexion TCP réelle.
+Les tests de concurrence comparent aussi les snapshots JSON avec 1 et 4 workers, vérifient la
+possession locale des données, l’addition des charges, la concurrence bornée, l’annulation et les
+erreurs de workers. Le smoke test Swing ouvre la fenêtre des trajets via une connexion TCP réelle.
+
+Les sauvegardes du protocole 3 sont reconnues à leurs listes globales de mobilité : seul ce cache
+dérivé et les anciennes couleurs de trafic sont invalidés au chargement, puis recalculés au mois
+suivant. Les données de ville et le fichier original restent intacts. Les serveurs et clients doivent
+être redémarrés ensemble en protocole 4 ; les plugins doivent être recompilés.
 
 Le coût de recherche croît avec le nombre de domiciles et de cases accessibles ; le comptage croît
 avec le nombre d’habitants et la longueur de leurs trajets. Aucun débit garanti n’est annoncé pour
