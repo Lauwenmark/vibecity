@@ -269,3 +269,12 @@ leur représentation existante : aucun index périmé n’est conservé entre de
 Le routeur indexe également les destinations accessibles par besoin dans des masques immuables,
 pour que la validation répétée des souvenirs ne parcoure plus les listes de destinations. Les listes
 ordonnées restent utilisées pour sélectionner les destinations de manière déterministe.
+
+`TravelPath` conserve les nœuds et minutes dans deux tableaux primitifs privés. L’API publique
+expose des vues `List<Int>` non modifiables ; les constructeurs copient les entrées mutables et
+`copy` peut partager un stockage déjà immuable. L’égalité et le hachage restent fondés sur le contenu,
+y compris pour les vues utilisées comme clés par le registre de chemins. La sérialisation lit et
+écrit directement les tableaux primitifs avec les mêmes champs JSON `nodes` et `minutes` : aucune
+migration des sauvegardes ni nouvelle version du protocole n’est nécessaire. Les opérations `copy`,
+la déstructuration et les constructeurs à listes restent disponibles malgré le remplacement de la
+`data class` par une classe immuable explicite.

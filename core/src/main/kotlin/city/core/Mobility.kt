@@ -29,16 +29,6 @@ enum class TravelMode(
     METRO("Métro", 900),
 }
 
-/** A node is cell * 4 + TravelMode.ordinal. Minutes are cumulative, including transfers. */
-@Serializable
-data class TravelPath(
-    val nodes: List<Int>,
-    val minutes: List<Int>,
-) {
-    val duration: Int get() = minutes.last()
-    val destination: Int get() = nodes.last() / 4
-}
-
 @Serializable
 data class NeedOptions(
     val need: Need,
