@@ -246,7 +246,8 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
     private fun inspect(i: Int) {
         val c = current ?: return
         val t = c.tiles.getOrNull(i) ?: return
-        inspector.text = "Case ${i % c.width}, ${i / c.width} · altitude ${t.elevation}\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\nOccupants : ${t.occupants}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Trafic ${t.traffic}"
+        val text = "Case ${i % c.width}, ${i / c.width} · altitude ${t.elevation}\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\nOccupants : ${t.occupants}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Trafic ${t.traffic}"
+        if (inspector.text != text) inspector.text = text
     }
 
     fun connect(

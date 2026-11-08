@@ -117,7 +117,8 @@ la palette des clients, **sans installer le plugin sur leurs postes**. Voir le
 
 `./gradlew build` compile les quatre modules, produit les distributions et exécute les tests de
 style Kotlin (ktlint), simulation, transactions, multijoueur sur vrais sockets TCP, persistance, plugin JAR et rendu Swing.
-Le test de rendu crée `client/build/previews/city.png` sans écran.
+Les tests du cache vérifient aussi la sélection, les raccords graphiques et l’absence de reconstruction
+de la scène au survol. Le test de rendu crée `client/build/previews/city.png` sans écran.
 
 Pour vérifier une vraie fenêtre Swing avec connexion TCP et action de budget :
 
