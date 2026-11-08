@@ -124,3 +124,6 @@ pour Swing. Une référence absente ou incompatible ferme la connexion au lieu d
 incomplet. Le serveur encode les états en ordre, en comparant uniquement les références immuables ;
 il ne retransmet donc pas les carnets des habitants après une simple construction. L’arrivée d’un
 nouveau client force un état complet. Les sauvegardes restent complètes et leur format est inchangé.
+
+La lecture des trames procède par blocs bornés, sans consommer la trame suivante. La limite est
+contrôlée avant ajout au résultat et une fin de flux sans LF reste une erreur, même si le JSON est valide.

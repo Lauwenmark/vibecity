@@ -77,15 +77,28 @@ fun readFrame(
     reader: BufferedReader,
     limit: Int,
 ): String? {
-    val result = StringBuilder()
+    require(limit >= 0)
+    val result = StringBuilder(minOf(limit, 8192))
+    val buffer = CharArray(8192)
     while (true) {
-        val c = reader.read()
-        if (c < 0) {
+        // Read at most one character beyond the bound, and never append an oversized chunk.
+        val requested = minOf(buffer.size.toLong(), limit.toLong() - result.length + 1).toInt()
+        reader.mark(buffer.size)
+        val count = reader.read(buffer, 0, requested)
+        if (count < 0) {
             if (result.isNotEmpty()) throw EOFException("Incomplete frame")
             return null
         }
-        if (c == '\n'.code) return result.toString().removeSuffix("\r")
-        require(result.length < limit) { "Frame too large" }
-        result.append(c.toChar())
+        var newline = 0
+        while (newline < count && buffer[newline] != '\n') newline++
+        require(result.length.toLong() + newline <= limit) { "Frame too large" }
+        result.append(buffer, 0, newline)
+        if (newline < count) {
+            // Keep any following frame in the BufferedReader, including for existing callers.
+            reader.reset()
+            check(reader.skip(newline + 1L) == newline + 1L)
+            if (result.isNotEmpty() && result.last() == '\r') result.setLength(result.length - 1)
+            return result.toString()
+        }
     }
 }

@@ -48,6 +48,36 @@ class ProtocolTest {
         assertNull(next.retained)
     }
 
+    @Test fun `block framing preserves following frames and exact boundaries`() {
+        for (size in listOf(0, 1, 8191, 8192, 8193, 16384)) {
+            val text = "é".repeat(size)
+            val reader = StringReader(text + "\r\nnext\nlast\n").buffered()
+            assertEquals(text, readFrame(reader, size + 1))
+            assertEquals("next", readFrame(reader, 4))
+            assertEquals("last", readFrame(reader, 4))
+            assertNull(readFrame(reader, 4))
+            assertEquals(text, readFrame(StringReader(text + "\n").buffered(), size))
+            if (size > 0) {
+                assertFailsWith<IllegalArgumentException> { readFrame(StringReader(text + "\n").buffered(), size - 1) }
+                assertFailsWith<EOFException> { readFrame(StringReader(text).buffered(), size) }
+            }
+        }
+        val source = StringReader("first\r\nsecond\n")
+        val fragmented =
+            object : java.io.Reader() {
+                override fun read(
+                    buffer: CharArray,
+                    offset: Int,
+                    length: Int,
+                ): Int = source.read(buffer, offset, minOf(length, 3))
+
+                override fun close() = source.close()
+            }.buffered()
+        assertEquals("first", readFrame(fragmented, 6))
+        assertEquals("second", readFrame(fragmented, 6))
+        assertNull(readFrame(fragmented, 6))
+    }
+
     @Test fun `framing accepts CRLF and rejects oversized and partial commands`() {
         assertEquals("hello", readFrame(StringReader("hello\r\n").buffered(), 16))
         assertFailsWith<IllegalArgumentException> { readFrame(StringReader("123456\n").buffered(), 5) }
