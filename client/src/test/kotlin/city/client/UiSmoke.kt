@@ -40,6 +40,25 @@ fun main() =
                 error("UI did not display $fragment")
             }
             awaitText("1 maire(s)")
+            SwingUtilities.invokeAndWait {
+                components(window).filterIsInstance<JButton>().single { it.text == "Habitants / trajets…" }.doClick()
+                val dialog = window.ownedWindows.filterIsInstance<JDialog>().single { it.isVisible }
+                val table = components(dialog).filterIsInstance<JTable>().single()
+                check(table.rowCount == 6)
+                val courses = (0 until table.rowCount).single { table.getValueAt(it, 0) == "Courses" }
+                table.setRowSelectionInterval(courses, courses)
+                components(dialog).filterIsInstance<JSlider>().single().value = 18 * 60
+                val canvas = components(window).filterIsInstance<CityCanvas>().single()
+                check(canvas.residentPosition != null)
+                dialog.validate()
+                val image = BufferedImage(dialog.width, dialog.height, BufferedImage.TYPE_INT_RGB)
+                val graphics = image.createGraphics()
+                dialog.paint(graphics)
+                graphics.dispose()
+                Files.createDirectories(Path.of("build/previews"))
+                ImageIO.write(image, "png", Path.of("build/previews/mobility.png").toFile())
+                dialog.dispose()
+            }
             SwingUtilities.invokeAndWait { components(window).filterIsInstance<JButton>().single { it.text == "Emprunter" }.doClick() }
             awaitText("BOND")
             SwingUtilities.invokeAndWait {

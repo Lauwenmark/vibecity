@@ -48,7 +48,11 @@ class Commands(
                     error("Commande inconnue : ${request.type}")
                 }
             }
-        return updated.copy(revision = city.revision + 1)
+        return updated.copy(
+            revision = city.revision + 1,
+            mobility = if (request.type in listOf("BUILD", "FUNDING")) null else city.mobility,
+            tiles = if (request.type in listOf("BUILD", "FUNDING")) updated.tiles.map { it.copy(traffic = 0) } else updated.tiles,
+        )
     }
 
     private fun build(

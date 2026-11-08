@@ -63,7 +63,8 @@ Les bâtiments ordinaires exigent une emprise plane à une même altitude. Le zo
 possible, mais la croissance de base exige une case plane. Routes et rails acceptent le plat et les
 rampes simples ; leurs connexions suivent l’axe de la pente. Les coins et selles ne sont pas des
 rampes routières. Les conduites et lignes électriques suivent la géométrie de surface dans le rendu.
-Le transport reste un modèle agrégé de proximité, sans calcul de trajet domicile-travail.
+La croissance conserve son critère de proximité ; les déplacements individuels utilisent un graphe
+multimodal respectant les raccordements routiers et ferroviaires.
 
 L’eau naturelle occupe les cases entièrement à l’altitude zéro. L’outil Eau peut également couvrir
 une surface plane ou une rampe en altitude ; un barrage neuf exige une rampe couverte d’eau.
@@ -79,7 +80,7 @@ d’un quartier déjà bâti. Les barrages existants bénéficient de la conserv
 Le chargement sauvegarde les octets originaux sous `.pre-slopes.json` avant de rendre la ville
 convertie au serveur ; un nom numéroté évite d’écraser une sauvegarde de secours différente.
 
-Les nouveaux états TCP (protocole 2) et les villes créées par le générateur possèdent toujours la
+Les nouveaux états TCP (protocole 3) et les villes créées par le générateur possèdent toujours la
 grille partagée. Le serveur normalise aussi les villes anciennes fournies directement à son
 constructeur. La sélection et le cache utilisent les quatre sommets : une modification d’un coin
 invalide les portions concernées même si le minimum de la case n’a pas changé.
@@ -96,7 +97,8 @@ invalide les portions concernées même si le minimum de la case n’a pas chang
    La taille des lots dépend de `availableProcessors()`, avec au moins 64 cases par lot pour éviter
    une coroutine par case. `awaitAll()` réunit les résultats dans l’ordre de la carte.
 5. Une réduction calcule les finances, les statistiques et la destruction des emprises incendiées.
-   Les systèmes globaux des plugins s’exécutent ensuite dans leur ordre d’enregistrement.
+   Les systèmes globaux des plugins s’exécutent ensuite dans leur ordre d’enregistrement, puis
+   la mobilité simule une journée individuelle et calcule les charges horaires.
 6. L’acteur publie la nouvelle ville, puis accepte la prochaine transaction. Le ticker attend la fin
    du tick avant de planifier le suivant : aucun empilement de ticks en cas de calcul lent.
 
@@ -123,9 +125,11 @@ et ses sources ont besoin d’électricité. L’eau élève la capacité de dé
 Leur influence décroît avec la distance de Manhattan. Les émissions industrielles et des centrales
 s’additionnent ; parcs, éducation, santé, police et épuration modifient des champs locaux.
 
-Le transport autorise le développement dans un rayon de trois cases. Le trafic est actuellement
-une estimation agrégée de population atténuée par les services de transport : aucun cheminement
-individuel domicile-travail n’est simulé. Les habitants sont des agrégats, extensibles via les plugins.
+Le transport autorise toujours le développement dans un rayon de trois cases. Le trafic est désormais
+issu des déplacements de chaque habitant pendant une journée représentative : besoins individuels,
+recherche de chemins multimodaux, horaires, retours au domicile et congestion retardée d’un mois.
+`City.mobility` mutualise les chemins par domicile et conserve les charges horaires. Les contrats,
+limites et règles d’inspection sont décrits dans [Mobilité](MOBILITY.md).
 
 Chaque mois : demande R/C/I dépendant population/emplois/impôts ; croissance ou déclin selon desserte,
 alimentation, pollution et demande ; revenus proportionnels aux occupants ; dépenses d’entretien,

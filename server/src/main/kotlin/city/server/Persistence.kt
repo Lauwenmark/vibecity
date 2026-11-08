@@ -58,6 +58,7 @@ object Persistence {
                 require(t.anchor == -1)
             }
         }
+        city.mobility?.validate(city, catalog)
         if (original.terrain == null) {
             var suffix = 0
             while (true) {

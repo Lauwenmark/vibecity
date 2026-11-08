@@ -72,7 +72,7 @@ protections et coûts que les joueurs, passer par les commandes de terrassement.
 reste responsable de ne pas déformer des emprises occupées et de préserver les statistiques.
 
 Le changement du modèle `City` nécessite de **recompiler les JAR de plugins** contre cette version
-de `core`. Le protocole réseau 2 et l’API de plugins 1 sont deux numérotations distinctes ; comme
+de `core`. Le protocole réseau 3 et l’API de plugins 1 sont deux numérotations distinctes ; comme
 annoncé, cette API ne garantit pas une compatibilité binaire des modèles entre versions du jeu.
 
 ## Compatibilité et distribution
@@ -91,3 +91,7 @@ binaire entre toutes les futures versions de Shared City.
 Pour retirer un plugin : sauvegarder, démolir ses bâtiments et migrer son état si nécessaire, arrêter
 le serveur puis retirer son JAR. Une sauvegarde qui référence ses bâtiments refusera de se charger
 si le plugin n’est plus présent. Conserver une copie de la sauvegarde avant toute migration.
+
+La mobilité est calculée après les systèmes globaux : les trajets reflètent les occupants et
+constructions qu’ils produisent. Elle recalcule `Tile.traffic` et `City.mobility` ; modifier ces
+champs dans une règle de plugin ne remplace pas le moteur de mobilité.

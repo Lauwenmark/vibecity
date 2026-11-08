@@ -10,7 +10,19 @@ internal class CityRenderer(
     private val catalog: Map<String, BuildingDef>,
     private val layer: Layer,
     private val zoom: Double,
+    private val trafficHour: Int = -1,
 ) {
+    private val hourlyTraffic =
+        if (layer == Layer.TRAFFIC && trafficHour in 0..23) {
+            IntArray(city.tiles.size).also { values ->
+                city.mobility?.loads?.forEach { load ->
+                    values[load.cell] = max(values[load.cell], (load.hours[trafficHour].toLong() * 100 / load.mode.capacity).coerceAtMost(100).toInt())
+                }
+            }
+        } else {
+            null
+        }
+
     fun render(
         g: Graphics2D,
         clip: Rectangle,
@@ -40,7 +52,7 @@ internal class CityRenderer(
                     if (x == city.width - 1) g.fillPolygon(intArrayOf(diamond.xpoints[1], diamond.xpoints[2], diamond.xpoints[2], diamond.xpoints[1]), intArrayOf(diamond.ypoints[1], diamond.ypoints[2], bottom + h, bottom), 4)
                     if (y == city.height - 1) g.fillPolygon(intArrayOf(diamond.xpoints[2], diamond.xpoints[3], diamond.xpoints[3], diamond.xpoints[2]), intArrayOf(diamond.ypoints[2], diamond.ypoints[3], bottom, bottom + h), 4)
                 }
-                g.color = tileColor(t)
+                g.color = tileColor(t, i)
                 g.fillPolygon(diamond)
                 if (!surface.flat && (layer == Layer.SURFACE || layer == Layer.ZONES)) {
                     // Two triangles share the north/south diagonal, matching the surface geometry.
@@ -166,7 +178,10 @@ internal class CityRenderer(
         return Point((polygon.xpoints[a] + polygon.xpoints[b]) / 2, (polygon.ypoints[a] + polygon.ypoints[b]) / 2)
     }
 
-    private fun tileColor(t: Tile): Color {
+    private fun tileColor(
+        t: Tile,
+        index: Int,
+    ): Color {
         if (layer == Layer.POWER) return if (t.powered) Color(0xd9c968) else Color(0x3c4651)
         if (layer == Layer.WATER) return if (t.watered) Color(0x458baf) else Color(0x334554)
         if (layer == Layer.POLLUTION || layer == Layer.CRIME || layer == Layer.VALUE || layer == Layer.TRAFFIC) {
@@ -175,7 +190,7 @@ internal class CityRenderer(
                     Layer.POLLUTION -> t.pollution
                     Layer.CRIME -> t.crime
                     Layer.VALUE -> 100 - t.landValue
-                    else -> t.traffic
+                    else -> hourlyTraffic?.get(index) ?: t.traffic
                 }.coerceIn(0, 100)
             return Color(65 + v * 150 / 100, 145 - v * 80 / 100, 102 - v * 40 / 100)
         }

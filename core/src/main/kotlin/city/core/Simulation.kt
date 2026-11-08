@@ -75,7 +75,7 @@ class Simulation(
                                         pollution = pollution,
                                         crime = crime,
                                         landValue = land,
-                                        traffic = if (t.road) (population / 30 - service("transport")).coerceIn(0, 100) else 0,
+                                        traffic = 0,
                                         occupants =
                                             if (t.zone == Zone.NONE) {
                                                 0
@@ -143,7 +143,7 @@ class Simulation(
                 )
             for (system in systems) result = system.evolve(result, catalog)
             require(result.width == city.width && result.height == city.height && result.revision == city.revision + 1) { "Plugin changed snapshot identity" }
-            result
+            MobilitySimulation(catalog).simulate(result, city.mobility)
         }
 
     /** Connected components allocate finite capacity independently; disconnected plants cannot help. */

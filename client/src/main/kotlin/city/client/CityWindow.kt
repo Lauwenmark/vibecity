@@ -37,9 +37,12 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
     private val tools = JPanel()
     private val chart = HistoryChart()
     private val minimap = MiniMap()
-    private val canvas = CityCanvas(::inspect, ::build)
+    private val canvas = CityCanvas(::inspect, ::build, ::inspectResidents)
     private val scroll = JScrollPane(canvas)
     private val buttons = ButtonGroup()
+    private var mobilityDialog: JDialog? = null
+    private var mobilityPanel: MobilityPanel? = null
+    private var inspectedCell: Int? = null
 
     init {
         defaultCloseOperation = DO_NOTHING_ON_CLOSE
@@ -85,6 +88,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         val layers = JComboBox(Layer.entries.map { it.label }.toTypedArray())
         layers.addActionListener { canvas.layer = Layer.entries[layers.selectedIndex] }
         viewBar.add(layers)
+        viewBar.add(button("Habitants / trajets…") { inspectResidents(inspectedCell ?: 0) })
         viewBar.add(button("−") { canvas.zoom -= .15 })
         viewBar.add(button("+") { canvas.zoom += .15 })
         viewBar.add(JLabel("   TEMPS").apply { foreground = accent })
@@ -259,7 +263,55 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         if (connection == null) status.text = "Connectez-vous à une ville d’abord." else connection?.send(r)
     }
 
+    private fun inspectResidents(cell: Int) {
+        val c = current ?: return
+        val anchor =
+            c.tiles
+                .getOrNull(cell)
+                ?.anchor
+                ?.takeIf { it >= 0 } ?: cell
+        if (mobilityDialog == null) {
+            val content =
+                MobilityPanel { path, position, hour ->
+                    val origin = path?.nodes?.firstOrNull()?.div(4) ?: position
+                    if (origin != null && origin !=
+                        canvas.itinerary
+                            ?.nodes
+                            ?.firstOrNull()
+                            ?.div(4)
+                    ) {
+                        canvas.focusCell(origin)
+                    }
+                    canvas.itinerary = path
+                    canvas.residentPosition = position
+                    canvas.trafficHour = hour
+                }
+            mobilityPanel = content
+            mobilityDialog =
+                JDialog(this, "Habitants · besoins et déplacements", false).apply {
+                    contentPane = content
+                    size = Dimension(760, 570)
+                    setLocationRelativeTo(this@CityWindow)
+                    defaultCloseOperation = DISPOSE_ON_CLOSE
+                    addWindowListener(
+                        object : WindowAdapter() {
+                            override fun windowClosed(e: WindowEvent) {
+                                canvas.itinerary = null
+                                canvas.residentPosition = null
+                                canvas.trafficHour = -1
+                                mobilityPanel = null
+                                mobilityDialog = null
+                            }
+                        },
+                    )
+                }
+        }
+        mobilityPanel?.updateSnapshot(c, anchor)
+        mobilityDialog?.isVisible = true
+    }
+
     private fun inspect(i: Int) {
+        inspectedCell = i
         val c = current ?: return
         val t = c.tiles.getOrNull(i) ?: return
         val surface = c.surface(i)
@@ -271,7 +323,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
             } else {
                 "pente composée"
             }
-        val text = "Case ${i % c.width}, ${i / c.width} · altitude ${surface.minimum}–${surface.maximum} ($slope)\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\nOccupants : ${t.occupants}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Trafic ${t.traffic}"
+        val text = "Case ${i % c.width}, ${i / c.width} · altitude ${surface.minimum}–${surface.maximum} ($slope)\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\nOccupants : ${t.occupants}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Charge de pointe ${t.traffic} %"
         if (inspector.text != text) inspector.text = text
     }
 
@@ -284,6 +336,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         connection?.close()
         current = null
         canvas.city = null
+        mobilityPanel?.updateSnapshot(null)
         status.text = "Connexion à $host:$port…"
         connection =
             Connection(host, port, name, token, { response ->
@@ -300,6 +353,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
                             val first = current == null
                             current = city
                             canvas.city = city
+                            mobilityPanel?.updateSnapshot(city)
                             if (canvas.selected >= 0) inspect(canvas.selected)
                             chart.city = city
                             minimap.city = city

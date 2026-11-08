@@ -85,6 +85,7 @@ data class City(
     val notices: List<String> = emptyList(),
     val pluginData: Map<String, String> = emptyMap(),
     val terrain: Terrain? = null,
+    val mobility: Mobility? = null,
 ) {
     init {
         require(width in 16..256 && height in 16..256 && tiles.size == width * height)

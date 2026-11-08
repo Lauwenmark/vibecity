@@ -12,9 +12,9 @@ ce projet sont des paramètres de gameplay explicitement choisis et modifiables.
 | Zonage | R/C/I léger et dense, croissance/déclin, demande, desserte, fiscalité | Développement par case ; pas de regroupement des lots en immeubles multi-cases ni de styles par époque |
 | Électricité | 9 familles : charbon, fioul, gaz, nucléaire, éolien, solaire, hydro, micro-ondes, fusion | Barrages neufs sur rampe couverte d’eau, sans modèle de débit ; capacités abstraites ; pas de durée de vie, de renouvellement des centrales, de saisonnalité ni d’accident nucléaire |
 | Eau | Pompes alimentées, conduites, château d’eau, dessalement, épuration | Château d’eau traité comme une source fixe, sans réservoir dynamique ; pas de sécheresse ni de salinité |
-| Transports | Routes, rails, ponts, métro souterrain, gares, bus, stations de métro | Rampes simples dans le sens de la montée ; accessibilité par distance ; trafic agrégé ; pas de recherche d’itinéraire, d’autoroute, d’échangeur ou de tunnel routier |
+| Transports | Trajets individuels par besoin, marche/routes/rail/métro, correspondances, charges horaires et congestion, inspection des plans et positions | Journée représentative mensuelle ; pas de files aux carrefours, horaires de trains, lignes de bus, autoroutes ou tunnels routiers ; [règles détaillées](MOBILITY.md) |
 | Services | Police, pompiers, hôpitaux, écoles, universités, bibliothèques, prison | Champs d’influence agrégés, pas de capacités de patients/élèves ou d’agents individuels |
-| Loisirs | Parcs, musée, zoo, stade | Effets sur valeur foncière et croissance, sans fréquentation détaillée |
+| Loisirs | Parcs, musée, zoo, stade | Effets sur valeur foncière et croissance, visites individuelles mais sans capacité d’accueil |
 | Économie | Impôts, entretien, financement global, dette/intérêts/remboursement | Pas d’ordonnances, de financement par service ni de commerce régional détaillé |
 | Ports et aéroports | Emprises fixes, bonus de demande à proximité ; port sur une rive | Pas de zones spécialisées à développement progressif ni de connexions interurbaines |
 | Récompenses | Maison du maire et hôtel de ville constructibles | Pas de déblocage par paliers, de statue ou de base militaire |
@@ -46,7 +46,7 @@ ignitions et la propagation, pas l’extinction instantanée d’un feu existant
 ## Évolutions naturelles vers davantage de fidélité
 
 1. Développement RCI sur lots multi-cases avec plusieurs variantes architecturales.
-2. Graphe de transport avec affectation des trajets, congestion, capacités et correspondances.
+2. Files de véhicules, horaires et capacités d’embarquement, lignes de bus, quotas de destinations et besoins persistants.
 3. Réservoirs d’eau, demande proportionnelle à la population, vieillissement des centrales.
 4. Budgets par service, ordonnances, récompenses et échanges avec les villes voisines.
 5. Catastrophes supplémentaires, animations, scénarios et équilibrage à long terme.
