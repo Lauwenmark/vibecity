@@ -99,7 +99,7 @@ class CityServer(
         val socket: Socket,
         val name: String,
     ) {
-        val outgoing = Channel<String>(32)
+        val outgoing = OutboundFrames()
         var lastId = 0L
         var firstSnapshot = 0L
 
@@ -205,7 +205,7 @@ class CityServer(
                         while (iterator.hasNext()) {
                             val session = iterator.next()
                             if (event.sequence < session.firstSnapshot) continue
-                            if (!session.outgoing.trySend(event.frame).isSuccess) {
+                            if (!session.outgoing.trySend(event.frame, state = true)) {
                                 session.close()
                                 iterator.remove()
                             }
@@ -283,10 +283,14 @@ class CityServer(
                 val writerJob =
                     launch {
                         try {
-                            for (line in connected.outgoing) {
-                                writer.write(line)
-                                writer.newLine()
-                                writer.flush()
+                            for (frame in connected.outgoing.frames) {
+                                try {
+                                    writer.write(frame.text)
+                                    writer.newLine()
+                                    writer.flush()
+                                } finally {
+                                    connected.outgoing.delivered(frame)
+                                }
                             }
                         } finally {
                             connected.close()
@@ -327,7 +331,7 @@ class CityServer(
         s: Session,
         response: Response,
     ) {
-        if (!s.outgoing.trySend(wireJson.encodeToString(response)).isSuccess) {
+        if (!s.outgoing.trySend(wireJson.encodeToString(response))) {
             s.close()
             sessions.remove(s)
         }

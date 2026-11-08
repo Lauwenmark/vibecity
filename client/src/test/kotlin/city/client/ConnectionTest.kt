@@ -15,7 +15,8 @@ class ConnectionTest {
             val initialReceived = CompletableFuture<Unit>()
             val finalState = CompletableFuture<City>()
             val release = CompletableFuture<Unit>()
-            val initial = City.generate(2000, 16).copy(households = listOf(Household(17, listOf(Citizen(1, "Alice", 30, position = 17)))), mobility = Mobility(0, emptyList(), 0, 0))
+            val paths = listOf(TravelPath(listOf(68, 72), listOf(0, 5)))
+            val initial = City.generate(2000, 16).copy(households = listOf(Household(17, listOf(Citizen(1, "Alice", 30, position = 17)), paths)), mobility = Mobility(0, listOf(MobilityHome(17, 1, emptyList(), paths)), 0, 0))
             val taxed = Commands(Catalog()).apply(initial, Request("TAX", value = 9))
             val funded = Commands(Catalog()).apply(taxed, Request("FUNDING", value = 90))
             val sender =
@@ -24,7 +25,7 @@ class ConnectionTest {
                         listener.accept().use { socket ->
                             readFrame(socket.getInputStream().bufferedReader(), 8192)
                             val writer = socket.getOutputStream().bufferedWriter(Charsets.UTF_8)
-                            writer.write(wireJson.encodeToString(Response("STATE", city = initial)) + "\n")
+                            writer.write(wireJson.encodeToString(Response("STATE", city = initial).compactState(null)) + "\n")
                             writer.flush()
                             initialReceived.get(10, TimeUnit.SECONDS)
                             writer.write(wireJson.encodeToString(Response("STATE", city = taxed).compactState(initial)) + "\n")
@@ -37,8 +38,21 @@ class ConnectionTest {
                     }
                 }
             Connection("127.0.0.1", listener.localPort, "Test", "", {
-                if (it.retained != null) finalState.completeExceptionally(AssertionError("Unrestored state"))
-                if (it.city?.revision == initial.revision) initialReceived.complete(Unit)
+                if (it.retained != null || it.sharedRouteHomes.isNotEmpty()) finalState.completeExceptionally(AssertionError("Unrestored state"))
+                if (it.city?.revision == initial.revision) {
+                    val restored = requireNotNull(it.city)
+                    if (restored != initial || restored.households
+                            .single()
+                            .paths !==
+                        restored.mobility!!
+                            .homes
+                            .single()
+                            .paths
+                    ) {
+                        finalState.completeExceptionally(AssertionError("Incomplete shared routes"))
+                    }
+                    initialReceived.complete(Unit)
+                }
                 if (it.city?.revision == funded.revision) finalState.complete(it.city)
             }, { finalState.completeExceptionally(AssertionError(it)) }).use { connection ->
                 try {

@@ -5,7 +5,7 @@ import kotlinx.serialization.json.Json
 import java.io.BufferedReader
 import java.io.EOFException
 
-const val PROTOCOL_VERSION = 6
+const val PROTOCOL_VERSION = 7
 val wireJson =
     Json {
         encodeDefaults = true
@@ -36,6 +36,7 @@ data class Response(
     val catalog: List<BuildingDef> = emptyList(),
     val players: List<String> = emptyList(),
     val retained: RetainedState? = null,
+    val sharedRouteHomes: List<Int> = emptyList(),
 )
 
 /** Large immutable fields omitted only when the preceding transmitted state owns the same objects. */
@@ -49,27 +50,71 @@ data class RetainedState(
 /** Called by the single ordered encoder, never against a state that was merely queued. */
 fun Response.compactState(previous: City?): Response {
     val current = city ?: return this
-    if (type != "STATE" || previous == null) return this
-    if (current.width != previous.width || current.height != previous.height || current.seed != previous.seed) return this
-    val households = current.households === previous.households
-    val mobility = current.mobility === previous.mobility
-    if (!households && !mobility) return this
-    return copy(
-        city = current.copy(households = if (households) emptyList() else current.households, mobility = if (mobility) null else current.mobility),
-        retained = RetainedState(previous.revision, households, mobility),
-    )
+    if (type != "STATE") return this
+    val compatible = previous != null && current.width == previous.width && current.height == previous.height && current.seed == previous.seed
+    val households = compatible && current.households === previous!!.households
+    val mobility = compatible && current.mobility === previous!!.mobility
+    val compact =
+        if (households || mobility) {
+            copy(
+                city = current.copy(households = if (households) emptyList() else current.households, mobility = if (mobility) null else current.mobility),
+                retained = RetainedState(previous!!.revision, households, mobility),
+            )
+        } else {
+            this
+        }
+    val payload = compact.city!!
+    val moving = payload.mobility ?: return compact
+    val byCell = current.households.associateBy { it.cell }
+    val shared = mutableListOf<Int>()
+    val homes =
+        moving.homes.map { home ->
+            if (home.paths.isNotEmpty() && byCell[home.cell]?.paths == home.paths) {
+                shared.add(home.cell)
+                home.copy(paths = emptyList())
+            } else {
+                home
+            }
+        }
+    return if (shared.isEmpty()) compact else compact.copy(city = payload.copy(mobility = moving.copy(homes = homes)), sharedRouteHomes = shared)
 }
 
-/** Restore before coalescing Swing notifications: every network state is a dependency of the next. */
+/** Reconstruct each wire state before coalescing notifications: subsequent deltas depend on it. */
 fun Response.restoreState(previous: City?): Response {
-    val reference = retained ?: return if (type == "STATE" && city != null) copy(city = city.shareRouteRegistries()) else this
-    val current = requireNotNull(city) { "Missing state payload" }
-    require(type == "STATE" && previous != null && previous.revision == reference.revision) { "Missing state baseline" }
-    require(current.width == previous.width && current.height == previous.height && current.seed == previous.seed) { "Incompatible state baseline" }
-    return copy(
-        city = current.copy(households = if (reference.households) previous.households else current.households, mobility = if (reference.mobility) previous.mobility else current.mobility).shareRouteRegistries(),
-        retained = null,
-    )
+    val current = city
+    if (type != "STATE" || current == null) {
+        require(retained == null && sharedRouteHomes.isEmpty()) { "Missing state payload" }
+        return this
+    }
+    val reference = retained
+    var restored =
+        if (reference == null) {
+            current
+        } else {
+            require(previous != null && previous.revision == reference.revision) { "Missing state baseline" }
+            require(current.width == previous.width && current.height == previous.height && current.seed == previous.seed) { "Incompatible state baseline" }
+            current.copy(households = if (reference.households) previous.households else current.households, mobility = if (reference.mobility) previous.mobility else current.mobility)
+        }
+    if (sharedRouteHomes.isNotEmpty()) {
+        val shared = sharedRouteHomes.toSet()
+        require(shared.size == sharedRouteHomes.size) { "Duplicate shared registry" }
+        val moving = requireNotNull(restored.mobility) { "Missing mobility for shared registries" }
+        val byCell = restored.households.associateBy { it.cell }
+        val found = mutableSetOf<Int>()
+        val homes =
+            moving.homes.map { home ->
+                if (home.cell in shared) {
+                    require(found.add(home.cell) && home.paths.isEmpty()) { "Invalid shared registry" }
+                    val household = requireNotNull(byCell[home.cell]) { "Missing household registry" }
+                    home.copy(paths = household.paths)
+                } else {
+                    home
+                }
+            }
+        require(found == shared) { "Missing mobility home" }
+        restored = restored.copy(mobility = moving.copy(homes = homes))
+    }
+    return copy(city = restored.shareRouteRegistries(), retained = null, sharedRouteHomes = emptyList())
 }
 
 /** Enforces a bound before allocating an unbounded line; EOF never commits a partial command. */
