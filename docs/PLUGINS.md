@@ -72,7 +72,7 @@ protections et coûts que les joueurs, passer par les commandes de terrassement.
 reste responsable de ne pas déformer des emprises occupées et de préserver les statistiques.
 
 Le changement du modèle `City` nécessite de **recompiler les JAR de plugins** contre cette version
-de `core`. Le protocole réseau 5 et l’API de plugins 1 sont deux numérotations distinctes ; comme
+de `core`. Le protocole réseau 6 et l’API de plugins 1 sont deux numérotations distinctes ; comme
 annoncé, cette API ne garantit pas une compatibilité binaire des modèles entre versions du jeu.
 
 ## Compatibilité et distribution

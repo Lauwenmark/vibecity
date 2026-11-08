@@ -10,6 +10,49 @@ import kotlin.concurrent.thread
 import kotlin.test.*
 
 class ConnectionTest {
+    @Test fun `compact state chain is restored before Swing notification`() {
+        ServerSocket(0).use { listener ->
+            val initialReceived = CompletableFuture<Unit>()
+            val finalState = CompletableFuture<City>()
+            val release = CompletableFuture<Unit>()
+            val initial = City.generate(2000, 16).copy(households = listOf(Household(17, listOf(Citizen(1, "Alice", 30, position = 17)))), mobility = Mobility(0, emptyList(), 0, 0))
+            val taxed = Commands(Catalog()).apply(initial, Request("TAX", value = 9))
+            val funded = Commands(Catalog()).apply(taxed, Request("FUNDING", value = 90))
+            val sender =
+                thread(isDaemon = true) {
+                    try {
+                        listener.accept().use { socket ->
+                            readFrame(socket.getInputStream().bufferedReader(), 8192)
+                            val writer = socket.getOutputStream().bufferedWriter(Charsets.UTF_8)
+                            writer.write(wireJson.encodeToString(Response("STATE", city = initial)) + "\n")
+                            writer.flush()
+                            initialReceived.get(10, TimeUnit.SECONDS)
+                            writer.write(wireJson.encodeToString(Response("STATE", city = taxed).compactState(initial)) + "\n")
+                            writer.write(wireJson.encodeToString(Response("STATE", city = funded).compactState(taxed)) + "\n")
+                            writer.flush()
+                            release.get(10, TimeUnit.SECONDS)
+                        }
+                    } catch (e: Throwable) {
+                        finalState.completeExceptionally(e)
+                    }
+                }
+            Connection("127.0.0.1", listener.localPort, "Test", "", {
+                if (it.retained != null) finalState.completeExceptionally(AssertionError("Unrestored state"))
+                if (it.city?.revision == initial.revision) initialReceived.complete(Unit)
+                if (it.city?.revision == funded.revision) finalState.complete(it.city)
+            }, { finalState.completeExceptionally(AssertionError(it)) }).use { connection ->
+                try {
+                    connection.start()
+                    assertEquals(funded, finalState.get(10, TimeUnit.SECONDS))
+                } finally {
+                    release.complete(Unit)
+                    connection.close()
+                    sender.join(5000)
+                }
+            }
+        }
+    }
+
     @Test fun `large snapshot reaches Swing and subsequent frames remain readable`() {
         ServerSocket(0).use { listener ->
             val state = CompletableFuture<Response>()

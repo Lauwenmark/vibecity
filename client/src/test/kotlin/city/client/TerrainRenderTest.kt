@@ -93,21 +93,24 @@ class TerrainRenderTest {
                     )
                 }
             val canvas = view(city)
-            for (zoom in listOf(.5, 1.35, 2.0)) {
-                canvas.zoom = zoom
-                canvas.setSize(canvas.preferredSize)
-                for (layer in Layer.entries) {
-                    canvas.layer = layer
-                    val expected = BufferedImage(canvas.width, canvas.height, BufferedImage.TYPE_INT_RGB)
-                    val g = expected.createGraphics()
-                    try {
-                        g.color = canvas.background
-                        g.fillRect(0, 0, canvas.width, canvas.height)
-                        CityRenderer(city, canvas.catalog, layer, zoom).render(g, Rectangle(0, 0, canvas.width, canvas.height))
-                    } finally {
-                        g.dispose()
+            for (rotation in 0..3) {
+                canvas.rotation = rotation
+                for (zoom in listOf(.5, 1.35, 4.0)) {
+                    canvas.zoom = zoom
+                    canvas.setSize(canvas.preferredSize)
+                    for (layer in Layer.entries) {
+                        canvas.layer = layer
+                        val expected = BufferedImage(canvas.width, canvas.height, BufferedImage.TYPE_INT_RGB)
+                        val g = expected.createGraphics()
+                        try {
+                            g.color = canvas.background
+                            g.fillRect(0, 0, canvas.width, canvas.height)
+                            CityRenderer(city, canvas.catalog, layer, zoom, rotation = rotation).render(g, Rectangle(0, 0, canvas.width, canvas.height))
+                        } finally {
+                            g.dispose()
+                        }
+                        assertTrue(pixels(expected).contentEquals(pixels(image(canvas))), "Mismatch at $zoom, $layer, $rotation")
                     }
-                    assertTrue(pixels(expected).contentEquals(pixels(image(canvas))), "Mismatch at $zoom, $layer")
                 }
             }
         }

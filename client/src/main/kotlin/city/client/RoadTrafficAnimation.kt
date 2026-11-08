@@ -33,6 +33,7 @@ internal class RoadTrafficAnimation {
         hour: Int,
         zoom: Double,
         catalog: Map<String, BuildingDef> = emptyMap(),
+        rotation: Int = 0,
     ) {
         this.zoom = zoom
         val previous = source
@@ -59,7 +60,7 @@ internal class RoadTrafficAnimation {
             segments = emptyList()
             return
         }
-        val projection = CityProjection(city.width, city.height, zoom)
+        val projection = CityProjection(city.width, city.height, zoom, rotation)
         // Spatially indexed building silhouettes prevent cars being painted over foreground roofs.
         val buildings = mutableMapOf<Pair<Int, Int>, MutableList<Shape>>()
         city.tiles.forEachIndexed { i, tile ->

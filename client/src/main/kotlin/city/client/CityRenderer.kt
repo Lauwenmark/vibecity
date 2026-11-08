@@ -11,6 +11,7 @@ internal class CityRenderer(
     private val layer: Layer,
     private val zoom: Double,
     private val trafficHour: Int = -1,
+    private val rotation: Int = 0,
 ) {
     private val hourlyTraffic =
         if (layer == Layer.TRAFFIC && trafficHour in 0..23) {
@@ -28,29 +29,31 @@ internal class CityRenderer(
         clip: Rectangle,
     ) {
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        val projection = CityProjection(city.width, city.height, zoom)
+        val projection = CityProjection(city.width, city.height, zoom, rotation)
         val tw = projection.tw
         val th = projection.th
         val w = tw.roundToInt()
         val h = th.roundToInt()
-        val first = max(0, floor((clip.y - 85 - projection.below) / th).toInt())
-        val last = min(city.width + city.height - 2, ceil((clip.maxY - 85 + projection.above) / th).toInt())
+        val first = max(0, floor((clip.y - projection.originY - projection.below) / th).toInt())
+        val last = min(city.width + city.height - 2, ceil((clip.maxY - projection.originY + projection.above) / th).toInt())
         for (diagonal in first..last) {
-            val startY = max(max(0, diagonal - city.width + 1), ceil((projection.originX + diagonal * tw - clip.maxX - projection.side) / (2 * tw)).toInt())
-            val endY = min(min(city.height - 1, diagonal), floor((projection.originX + diagonal * tw - clip.x + projection.side) / (2 * tw)).toInt())
-            for (y in startY..endY) {
-                val x = diagonal - y
-                val i = y * city.width + x
+            val startY = max(max(0, diagonal - projection.viewWidth + 1), ceil((projection.originX + diagonal * tw - clip.maxX - projection.side) / (2 * tw)).toInt())
+            val endY = min(min(projection.viewHeight - 1, diagonal), floor((projection.originX + diagonal * tw - clip.x + projection.side) / (2 * tw)).toInt())
+            for (vy in startY..endY) {
+                val vx = diagonal - vy
+                val i = projection.worldIndex(vx, vy)
+                val x = i % city.width
+                val y = i / city.width
                 val t = city.tiles[i]
                 val sx = projection.screenX(x, y)
                 val surface = city.surface(i)
                 val sy = projection.centerY(x, y, surface)
                 val diamond = projection.polygon(city, i)
-                if (x == city.width - 1 || y == city.height - 1) {
+                if (vx == projection.viewWidth - 1 || vy == projection.viewHeight - 1) {
                     g.color = Color(0x344b3e)
-                    val bottom = (85 + (x + y) * th + 12 * zoom).toInt()
-                    if (x == city.width - 1) g.fillPolygon(intArrayOf(diamond.xpoints[1], diamond.xpoints[2], diamond.xpoints[2], diamond.xpoints[1]), intArrayOf(diamond.ypoints[1], diamond.ypoints[2], bottom + h, bottom), 4)
-                    if (y == city.height - 1) g.fillPolygon(intArrayOf(diamond.xpoints[2], diamond.xpoints[3], diamond.xpoints[3], diamond.xpoints[2]), intArrayOf(diamond.ypoints[2], diamond.ypoints[3], bottom, bottom + h), 4)
+                    val bottom = (projection.originY + (vx + vy) * th + 12 * zoom).toInt()
+                    if (vx == projection.viewWidth - 1) g.fillPolygon(intArrayOf(diamond.xpoints[1], diamond.xpoints[2], diamond.xpoints[2], diamond.xpoints[1]), intArrayOf(diamond.ypoints[1], diamond.ypoints[2], bottom + h, bottom), 4)
+                    if (vy == projection.viewHeight - 1) g.fillPolygon(intArrayOf(diamond.xpoints[2], diamond.xpoints[3], diamond.xpoints[3], diamond.xpoints[2]), intArrayOf(diamond.ypoints[2], diamond.ypoints[3], bottom, bottom + h), 4)
                 }
                 g.color = tileColor(t, i)
                 g.fillPolygon(diamond)
@@ -168,8 +171,9 @@ internal class CityRenderer(
                 dy > 0 -> 2
                 else -> 0
             }
-        val b = (a + 1) % 4
-        return Point((polygon.xpoints[a] + polygon.xpoints[b]) / 2, (polygon.ypoints[a] + polygon.ypoints[b]) / 2)
+        val rotated = (a + rotation) % 4
+        val b = (rotated + 1) % 4
+        return Point((polygon.xpoints[rotated] + polygon.xpoints[b]) / 2, (polygon.ypoints[rotated] + polygon.ypoints[b]) / 2)
     }
 
     private fun tileColor(

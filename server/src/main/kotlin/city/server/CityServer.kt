@@ -51,10 +51,12 @@ class CityServer(
 
     private var simulationJob: Job? = null
     private var snapshotSequence = 0L
+    private var snapshotGeneration = 0L
 
     private data class Snapshot(
         val sequence: Long,
         val response: Response,
+        val generation: Long,
     )
 
     private val snapshots = Channel<Snapshot>(Channel.CONFLATED)
@@ -99,6 +101,7 @@ class CityServer(
     ) {
         val outgoing = Channel<String>(32)
         var lastId = 0L
+        var firstSnapshot = 0L
 
         fun close() {
             outgoing.close()
@@ -111,6 +114,8 @@ class CityServer(
             for (event in events) {
                 when (event) {
                     is Event.Join -> {
+                        event.session.firstSnapshot = snapshotSequence + 1
+                        snapshotGeneration++
                         sessions.add(event.session)
                         send(event.session, Response("WELCOME", catalog = catalog.all()))
                         broadcast()
@@ -194,10 +199,12 @@ class CityServer(
                     }
 
                     is Event.Encoded -> {
-                        if (event.sequence != snapshotSequence) continue
+                        // Encoded states form an ordered baseline chain. Newer queued work must not
+                        // discard a completed frame or continuous construction would starve updates.
                         val iterator = sessions.iterator()
                         while (iterator.hasNext()) {
                             val session = iterator.next()
+                            if (event.sequence < session.firstSnapshot) continue
                             if (!session.outgoing.trySend(event.frame).isSuccess) {
                                 session.close()
                                 iterator.remove()
@@ -221,9 +228,15 @@ class CityServer(
 
     init {
         scope.launch(Dispatchers.Default) {
+            var previous: City? = null
+            var generation = -1L
             for (snapshot in snapshots) {
-                val frame = wireJson.encodeToString(snapshot.response)
+                // A join forces a full baseline even if intermediate queued snapshots were conflated.
+                val response = snapshot.response.compactState(if (generation == snapshot.generation) previous else null)
+                val frame = wireJson.encodeToString(response)
                 events.send(Event.Encoded(snapshot.sequence, frame))
+                previous = snapshot.response.city
+                generation = snapshot.generation
             }
         }
         scope.launch {
@@ -321,7 +334,7 @@ class CityServer(
     }
 
     private fun broadcast() {
-        snapshots.trySend(Snapshot(++snapshotSequence, Response("STATE", city = city, players = sessions.map { it.name })))
+        snapshots.trySend(Snapshot(++snapshotSequence, Response("STATE", city = city, players = sessions.map { it.name }), snapshotGeneration))
     }
 
     /** Drains commands already admitted, then saves; socket closure unblocks all blocking IO. */

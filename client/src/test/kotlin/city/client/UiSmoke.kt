@@ -112,6 +112,15 @@ fun main() =
             }
             SwingUtilities.invokeAndWait {
                 check(components(window).filterIsInstance<JToggleButton>().any { it.text.contains("Centrale à charbon") })
+                val canvas = components(window).filterIsInstance<CityCanvas>().single()
+                components(window).filterIsInstance<JButton>().single { it.text == "↷ 90°" }.doClick()
+                check(canvas.rotation == 1)
+                components(window).filterIsInstance<JButton>().single { it.text == "↶ 90°" }.doClick()
+                check(canvas.rotation == 0)
+                canvas.rotation = 1
+                canvas.zoom = 4.0
+                window.validate()
+                canvas.focusCell(32 * 64 + 32)
                 val image = BufferedImage(window.width, window.height, BufferedImage.TYPE_INT_RGB)
                 val graphics = image.createGraphics()
                 window.paint(graphics)

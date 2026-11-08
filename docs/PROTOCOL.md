@@ -1,16 +1,15 @@
-# Protocole TCP v2
+# Protocole TCP v6
 
 Chaque trame est un objet JSON UTF-8 terminé par LF (`\n`). CRLF est également accepté. Les retours
 à la ligne dans les chaînes sont échappés par JSON. Aucune sérialisation Java n’est utilisée.
-Le serveur accepte des requêtes de 8 192 caractères maximum et le client des réponses de 64 Mi
-caractères maximum. Une fin de connexion avant LF ne valide jamais une commande partielle.
+Le serveur accepte des requêtes de 8 192 caractères maximum et le client des réponses jusqu’à la limite des chaînes JVM, afin de recevoir les grandes villes. Une fin de connexion avant LF ne valide jamais une commande partielle.
 
 ## Ouverture et cycle de vie
 
 Envoyer dans les 10 secondes :
 
 ```json
-{"type":"HELLO","version":5,"name":"Alice","token":""}
+{"type":"HELLO","version":6,"name":"Alice","token":""}
 ```
 
 Le nom contient 1 à 24 lettres, chiffres, espaces, `_` ou `-`. La version doit correspondre.
@@ -87,7 +86,7 @@ La version du protocole est distincte de celle du plugin (`apiVersion`). Une év
 du schéma devra incrémenter `PROTOCOL_VERSION`. Aucun support d’anciennes versions n’est promis
 par cette première version du jeu.
 
-## Mobilité (version 5)
+## Mobilité (version 6)
 
 Les états `City` incluent `mobility`, nullable lorsque les trajets ne sont pas encore calculés
 ou ont été invalidés par une construction ou un changement de financement. Cet objet contient
@@ -97,7 +96,7 @@ des options sont locaux à sa liste `paths`. Les chemins encodent leurs
 états par `case * 4 + mode` (marche 0, route 1, rail 2, métro 3), avec leurs minutes cumulées.
 Les charges portent une case, un mode et 24 compteurs horaires. Le client reconstruit les horaires
 individuels avec le code partagé de `core` ; il n’effectue aucune recherche d’itinéraire.
-Les clients et serveurs doivent tous utiliser la version 5.
+Les clients et serveurs doivent tous utiliser la version 6.
 
 `City.day` est l’indice du prochain jour à exécuter depuis le 01/01/1900, ou `null` dans une ancienne
 ville : sa date de reprise est alors le premier jour indiqué par `month`. `City.nextCitizenId`
@@ -110,3 +109,18 @@ contient aussi `days`, les plans et traces de ses habitants. Une trace garde les
 écoulées depuis son départ ; une arrivée nullable signifie un trajet inachevé. Les indices des plans,
 retours et carnets sont locaux au domicile. Les positions nocturnes persistent dans les habitants.
 Les caches des protocoles 3 et 4 sont invalidés au chargement ; les données de ville sont conservées.
+
+## États compacts (version 6)
+
+La première trame `STATE` d’une connexion contient la ville complète. Les suivantes peuvent
+porter `retained: {"revision": N, "households": true, "mobility": false}` : les champs indiqués
+par `true` sont repris de la précédente ville reçue, dont la révision doit être exactement N.
+Le champ omis est représenté par `[]` pour `households`, par `null` pour `mobility`.
+Avec `false`, la valeur reçue remplace toujours la précédente, y compris `null` ou une liste vide.
+Sans `retained`, l’état est complet. Les autres champs de `city` sont toujours transmis.
+
+Le client reconstruit **chaque** état sur le lecteur réseau avant de regrouper les notifications
+pour Swing. Une référence absente ou incompatible ferme la connexion au lieu d’appliquer un état
+incomplet. Le serveur encode les états en ordre, en comparant uniquement les références immuables ;
+il ne retransmet donc pas les carnets des habitants après une simple construction. L’arrivée d’un
+nouveau client force un état complet. Les sauvegardes restent complètes et leur format est inchangé.

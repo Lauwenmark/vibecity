@@ -55,12 +55,14 @@ class Connection(
                         requests.send(Request("PING"))
                     }
                 }
+                var previousCity: City? = null
                 while (isActive) {
                     // Full city snapshots grow with persistent citizens and routes, like local saves.
                     val line = readFrame(reader, Int.MAX_VALUE) ?: break
-                    val response = wireJson.decodeFromString<Response>(line)
+                    val response = wireJson.decodeFromString<Response>(line).restoreState(previousCity)
                     require(response.version == PROTOCOL_VERSION)
                     if (response.type == "STATE") {
+                        previousCity = response.city
                         latestState.set(response)
                         if (stateScheduled.compareAndSet(false, true)) {
                             SwingUtilities.invokeLater {

@@ -47,7 +47,7 @@ class CityCanvas(
         }
 
     private fun refreshTraffic() {
-        roadTraffic.update(city, trafficHour, zoom, catalog)
+        roadTraffic.update(city, trafficHour, zoom, catalog, rotation)
         syncAnimationTimer()
     }
 
@@ -133,7 +133,7 @@ class CityCanvas(
         }
     var zoom = 1.0
         set(value) {
-            val bounded = value.coerceIn(.5, 2.0)
+            val bounded = value.coerceIn(.5, 4.0)
             if (field == bounded) return
             field = bounded
             sceneRenderer = null
@@ -141,6 +141,19 @@ class CityCanvas(
             updateSize()
             cache.clear()
             repaint()
+        }
+    var rotation = 0
+        set(value) {
+            val normalized = Math.floorMod(value, 4)
+            if (field == normalized) return
+            val center = pick(Point(visibleRect.centerX.toInt(), visibleRect.centerY.toInt()))
+            field = normalized
+            sceneRenderer = null
+            updateSize()
+            refreshTraffic()
+            cache.clear()
+            repaint()
+            if (center >= 0) focusCell(center)
         }
     var selected = -1
         set(value) {
@@ -200,10 +213,21 @@ class CityCanvas(
                 }
 
                 override fun mouseWheelMoved(e: MouseWheelEvent) {
-                    if (e.isControlDown) {
-                        zoom += -e.preciseWheelRotation * .1
-                        e.consume()
+                    val viewport = parent as? JViewport
+                    val oldZoom = zoom
+                    val oldOriginY = projection?.originY ?: 85.0
+                    val oldPosition = viewport?.viewPosition ?: Point()
+                    zoom += -e.preciseWheelRotation * .15
+                    if (viewport != null) {
+                        val ratio = zoom / oldZoom
+                        setSize(preferredSize)
+                        viewport.viewPosition =
+                            Point(
+                                ((e.x - 70) * ratio + 70 - (e.x - oldPosition.x)).toInt().coerceIn(0, (width - viewport.width).coerceAtLeast(0)),
+                                ((e.y - oldOriginY) * ratio + (projection?.originY ?: 85.0) - (e.y - oldPosition.y)).toInt().coerceIn(0, (height - viewport.height).coerceAtLeast(0)),
+                            )
                     }
+                    e.consume()
                 }
             }
         addMouseListener(mouse)
@@ -242,8 +266,8 @@ class CityCanvas(
 
     private fun updateSize() {
         val c = city
-        projection = c?.let { CityProjection(it.width, it.height, zoom) }
-        val size = if (c == null) Dimension(0, 0) else Dimension(((c.width + c.height) * 16 * zoom + 140).toInt(), ((c.width + c.height) * 8 * zoom + 220).toInt())
+        projection = c?.let { CityProjection(it.width, it.height, zoom, rotation) }
+        val size = if (c == null) Dimension(0, 0) else Dimension(((c.width + c.height) * 16 * zoom + 140).toInt(), ((c.width + c.height) * 8 * zoom + 220 + (projection!!.originY - 85)).toInt())
         if (preferredSize != size) {
             preferredSize = size
             revalidate()
@@ -273,7 +297,7 @@ class CityCanvas(
         val g = graphics.create() as Graphics2D
         try {
             val clip = (g.clipBounds ?: Rectangle(0, 0, width, height)).intersection(Rectangle(0, 0, width, height))
-            val renderer = sceneRenderer ?: CityRenderer(c, catalog, layer, zoom, trafficHour).also { sceneRenderer = it }
+            val renderer = sceneRenderer ?: CityRenderer(c, catalog, layer, zoom, trafficHour, rotation).also { sceneRenderer = it }
             cache.paint(g, clip, background, renderer)
             if (animatedTraffic && (layer == Layer.SURFACE || layer == Layer.TRAFFIC)) roadTraffic.paint(g, clip, animationSeconds)
             paintItinerary(g, c)

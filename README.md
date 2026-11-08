@@ -37,7 +37,7 @@ finances et données des plugins sont conservés. Les secteurs développés sont
 planes ; leur altitude et le relief voisin peuvent être relevés pour réconcilier les anciennes cases.
 Les anciens barrages sont conservés, même s’ils étaient construits sur de l’eau plate.
 
-Le protocole passe en **version 5** : redémarrer **le serveur et tous les clients** avec cette version.
+Le protocole passe en **version 6** : redémarrer **le serveur et tous les clients** avec cette version.
 Recompiler les plugins contre le nouveau `core` avant de les redéployer, car le modèle `City` a changé.
 
 ## Habitants et trafic
@@ -122,7 +122,8 @@ sauvegarde et arrête le serveur autonome ; l’arrêt forcé du processus ne le
   les combattent. Les catastrophes sont désactivées par défaut.
 
 Les calques disponibles sont Surface, Zonage, Électricité, Eau/sous-sol, Pollution, Criminalité,
-Valeur foncière et Trafic. `Ctrl` + molette et les boutons `−`/`+` règlent le zoom ; les barres de
+Valeur foncière et Trafic. La molette (avec ou sans `Ctrl`) et les boutons `−`/`+` règlent le zoom de ×0,5 à ×4.
+Les boutons `↶ 90°`/`↷ 90°` tournent la carte par quarts de tour ; les barres de
 défilement déplacent la vue. Les erreurs de placement s’affichent dans la barre d’état.
 
 ## Distribution sans Gradle à l’exécution

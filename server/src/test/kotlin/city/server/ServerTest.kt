@@ -30,7 +30,13 @@ class ServerTest {
             writer.flush()
         }
 
-        fun next(): Response = wireJson.decodeFromString(readFrame(reader, 64 * 1024 * 1024) ?: error("EOF"))
+        private var previous: City? = null
+
+        fun next(): Response {
+            val response = wireJson.decodeFromString<Response>(readFrame(reader, 64 * 1024 * 1024) ?: error("EOF")).restoreState(previous)
+            if (response.type == "STATE") previous = response.city
+            return response
+        }
 
         fun until(predicate: (Response) -> Boolean): Response {
             repeat(30) {
@@ -130,6 +136,31 @@ class ServerTest {
                 }
             } finally {
                 release.complete(Unit)
+                server.shutdown()
+            }
+        }
+
+    @Test fun `joining during successive edits receives a full baseline and retains citizens`() =
+        runBlocking {
+            val initial = flat().copy(households = listOf(Household(17, listOf(Citizen(1, "Alice", 30, position = 17)))))
+            val server = CityServer(initial, port = 0, savePath = null)
+            try {
+                Peer(server.port, "Alice").use { a ->
+                    assertEquals(initial.households, a.until { it.type == "STATE" }.city!!.households)
+                    repeat(20) { a.send(Request("BUILD", id = it + 1L, tool = "trees", x = 2, y = 2)) }
+                    Peer(server.port, "Bob").use { b ->
+                        assertEquals(initial.households, b.until { it.type == "STATE" }.city!!.households)
+                        val built = a.until { it.city?.revision == 20L }.city!!
+                        assertTrue(built.tiles[34].trees)
+                        assertEquals(initial.households, built.households)
+                        a.send(Request("TAX", id = 21, value = 9))
+                        val first = a.until { it.city?.revision == 21L }.city!!
+                        val second = b.until { it.city?.revision == 21L }.city!!
+                        assertEquals(first, second)
+                        assertEquals(initial.households, second.households)
+                    }
+                }
+            } finally {
                 server.shutdown()
             }
         }
