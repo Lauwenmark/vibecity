@@ -17,7 +17,7 @@ internal class OutboundFrames(
     val frames = Channel<Frame>(32)
     private var stateBytes = 0L
     private var controlBytes = 0L
-    private var stateCount = 0
+    private var oversizedStateBytes = 0L
     private var controlCount = 0
     val retainedBytes: Long @Synchronized get() = stateBytes + controlBytes
 
@@ -30,15 +30,22 @@ internal class OutboundFrames(
         state: Boolean = false,
     ): Boolean {
         val frame = Frame(text, state)
-        val bytes = if (state) stateBytes else controlBytes
-        val count = if (state) stateCount else controlCount
-        val budget = if (state) stateBudget else controlBudget
-        // Permit one oversized snapshot/catalog, never a backlog of oversized frames.
-        // Control replies have a separate reserve so an in-flight large state cannot block ACK/PONG.
-        if (count > 0 && bytes + frame.bytes > budget) return false
+        // One oversized state has its own slot, including while the writer owns it.
+        // Normal deltas retain their budget so an edit cannot disconnect a peer that
+        // is still receiving its large baseline. Never discard dependent state frames.
+        // Control replies keep a separate reserve, with one oversized catalog allowed.
+        if (state) {
+            if (frame.bytes > stateBudget) {
+                if (oversizedStateBytes > 0) return false
+            } else if (stateBytes - oversizedStateBytes + frame.bytes > stateBudget) {
+                return false
+            }
+        } else if (controlCount > 0 && controlBytes + frame.bytes > controlBudget) {
+            return false
+        }
         if (state) {
             stateBytes += frame.bytes
-            stateCount++
+            if (frame.bytes > stateBudget) oversizedStateBytes = frame.bytes
         } else {
             controlBytes += frame.bytes
             controlCount++
@@ -51,7 +58,7 @@ internal class OutboundFrames(
     @Synchronized fun delivered(frame: Frame) {
         if (frame.state) {
             stateBytes -= frame.bytes
-            stateCount--
+            if (frame.bytes > stateBudget) oversizedStateBytes = 0
         } else {
             controlBytes -= frame.bytes
             controlCount--
