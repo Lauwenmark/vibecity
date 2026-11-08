@@ -262,7 +262,25 @@ internal class DayExecutor(
         val agent: Agent,
     )
 
-    private val queue = PriorityQueue<Event>(compareBy<Event> { it.minute }.thenBy { it.priority }.thenBy { it.agent.person.id })
+    private val queue =
+        PriorityQueue<Event> { a, b ->
+            val minute = a.minute.compareTo(b.minute)
+            val priority = a.priority.compareTo(b.priority)
+            when {
+                minute != 0 -> {
+                    minute
+                }
+
+                priority != 0 -> {
+                    priority
+                }
+
+                else -> {
+                    a.agent.person.id
+                        .compareTo(b.agent.person.id)
+                }
+            }
+        }
     private val agents = prepared.flatMapIndexed { h, home -> home.people.mapIndexed { slot, person -> Agent(h, slot, person, home.home.days[slot]) } }
 
     private val agentsByHome = agents.groupBy { it.home }

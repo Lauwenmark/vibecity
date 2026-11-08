@@ -282,3 +282,6 @@ la déstructuration et les constructeurs à listes restent disponibles malgré l
 L’exécuteur séquentiel réutilise un masque primitif pour les détours : routes saturées et cases de
 marche associées, prochain nœud bloqué, puis exception du départ. Chaque recherche lit le masque
 exclusivement jusqu’à son retour ; il est reconstruit avant la recherche suivante.
+
+Dijkstra utilise un tas de longs primitifs ordonné par coût puis nœud. Le comparateur des événements
+compare directement minute, priorité et identifiant, sans boxing ni soustraction susceptible de déborder.

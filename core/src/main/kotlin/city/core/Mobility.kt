@@ -2,7 +2,6 @@ package city.core
 
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
-import java.util.PriorityQueue
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.*
 
@@ -370,17 +369,12 @@ internal class MobilityRouter(
         return TravelPath(nodes, minutes)
     }
 
-    private data class Visit(
-        val node: Int,
-        val cost: Int,
-    )
-
     private class SearchWorkspace(
         size: Int,
     ) {
         val distance = IntArray(size) { Int.MAX_VALUE }
         val parent = IntArray(size) { -1 }
-        val queue = PriorityQueue<Visit>(compareBy<Visit> { it.cost }.thenBy { it.node })
+        val queue = RouteQueue()
         val touched = IntArray(size)
         var count = 0
 
@@ -420,25 +414,27 @@ internal class MobilityRouter(
         val queue = workspace.queue
         distance[start] = 0
         workspace.touched[workspace.count++] = start
-        queue.add(Visit(start, 0))
+        queue.add(start, 0)
         var visits = 0
         while (queue.isNotEmpty()) {
             if (visits++ % 256 == 0) currentCoroutineContext().ensureActive()
             val visit = queue.remove()
-            if (distance[visit.node] != visit.cost) continue
-            if (visit.node == goal) break
-            val edges = adjacency[visit.node]
+            val node = visit.toInt()
+            val cost = (visit ushr 32).toInt()
+            if (distance[node] != cost) continue
+            if (node == goal) break
+            val edges = adjacency[node]
             var edge = 0
             while (edge < edges.size) {
                 val next = edges[edge]
-                val total = visit.cost + edges[edge + 2]
+                val total = cost + edges[edge + 2]
                 edge += 3
                 if (blocked != null && blocked[next]) continue
                 if (total < distance[next] && total <= 180) {
                     if (distance[next] == Int.MAX_VALUE) workspace.touched[workspace.count++] = next
                     distance[next] = total
-                    parent[next] = visit.node
-                    queue.add(Visit(next, total))
+                    parent[next] = node
+                    queue.add(next, total)
                 }
             }
         }
