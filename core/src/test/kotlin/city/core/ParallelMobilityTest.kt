@@ -37,16 +37,10 @@ class ParallelMobilityTest {
             val city = MobilitySimulation(catalog, 4).simulate(source)
             val mobility = city.mobility!!
             for (home in mobility.homes) {
-                val alone = source.copy(tiles = source.tiles.mapIndexed { i, t -> if (t.zone.residential && i != home.cell) t.copy(occupants = 0) else t })
-                assertEquals(
-                    home,
-                    MobilitySimulation(catalog, 1)
-                        .simulate(alone)
-                        .mobility!!
-                        .homes
-                        .single(),
-                )
-                assertTrue(home.paths.all { it.nodes.first() / 4 == home.cell })
+                val household = city.households.single { it.cell == home.cell }
+                assertEquals(household.paths, home.paths)
+                assertEquals(household.people.map { it.id }, home.days.map { it.citizenId })
+                assertTrue(household.people.flatMap { it.routes }.all { it.path in home.paths.indices })
                 assertTrue(home.options.flatMap { it.paths }.all { it in home.paths.indices })
             }
             assertTrue(mobility.homes.count { h -> h.loads.any { it.cell == 40 } } > 1)

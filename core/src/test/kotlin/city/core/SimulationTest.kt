@@ -98,7 +98,8 @@ class SimulationTest {
             assertTrue(serial.stats.population > 0)
             assertTrue(serial.stats.jobs > 0)
             assertTrue(serial.tiles.any { it.zone.residential && it.watered })
-            assertTrue(serial.history.size == 8)
+            assertEquals(1, serial.history.size)
+            assertEquals(8, serial.day)
         }
 
     @Test fun `budget and bond transactions conserve money`() =
@@ -136,7 +137,7 @@ class SimulationTest {
             val result = Simulation(catalog, listOf(tileRule), systems = listOf(system)).step(flat())
             assertTrue(result.tiles.all { it.landValue == 99 })
             assertEquals(100100, result.treasury)
-            assertEquals("1", result.pluginData["test.turn"])
+            assertEquals("0", result.pluginData["test.turn"])
         }
 
     @Test fun `fires destroy entire building footprint`() =

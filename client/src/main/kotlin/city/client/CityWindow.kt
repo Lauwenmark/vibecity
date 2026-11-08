@@ -298,7 +298,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
             mobilityDialog =
                 JDialog(this, "Habitants · besoins et déplacements", false).apply {
                     contentPane = content
-                    size = Dimension(760, 570)
+                    size = Dimension(860, 700)
                     setLocationRelativeTo(this@CityWindow)
                     defaultCloseOperation = DISPOSE_ON_CLOSE
                     addWindowListener(
@@ -367,7 +367,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
                             minimap.city = city
                             disasters.isSelected = city.rules.disasters
                             val s = city.stats
-                            metrics.text = "${1900 + city.month / 12} / ${city.month % 12 + 1}   |   ${s.population} HAB.   |   ${city.treasury} $   |   R ${s.residentialDemand}  C ${s.commercialDemand}  I ${s.industrialDemand}"
+                            metrics.text = "${epoch.plusDays((city.mobility?.day ?: city.nextDay()).toLong())}   |   ${s.population} HAB.   |   ${city.treasury} $   |   R ${s.residentialDemand}  C ${s.commercialDemand}  I ${s.industrialDemand}"
                             heading.text = "SHARED CITY / ${if (city.rules.speed == 0) "PAUSE" else "2000"}"
                             notices.text = "Recettes : ${s.income} $ / mois\nDépenses : ${s.expenses} $ / mois\nDette : ${city.debt} $\nImpôts : ${city.rules.taxRate} %\n" + city.notices.joinToString("\n")
                             players.text = "${response.players.size} maire(s) · rév. ${city.revision}"

@@ -109,4 +109,41 @@ class MobilityViewTest {
         }
         assertFalse(image(8).contentEquals(image(0)))
     }
+
+    @Test fun `inspector exposes weekly scored memory actual routes and return journeys`() {
+        SwingUtilities.invokeAndWait {
+            var path: TravelPath? = null
+            val c = city()
+            val panel = MobilityPanel { p, _, _ -> path = p }
+            panel.updateSnapshot(c, 17)
+            val food = (0 until panel.table.rowCount).single { panel.table.getValueAt(it, 0) == "Courses" }
+            panel.table.setRowSelectionInterval(food, food)
+
+            fun children(root: Container): List<Component> = root.components.flatMap { listOf(it) + if (it is Container) children(it) else emptyList() }
+            val combos = children(panel).filterIsInstance<JComboBox<*>>()
+            val view = combos.single { it.getItemAt(0) == "Plan du matin" }
+            view.selectedIndex = 1
+            assertNotNull(path)
+            val weekday = combos.single { it.getItemAt(0) == "Lundi" }
+            view.selectedIndex = 2
+            weekday.selectedIndex = 6
+            val memory = combos.single { (it.getItemAt(0) as? String)?.startsWith("Itinéraire") == true }
+            assertTrue(memory.itemCount > 0)
+            assertTrue(memory.getItemAt(0).toString().contains("score"))
+            assertEquals(17, path!!.nodes.first() / 4)
+            children(panel).filterIsInstance<JCheckBox>().single { it.text == "Retour" }.doClick()
+            assertEquals(17, path!!.destination)
+            assertTrue(
+                children(panel).filterIsInstance<JLabel>().any {
+                    it.text.contains(
+                        c.households
+                            .single()
+                            .people
+                            .first()
+                            .name,
+                    )
+                },
+            )
+        }
+    }
 }

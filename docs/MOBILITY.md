@@ -1,166 +1,161 @@
-# Habitants, besoins et déplacements
+# Habitants, itinéraires et circulation
 
 ## Utilisation
 
-Après au moins un mois de simulation, cliquer **Habitants / trajets…** dans la barre de vue,
-ou double-cliquer un domicile avec l’outil Inspection. Choisir le domicile, puis le numéro de
-l’habitant. Cliquer une ligne de besoin affiche le chemin envisagé, y compris pour un besoin
-non programmé aujourd’hui. Le curseur horaire montre la position de cet habitant sur la carte.
+Cliquer **Habitants / trajets…** ou double-cliquer un domicile avec l’outil Inspection.
+Choisir le domicile, puis l’habitant : son nom, son âge et la date de la journée exécutée sont affichés.
+Le tableau présente ses activités et leurs heures de départ prévues. Trois vues sont disponibles :
 
-Les chemins sont colorés par mode : jaune pour la marche, orange pour la route, bleu pour le
-train, violet pour le métro. Les extrémités indiquent domicile et destination ; le point blanc
-situe l’habitant à l’heure observée. L’aller et le retour empruntent le même chemin.
+- **Plan du matin** : itinéraire choisi avant l’exécution de la journée.
+- **Parcours réalisé** : chemin effectivement suivi, avec les heures réelles et les attentes.
+- **Carnet d’itinéraires** : chemins mémorisés pour le jour de semaine sélectionné, classés par score.
 
-Choisir le calque **Trafic** pour voir la charge à l’heure de l’inspecteur. Sans inspecteur ouvert,
-ce calque affiche la pointe journalière. Vert signifie faible charge ; rouge signifie capacité
-horaire atteinte ou dépassée. L’inspection de case affiche toujours la charge de pointe.
+La case **Retour** permet d’inspecter l’autre sens. Le carnet propose chaque chemin avec son score
+et sa durée nominale. Le curseur horaire positionne le point blanc d’après la trace réellement
+exécutée, même lorsque l’on affiche un itinéraire prévu ou mémorisé. Les décisions prises dans les
+bouchons sont listées avec leur heure. Un trajet peut rester inachevé à minuit.
 
-### Voitures animées
+Les constructions et changements de financement invalident le résultat de la journée, qui sera
+recalculé au prochain jour simulé. Ils ne détruisent pas les identités et carnets des habitants.
+Les routes devenues impossibles sont écartées lors de la planification suivante.
 
-Les calques Surface et Trafic affichent de petites voitures sur les routes. La case **Voitures**
-dans la barre de vue permet de les masquer. Leur nombre reflète les compteurs ROAD de l’heure
-choisie dans l’inspecteur ; sans inspecteur, la pointe journalière est utilisée. La densité est
-actualisée à chaque nouvel état de ville. Les charges des trains et du métro ne créent pas de voitures.
+## Calendrier et habitants
 
-Chaque liaison entre deux cases routières connectées utilise le minimum de leurs charges : aucun
-véhicule ne traverse une coupure, une connexion de pente invalide ou une case incendiée. Quatre
-voitures par liaison représentent une charge nominale complète ; le rendu est plafonné à six en
-surcharge. Plus la charge est forte, plus le mouvement visuel est lent. Les routes sont élargies
-pour rendre les deux files lisibles ; les bâtiments au premier plan masquent les véhicules.
+Un pas de simulation serveur représente désormais **un jour civil**, à partir du lundi 1er janvier
+1900. Le calendrier grégorien gère les mois et années bissextiles. Les vitesses 1, 2 et 3 exécutent
+respectivement un, deux et trois jours par tick serveur ; zéro met la simulation en pause.
+L’économie, la croissance, les incendies et les plugins de simulation restent mensuels, exécutés
+le premier jour de chaque mois. Les réseaux d’électricité et d’eau sont actualisés chaque jour.
 
-Il s’agit d’une illustration locale de densité, sans association voiture/habitant ni direction
-réelle déduite des déplacements. Les motifs bouclent sur chaque liaison ; il n’y a pas de simulation
-de collision ou de files physiques. Le curseur ne fait pas défiler automatiquement la journée.
-L’animation est figée en pause, arrêtée hors des deux calques concernés ou quand la fenêtre est
-masquée, et peut être désactivée indépendamment de la simulation.
+Le serveur exécute la journée complète minute par minute, puis publie le résultat. L’inspecteur
+permet de rejouer cette journée ; il ne change pas le temps partagé entre joueurs. Il ne s’agit
+pas d’une publication réseau après chaque minute.
 
-Les constructions et changements de financement invalident les parcours : ils sont recalculés
-au prochain mois. En pause, l’inspecteur explique cette attente au lieu de montrer des chemins
-qui traverseraient des infrastructures supprimées. Les anciennes sauvegardes acquièrent leurs
-premiers plans au prochain mois, sans modification de leurs habitants ou finances.
+Chaque résident des zones et arcologies alimentées est représenté, sans échantillonnage. Il reçoit
+un identifiant monotone non réutilisé, un prénom, un nom et un âge initial de 6 à 85 ans. Le nom
+inclut l’identifiant pour distinguer les homonymes. Les identités et carnets sont sauvegardés.
+Une diminution de population retire les derniers habitants du domicile ; une croissance ultérieure
+crée de nouveaux identifiants. Le vieillissement, les familles et les déménagements nominatifs ne
+sont pas encore simulés.
 
-## Temps et identité
+## Programme et planification du matin
 
-L’économie reste mensuelle. Après la croissance et les plugins, le serveur simule une journée
-représentative complète du nouveau mois. Chaque résident des zones et chaque résident des
-arcologies alimentées participe, sans échantillonnage. Le client consulte ce résultat ; déplacer
-le curseur ne fait pas avancer le serveur et ne modifie pas la ville des autres joueurs.
+| Besoin | Programme | Départ souhaité | Temps sur place |
+| --- | --- | --- | --- |
+| Travail | 18–66 ans, lundi à vendredi ; commerce ou industrie occupés et alimentés | 7 h à 8 h 29 | 8 h |
+| Éducation | Moins de 18 ans, lundi à vendredi ; service `education` | 8 h à 8 h 29 | 6 h |
+| Soins | Une fois par semaine, jour dépendant de l’habitant ; service `health` | 10 h à 15 h 59 | 30 min |
+| Courses | Tous les jours ; commerce occupé et alimenté | 17 h à 18 h 29 ; 11 h à 12 h 29 le week-end | 30 min |
+| Loisirs | Tous les jours ; service `park` | 19 h à 19 h 59 ; 15 h à 15 h 59 le week-end | 45 min |
+| Repos | Tous les jours, au domicile | À partir de 22 h | — |
 
-Un habitant est identifié par `(domicile, numéro de place)`, encodé dans un entier de 64 bits.
-Son âge (6 à 85 ans), ses préférences et ses décalages horaires dérivent de cette identité et de
-la graine de la ville. Ils sont stables entre deux mois tant que sa place existe. La baisse de
-population retire les dernières places ; une croissance ultérieure peut réutiliser ces identités.
-Il ne s’agit donc pas encore d’un registre d’état civil avec naissances, vieillissement,
-déménagements et décès nominatifs.
+Les services doivent être alimentés, financés et non incendiés. L’âge, l’identité et la graine
+fixent les préférences horaires ; les activités sont traitées dans l’ordre du tableau. L’habitant
+attend son retour réel au domicile avant de partir pour l’activité suivante. Une sortie non encore
+commencée à 22 h est annulée ; les déplacements déjà en cours peuvent continuer jusqu’à minuit.
+Un besoin est satisfait si l’arrivée et le séjour ont pu se terminer avant minuit. Le retour peut
+être retardé sans annuler un besoin déjà satisfait. Les besoins non satisfaits n’affectent pas
+encore la santé ou la croissance.
 
-Les habitants d’un domicile partagent jusqu’à deux chemins par besoin ; chacun choisit une option
-avec sa préférence déterministe. Horaires et position sont reconstruits à l’identique à partir
-de ces données, au lieu de sérialiser des milliers de copies des mêmes chemins. Le serveur
-itère néanmoins sur chaque habitant pour compter ses déplacements effectifs dans cette journée.
+À la création, le carnet est initialisé pour les sept jours, avec les trajets applicables et
+accessibles. Chaque entrée distingue jour de semaine, besoin et sens aller/retour. Le matin,
+un tirage déterministe pondéré par le **carré du score** choisit les trajets : une route de score
+80 a seize fois le poids d’une route de score 20. Le meilleur chemin reste préféré sans éliminer
+l’exploration. Les retours sont également choisis le matin, pour la destination retenue à l’aller.
 
-## Besoins
+Les chemins sont stockés dans un registre propre à chaque domicile. Les carnets individuels
+référencent ses indices locaux avec leurs propres scores. Il n’y a aucune mutualisation entre
+domiciles. Une recherche par domicile fournit les destinations candidates ; les chemins valides
+et les coûts sont partagés en lecture seule entre les workers de planification.
 
-| Besoin | Qui / fréquence | Destination | Horaire souhaité | Temps sur place |
-| --- | --- | --- | --- | --- |
-| Travail | 18–66 ans, quotidien | Zone commerciale ou industrielle occupée et alimentée | 7 h à 8 h 29 | 8 h |
-| Éducation | 6–17 ans, quotidien | Bâtiment alimenté de service `education` | 8 h à 8 h 29 | 6 h |
-| Soins | Tous, une journée représentative sur sept | Bâtiment alimenté de service `health` | 10 h à 15 h 59 | 30 min |
-| Courses | Tous, quotidien | Zone commerciale occupée et alimentée | 17 h à 18 h 29 | 30 min |
-| Loisirs | Tous, quotidien | Bâtiment alimenté de service `park` | 19 h à 19 h 59 | 45 min |
-| Repos | Tous, quotidien | Domicile | 22 h | Reste à domicile |
+## Exécution et bouchons
 
-Les services doivent aussi être financés au-dessus de zéro et les destinations ne doivent pas
-brûler. Les besoins sont traités dans cet ordre de priorité. Chaque sortie attend le retour de
-la précédente : aucune téléportation entre deux activités, aucun chevauchement. Si l’aller,
-l’activité et le retour dépassent 22 h, le besoin reste non satisfait. Les besoins sans destination
-accessible sont également signalés. Un soin prioritaire peut donc empêcher les courses ou les loisirs.
+L’exécution utilise une file d’événements ordonnée par minute, ancienneté de l’attente et identifiant.
+Un seul ordonnanceur possède les réservations routières : aucun worker parallèle ne peut faire
+entrer simultanément trop de véhicules sur une case.
 
-Le tableau distingue un besoin non applicable, non nécessaire aujourd’hui, inaccessible ou trop
-long. Le compteur de besoins satisfaits comprend le repos ; il décrit le résultat de la journée
-représentative. La faim ou la maladie ne s’accumulent pas encore d’un mois à l’autre. Les besoins
-non satisfaits n’ajoutent pas encore de pénalité économique ou de mortalité.
+Deux limites indépendantes s’appliquent à chaque case de route, tous sens confondus :
 
-## Graphe et congestion
+- **Occupation** : six habitants en mode routier au maximum par défaut.
+- **Débit d’entrée** : deux admissions par minute, soit au plus 120 par heure.
 
-Une recherche de Dijkstra par domicile travaille sur quatre états par case : marche, route,
-rail, métro. Les destinations proposées sont les deux accessibles les plus rapides (départage
-par indice de case), dans une limite de 180 minutes pour un aller. Un domicile sans destination
-n’émet aucun trafic pour ce besoin.
+Un habitant refusé attend et conserve sa place sur la case en amont. Le blocage peut donc remonter
+la route, puis empêcher d’autres départs. Les mouvements réussis libèrent la case quittée et
+réservent la suivante. Les traces enregistrent les heures de passage réelles, sans téléportation
+lors d’un détour. Les impasses et blocages circulaires sont possibles.
 
-- Marche : 5 minutes par case orthogonale, terrain terrestre ou pont routier, sans feu, avec
-  différence d’altitude minimale au plus égale à un. Les parcelles et emprises terrestres sont
-  traversables à pied ; clôtures et entrées de bâtiments ne sont pas modélisées.
-- Route : 2 minutes par case, plus la pénalité de congestion. Les routes doivent être adjacentes
-  et raccordées selon leur pente. Entrer ou sortir de ce mode prend 2 minutes.
-- Rail et métro : 1 minute par case, plus la pénalité de congestion. Le rail respecte les rampes ;
-  le métro suit les tunnels orthogonaux. Monter et descendre demande une gare ou station alimentée
-  et financée, sur la case du réseau ou immédiatement à côté d’une case de son emprise. Chaque
-  correspondance prend 5 minutes. Les changements entre modes passent par la marche.
+À minuit, les déplacements inachevés sont marqués comme tels et pénalisés. L’habitant conserve sa
+position exacte sur la grille. Le lendemain, il tente d’abord de rentrer au domicile avant ses
+activités ; s’il reste enclavé, il ne se téléporte pas. Une route démolie sous un véhicule le
+replace en mode marche sur la même case. La mémoire d’un trajet interrompu reste consultable.
 
-Les trajets routiers représentent des déplacements individuels abstraits ; ni possession d’une
-voiture ni permis de conduire ne sont simulés. Les dépôts de bus restent constructibles mais ne
-fournissent pas encore de lignes ou de mode bus dans ce graphe.
+La marche coûte cinq minutes par case, la route deux, le rail et le métro une. Les entrées/sorties
+du mode routier coûtent deux minutes ; les correspondances ferroviaires cinq minutes. Les gares
+et stations doivent être alimentées et financées. Les routes et rails respectent les raccordements
+de pente ; les tunnels suivent les cases orthogonales. La recherche limite les trajets initiaux
+à trois heures dans un sens. Les pointes du jour précédent servent d’estimation de congestion lors
+de la recherche, tandis que les durées réellement exécutées viennent des mouvements et attentes.
 
-Chaque passage d’un habitant sur une case d’infrastructure est attribué à son heure estimée,
-à l’aller puis au retour. Les capacités sont 120 passages/h pour la route, 600 pour le rail et
-900 pour le métro. Les compteurs bruts ne sont pas plafonnés ; la couleur utilise
-`min(100, passages × 100 / capacité)`. Les piétons n’alimentent pas la charge des véhicules.
+La marche traverse les parcelles terrestres ; clôtures, voitures privées et stationnements ne sont
+pas modélisés. Un changement de mode peut faire partie d’un détour. Les limites physiques décrites
+ici concernent les routes ; les trains/métros n’ont pas encore de véhicules, horaires ou quotas
+individuels d’embarquement. Les dépôts de bus n’ont pas encore de lignes.
 
-La pointe du mois précédent ajoute à chaque étape un délai en minutes :
-`clamp(floor(2 × pointe / capacité) − 1, 0, 8)`. Les routes alternatives et les transports collectifs
-peuvent alors devenir préférables. Ce coût est figé pour la journée planifiée ; le retour utilise
-les mêmes durées en sens inverse. Ce modèle ne résout pas les files de véhicules, les feux,
-les horaires de trains ou un équilibre de trafic par itérations. Les fluctuations d’affectation
-entre mois sont possibles. La capacité pénalise les temps ; elle ne bloque pas l’embarquement.
+## Réévaluation et apprentissage
 
-La règle historique de croissance exigeant une infrastructure à trois cases est conservée.
-Elle est indépendante des déplacements : un quartier peut se développer tout en affichant des
-besoins inaccessibles. Les destinations n’ont pas encore de quotas d’emplois, d’élèves ou de patients.
+Un habitant bloqué réévalue sa décision à intervalles d’environ huit minutes, avec un décalage
+individuel de zéro à quatre minutes. Il a par défaut 45 % de chances de chercher une alternative.
 
-## Contrats techniques et validation
+1. Il examine d’abord son carnet pour ce jour, ce besoin et ce sens.
+2. Une route connue doit rejoindre la même destination depuis sa position actuelle et son suffixe
+   doit éviter les cases saturées. Les candidates sont tirées au sort avec le même poids de score.
+3. Faute de candidate, une recherche de chemin depuis la position actuelle évite les cases bloquées.
+4. Si aucun chemin ne convient, il reste dans la file et réévaluera plus tard.
 
-`City.mobility` contient les domiciles et le bilan total des besoins. Chaque `MobilityHome`
-possède ses effectifs, ses options, sa liste locale `paths` (modes et temps cumulés), sa liste
-`loads` (charges horaires clairsemées) et son bilan des besoins. Les indices de chemins dans les
-options et les trajets désignent exclusivement la liste du domicile concerné. Aucune liste globale
-de chemins ou de charges n’est stockée. `aggregateLoads()` calcule temporairement la somme des
-charges pour le rendu et la congestion ; il additionne les heures avant de chercher la pointe. Il est nullable pour les anciens
-états et les plans invalidés. Les champs sont sérialisés dans la sauvegarde et le protocole **4**.
-Le chargement vérifie les indices, les effectifs, les durées, les dimensions horaires et les modes.
-Les plugins doivent être recompilés contre ce nouveau modèle.
+Une route initiale reçoit 80 points. Chaque tranche de cinq minutes d’attente, arrondie au supérieur
+à la fin de la tentative, retire un point à la route utilisée. L’abandon d’une tentative retire
+12 points supplémentaires. Une réussite sans attente rapporte trois points, avec un plafond de
+100. Une alternative nouvellement découverte n’entre dans le carnet qu’après une arrivée réussie,
+avec un score initial de 20. Les tentatives connues utilisées après une déviation sont aussi
+pénalisées lorsqu’elles échouent ; le choix initial n’absorbe pas seul toutes les pénalités.
 
-Le calcul est suspendable et s’exécute sur `Dispatchers.Default`. Un nombre borné de coroutines
-(`workers`, par défaut le nombre de processeurs disponibles, au plus le nombre de domiciles)
-réclament les domiciles à traiter via un compteur atomique. Chaque coroutine calcule pour un
-domicile les chemins, horaires individuels, passages et bilans, puis passe au suivant. Il n’y a
-ni coroutine par habitant, ni création de milliers de recherches simultanées.
+Le premier de chaque mois, les scores inférieurs à cinq sont éliminés et seuls les cinq meilleurs
+chemins sont conservés par jour, besoin et sens. Si aucun itinéraire initial valide ne subsiste,
+la planification peut en recréer un afin de ne pas condamner définitivement ce besoin. Les chemins
+non référencés par les carnets, plans ou traces de la journée sont retirés du registre du domicile.
+Les nouveaux détours appris pendant le mois peuvent dépasser cinq jusqu’au prochain élagage.
 
-Le graphe et les coûts du mois précédent sont construits avant les workers, puis partagés en
-lecture seule. Chaque recherche possède ses tableaux de distances, prédécesseurs et sa file de
-priorité ; chaque domicile possède ses compteurs. Les workers conservent des résultats locaux,
-réunis avec `awaitAll()` puis ordonnés par case de domicile. Les boucles de recherche vérifient
-l’annulation toutes les 256 visites et celles de comptage tous les 64 habitants. Une erreur annule
-les autres workers ; aucun instantané partiel n’est publié. La préparation du graphe et la somme
-finale des charges restent séquentielles.
+Les valeurs sont regroupées dans `City.trafficRules` (`TrafficRules`) et sauvegardées. Elles sont
+configurables dans le modèle ; aucun panneau de réglage de ces coefficients n’est encore fourni.
 
-Le calcul reste déterministe, indépendant du nombre de workers. Les systèmes de
-plugins s’exécutent avant la mobilité pour que les trajets reflètent leur ville finale ; la mobilité
-est propriétaire du champ `traffic`. L’affichage des parcours est une surcouche qui ne reconstruit
-pas les portions de paysage du cache. Seul le calque Trafic est invalidé lors d’un changement d’heure.
+## Affichage du trafic
 
-Les tests couvrent profils et horaires individuels, retours et positions, coupure par l’eau et pont,
-stations et financement, congestion et changement de mode, arcologies sans échantillonnage,
-invalidation après construction, sauvegarde/ancien format, sélection dans l’inspecteur et rendu.
-Les tests de concurrence comparent aussi les snapshots JSON avec 1 et 4 workers, vérifient la
-possession locale des données, l’addition des charges, la concurrence bornée, l’annulation et les
-erreurs de workers. Le smoke test Swing ouvre la fenêtre des trajets via une connexion TCP réelle.
+Le calque Trafic montre les passages effectivement admis par heure, ou leur pointe journalière
+quand l’inspecteur est fermé. Les voitures animées restent une illustration de cette charge :
+elles ne représentent pas individuellement les habitants ni une file exacte à la minute choisie.
+Le point blanc de l’inspecteur, lui, provient de la trace temporelle réelle. Les pics d’occupation
+sont conservés pour vérifier les contraintes du moteur.
 
-Les sauvegardes du protocole 3 sont reconnues à leurs listes globales de mobilité : seul ce cache
-dérivé et les anciennes couleurs de trafic sont invalidés au chargement, puis recalculés au mois
-suivant. Les données de ville et le fichier original restent intacts. Les serveurs et clients doivent
-être redémarrés ensemble en protocole 4 ; les plugins doivent être recompilés.
+La case Voitures permet de masquer l’animation. Elle se fige en pause et s’arrête sur les autres
+calques ou quand la fenêtre est masquée. Elle reste une surcouche indépendante du cache du paysage.
 
-Le coût de recherche croît avec le nombre de domiciles et de cases accessibles ; le comptage croît
-avec le nombre d’habitants et la longueur de leurs trajets. Aucun débit garanti n’est annoncé pour
-une carte maximale entièrement peuplée. La mutualisation évite une recherche par habitant et réduit
-les snapshots, mais ne remplace pas de futurs benchmarks sur de telles villes.
+## Persistance, parallélisme et limites
+
+Le protocole est en **version 5** : redémarrer serveur et clients ensemble et recompiler les plugins.
+Les anciennes sauvegardes sans habitants persistants initialisent leurs identités au prochain jour.
+Les anciens caches de mobilité sont invalidés, sans réécrire le fichier d’origine. Les sauvegardes
+nouvelles conservent identités, scores, positions nocturnes et traces de la dernière journée.
+Le chargement contrôle les références de chemins, identifiants uniques, scores et traces.
+
+La planification reste parallèle via un nombre borné de coroutines sur `Dispatchers.Default`.
+Chaque worker possède les données d’un domicile. L’exécution temporelle est coordonnée après leur
+achèvement ; elle n’est pas parallélisée entre domiciles puisqu’ils partagent les capacités routières.
+Le résultat est déterministe pour un même état et une même graine. Les boucles CPU vérifient
+l’annulation. Le serveur publie seulement un état complet.
+
+La mémoire et le temps de calcul augmentent avec la population, les variantes d’itinéraires et
+le nombre d’événements de circulation. Les snapshots restent complets et conservent la limite de
+64 Mio du protocole et des sauvegardes : cette version ne garantit pas de performances pour une
+carte maximale entièrement peuplée. Les files sont au niveau des cases, sans voies séparées,
+feux ni priorité physique aux intersections. Les capacités d’emplois, de patients et d’élèves ne
+limitent pas encore le choix des destinations.

@@ -1,0 +1,190 @@
+package city.core
+
+import kotlinx.serialization.Serializable
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
+
+val epoch: LocalDate = LocalDate.of(1900, 1, 1)
+
+fun City.nextDay(): Int = day ?: ChronoUnit.DAYS.between(epoch, epoch.plusMonths(month.toLong())).toInt()
+
+fun dayName(day: Int): String = listOf("Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche")[Math.floorMod(day, 7)]
+
+@Serializable
+data class TrafficRules(
+    val roadSlots: Int = 6,
+    val roadEntriesPerMinute: Int = 2,
+    val reconsiderMinutes: Int = 8,
+    val reroutePercent: Int = 45,
+    val initialScore: Int = 80,
+    val alternativeScore: Int = 20,
+    val successReward: Int = 3,
+    val abandonmentPenalty: Int = 12,
+    val maxScore: Int = 100,
+    val minimumScore: Int = 5,
+    val retainedRoutes: Int = 5,
+) {
+    init {
+        require(roadSlots in 1..1000 && roadEntriesPerMinute in 1..1000)
+        require(reconsiderMinutes in 1..120 && reroutePercent in 0..100)
+        require(minimumScore in 1..100 && maxScore in minimumScore..1000)
+        require(initialScore in minimumScore..maxScore && alternativeScore in minimumScore..maxScore)
+        require(successReward in 0..100 && abandonmentPenalty in 0..100 && retainedRoutes in 1..20)
+    }
+}
+
+@Serializable
+data class LearnedRoute(
+    val weekday: Int,
+    val need: Need,
+    val returning: Boolean,
+    val path: Int,
+    val score: Int,
+)
+
+@Serializable
+data class Citizen(
+    val id: Long,
+    val name: String,
+    val age: Int,
+    val routes: List<LearnedRoute> = emptyList(),
+    val position: Int,
+)
+
+@Serializable
+data class Household(
+    val cell: Int,
+    val people: List<Citizen>,
+    val paths: List<TravelPath> = emptyList(),
+)
+
+@Serializable
+data class PlannedActivity(
+    val need: Need,
+    val departure: Int,
+    val stay: Int,
+    val route: Int? = null,
+    val returnRoute: Int? = null,
+    val scheduled: Boolean = true,
+    val reason: String = "Prévu",
+)
+
+@Serializable
+data class RouteDecision(
+    val minute: Int,
+    val node: Int,
+    val action: String,
+)
+
+@Serializable
+data class ExecutedLeg(
+    val need: Need,
+    val returning: Boolean,
+    val planned: Int,
+    val departure: Int,
+    val arrival: Int? = null,
+    val trace: TravelPath,
+    val waitMinutes: Int = 0,
+    val status: String = "En cours",
+    val decisions: List<RouteDecision> = emptyList(),
+)
+
+@Serializable
+data class CitizenDay(
+    val citizenId: Long,
+    val startNode: Int,
+    val activities: List<PlannedActivity>,
+    val legs: List<ExecutedLeg> = emptyList(),
+) {
+    fun positionAt(minute: Int): Int {
+        val leg = legs.lastOrNull { it.departure <= minute } ?: return startNode
+        val elapsed = minute - leg.departure
+        return leg.trace.nodes[
+            leg.trace.minutes
+                .indexOfLast { it <= elapsed }
+                .coerceAtLeast(0),
+        ]
+    }
+}
+
+internal fun Citizen.prune(rules: TrafficRules): Citizen =
+    copy(
+        routes =
+            routes.groupBy { Triple(it.weekday, it.need, it.returning) }.values.flatMap { group ->
+                group.filter { it.score >= rules.minimumScore }.sortedByDescending { it.score }.take(rules.retainedRoutes)
+            },
+    )
+
+/** Seeded weighted draw, independent of coroutine execution order. */
+internal fun chooseRoute(
+    routes: List<LearnedRoute>,
+    seed: Long,
+): LearnedRoute? {
+    if (routes.isEmpty()) return null
+    val total = routes.sumOf { it.score.coerceAtLeast(1).toLong() * it.score.coerceAtLeast(1) }
+    var draw = noise(seed, 0, 0).toLong() % total
+    for (route in routes) {
+        draw -= route.score.coerceAtLeast(1).toLong() * route.score.coerceAtLeast(1)
+        if (draw < 0) return route
+    }
+    return routes.last()
+}
+
+fun City.validateCitizens() {
+    require(day == null || day >= 0)
+    require(nextCitizenId > 0)
+    require(households.map { it.cell }.distinct().size == households.size)
+    val ids = mutableSetOf<Long>()
+    for (household in households) {
+        require(household.cell in tiles.indices)
+        for (path in household.paths) {
+            require(path.nodes.isNotEmpty() && path.nodes.size == path.minutes.size)
+            require(path.nodes.all { it in 0 until tiles.size * 4 })
+            require(path.minutes.first() == 0 && path.minutes.zipWithNext().all { (a, b) -> b > a })
+        }
+        for (person in household.people) {
+            require(person.id in 1 until nextCitizenId && ids.add(person.id))
+            require(person.name.length in 1..120 && person.age in 0..120 && person.position in 0 until tiles.size * 4)
+            for (route in person.routes) {
+                require(route.weekday in 0..6 && route.path in household.paths.indices && route.score in 0..trafficRules.maxScore)
+            }
+        }
+    }
+    mobility?.let { traffic ->
+        require(traffic.day >= 0 && traffic.roadOccupancyLimit in 1..1000)
+        require(traffic.roadPeakOccupancy.all { (cell, count) -> cell in tiles.indices && count in 0..traffic.roadOccupancyLimit })
+        for (home in traffic.homes) {
+            val household = requireNotNull(households.firstOrNull { it.cell == home.cell }) { "Domicile absent" }
+            require(home.paths == household.paths && home.residents == household.people.size)
+            require(home.days.map { it.citizenId } == household.people.map { it.id })
+            for (personDay in home.days) {
+                require(personDay.startNode in 0 until tiles.size * 4)
+                require(
+                    personDay.activities
+                        .map { it.need }
+                        .distinct()
+                        .size == personDay.activities.size,
+                )
+                for (activity in personDay.activities) {
+                    require(activity.route == null || activity.route in home.paths.indices)
+                    require(activity.returnRoute == null || activity.returnRoute in home.paths.indices)
+                }
+                for (leg in personDay.legs) {
+                    require(leg.planned in home.paths.indices && leg.departure in 0..1439 && (leg.arrival == null || leg.arrival in leg.departure..1439))
+                    require(leg.trace.nodes.isNotEmpty() && leg.trace.nodes.size == leg.trace.minutes.size)
+                    require(leg.trace.nodes.all { it in 0 until tiles.size * 4 })
+                    require(
+                        leg.trace.minutes.first() == 0 &&
+                            leg.trace.minutes
+                                .zipWithNext()
+                                .all { (a, b) -> b > a },
+                    )
+                    require(leg.trace.nodes.first() == home.paths[leg.planned].nodes.first())
+                    require(leg.trace.minutes.last() <= 1439 - leg.departure)
+                    require(leg.arrival == null || leg.trace.minutes.last() == leg.arrival - leg.departure)
+                    require(leg.waitMinutes >= 0 && leg.decisions.all { it.minute in 0..1439 && it.node in 0 until tiles.size * 4 })
+                }
+            }
+        }
+    }
+}

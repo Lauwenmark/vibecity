@@ -20,7 +20,25 @@ class Simulation(
         val pollution: IntArray,
     )
 
-    suspend fun step(city: City): City =
+    /** One server step executes one civil day; economic growth and accounting run on its first day. */
+    suspend fun step(city: City): City {
+        val day = city.nextDay()
+        val date = epoch.plusDays(day.toLong())
+        val month = (date.year - 1900) * 12 + date.monthValue - 1
+        var current = city.copy(month = month)
+        current =
+            if (date.dayOfMonth == 1) {
+                economicStep(current)
+            } else {
+                val power = network(current, false, null)
+                val water = network(current, true, power.supplied)
+                current.copy(tiles = current.tiles.mapIndexed { i, tile -> tile.copy(powered = power.supplied[i], watered = water.supplied[i]) }, revision = city.revision + 1)
+            }
+        val result = MobilitySimulation(catalog, workers).simulate(current.copy(day = day), city.mobility)
+        return result.copy(day = day + 1)
+    }
+
+    private suspend fun economicStep(city: City): City =
         coroutineScope {
             val powerTask = async(Dispatchers.Default) { network(city, false, null) }
             val accessTask = async(Dispatchers.Default) { transport(city) }
@@ -134,7 +152,7 @@ class Simulation(
             var result =
                 city.copy(
                     tiles = tiles,
-                    month = city.month + 1,
+                    month = city.month,
                     revision = city.revision + 1,
                     treasury = city.treasury + income - expenses,
                     stats = stats,
@@ -143,7 +161,7 @@ class Simulation(
                 )
             for (system in systems) result = system.evolve(result, catalog)
             require(result.width == city.width && result.height == city.height && result.revision == city.revision + 1) { "Plugin changed snapshot identity" }
-            MobilitySimulation(catalog, workers).simulate(result, city.mobility)
+            result
         }
 
     /** Connected components allocate finite capacity independently; disconnected plants cannot help. */

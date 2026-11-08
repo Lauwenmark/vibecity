@@ -68,7 +68,7 @@ internal class RoadTrafficAnimation {
                         if (n <= i || !city.tiles[n].road || city.tiles[n].fire > 0 || !city.transportConnects(i, n)) continue
                         val volume = min(volumes[i], volumes[n])
                         if (volume == 0) continue
-                        val ratio = volume.toDouble() / TravelMode.ROAD.capacity
+                        val ratio = volume.toDouble() / (city.trafficRules.roadEntriesPerMinute * 60)
                         val ax = projection.screenX(i % city.width, i / city.width).toDouble()
                         val ay = projection.centerY(i % city.width, i / city.width, city.surface(i)).toDouble()
                         val bx = projection.screenX(n % city.width, n / city.width).toDouble()

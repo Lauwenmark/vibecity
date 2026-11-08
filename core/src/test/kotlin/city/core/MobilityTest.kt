@@ -35,12 +35,29 @@ class MobilityTest {
             for (person in people) {
                 val trips = m.itinerary(person, h)
                 assertEquals(Need.entries.toSet(), trips.map { it.need }.toSet())
-                assertEquals(person.age in 18..66, trips.single { it.need == Need.WORK }.scheduled)
-                assertEquals(person.age < 18, trips.single { it.need == Need.EDUCATION }.scheduled)
-                val outings = trips.filter { it.fulfilled && it.path != null }
-                assertTrue(outings.zipWithNext().all { (a, b) -> a.arrivalHome <= b.departure })
-                assertTrue(outings.all { it.arrivalHome <= 1320 })
-                assertEquals(h.cell, m.position(person, h, 1439))
+                assertEquals(
+                    city.households
+                        .single()
+                        .people[person.slot]
+                        .age in 18..66,
+                    trips.single { it.need == Need.WORK }.scheduled,
+                )
+                assertEquals(
+                    city.households
+                        .single()
+                        .people[person.slot]
+                        .age < 18,
+                    trips.single { it.need == Need.EDUCATION }.scheduled,
+                )
+                val legs = h.days[person.slot].legs
+                assertTrue(legs.zipWithNext().all { (a, b) -> a.arrival != null && a.arrival <= b.departure })
+                assertEquals(
+                    city.households
+                        .single()
+                        .people[person.slot]
+                        .position / 4,
+                    m.position(person, h, 1439),
+                )
             }
             assertEquals(city, engine.simulate(fixture()))
             m.validate(city, catalog)
@@ -56,19 +73,15 @@ class MobilityTest {
             assertTrue(m.aggregateLoads().any { it.hours.slice(16..21).sum() > 0 })
             val expected = mutableMapOf<Int, IntArray>()
             val h = m.homes.single()
-            for (slot in 0 until h.residents) {
-                val person = Resident(h.cell, slot, city.seed)
-                for (trip in m.itinerary(person, h).filter { it.fulfilled && it.path != null }) {
-                    val path = m.homes.single().paths[trip.path!!]
-                    path.nodes.forEachIndexed { j, node ->
-                        if (node % 4 != 0) {
+            for (day in h.days) {
+                for (leg in day.legs) {
+                    leg.trace.nodes.forEachIndexed { j, node ->
+                        if (j > 0 && node % 4 != 0) {
                             val counts = expected.getOrPut(node) { IntArray(24) }
-                            counts[(trip.departure + path.minutes[j]) / 60]++
-                            counts[(trip.returnDeparture + path.duration - path.minutes[j]) / 60]++
+                            counts[(leg.departure + leg.trace.minutes[j]) / 60]++
                         }
                     }
-                    assertEquals(path.destination, m.position(person, h, trip.departure + path.duration))
-                    assertEquals(h.cell, m.position(person, h, trip.arrivalHome))
+                    if (leg.arrival != null) assertEquals(leg.trace.nodes.last(), day.positionAt(leg.arrival))
                 }
             }
             for (load in m.aggregateLoads()) assertEquals(expected[load.cell * 4 + load.mode.ordinal]!!.toList(), load.hours)
@@ -224,6 +237,17 @@ class MobilityTest {
                     .residents,
             )
             assertTrue(result.mobility!!.completedNeeds + result.mobility!!.unmetNeeds >= 30000)
-            assertTrue(wireJson.encodeToString(result).length < 200000)
+            assertEquals(
+                10000,
+                result.households
+                    .single()
+                    .people.size,
+            )
+            assertTrue(
+                result.households
+                    .single()
+                    .paths.size < 10000,
+            )
+            result.validateCitizens()
         }
 }

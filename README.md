@@ -37,21 +37,23 @@ finances et données des plugins sont conservés. Les secteurs développés sont
 planes ; leur altitude et le relief voisin peuvent être relevés pour réconcilier les anciennes cases.
 Les anciens barrages sont conservés, même s’ils étaient construits sur de l’eau plate.
 
-Le protocole passe en **version 4** : redémarrer **le serveur et tous les clients** avec cette version.
+Le protocole passe en **version 5** : redémarrer **le serveur et tous les clients** avec cette version.
 Recompiler les plugins contre le nouveau `core` avant de les redéployer, car le modèle `City` a changé.
 
 ## Habitants et trafic
 
-Chaque mois simule une journée de déplacements individuels : travail ou éducation, courses,
+Chaque tick exécute une ou plusieurs journées civiles de déplacements individuels : travail ou éducation, courses,
 loisirs, soins et repos. Routes, marche, trains et métro participent à la recherche d’itinéraires ;
 la fréquentation horaire détermine la charge des voies et influence la planification suivante.
 Les domiciles sont traités en parallèle par des coroutines ; chacun conserve ses chemins et ses
-compteurs de trafic.
+compteurs de trafic. L’exécution coordonne ensuite les capacités routières : attentes, bouchons,
+détours et apprentissage individuel. Chaque habitant possède un nom et un carnet par jour de semaine.
 
 Cliquer **Habitants / trajets…** ou double-cliquer un domicile avec l’outil Inspection. Choisir
-un habitant et un besoin pour tracer son parcours ; déplacer le curseur horaire pour voir sa
+un habitant et un besoin pour tracer son plan, son parcours réalisé ou ses itinéraires mémorisés
+avec leurs scores ; déplacer le curseur horaire pour voir sa
 position. Le calque **Trafic** montre la charge de cette heure, ou la pointe quotidienne quand
-l’inspecteur est fermé. Après une construction, laisser passer un mois pour recalculer les plans.
+l’inspecteur est fermé. Après une construction, laisser passer un jour pour recalculer les plans.
 
 Les calques Surface et Trafic montrent des voitures animées dont le nombre et la vitesse visuelle
 reflètent la charge routière. La case **Voitures** permet de masquer cette animation, qui se fige
@@ -59,7 +61,7 @@ en pause. Il s’agit d’une illustration de densité ; le point de l’inspect
 l’habitant sélectionné.
 
 Les [règles de mobilité](docs/MOBILITY.md) détaillent horaires, profils, capacités et limites :
-journée représentative, itinéraires partagés, pas encore de files de véhicules aux carrefours.
+calendrier quotidien, files par case, choix probabilistes et élagage mensuel des itinéraires.
 
 ## Jouer à plusieurs
 

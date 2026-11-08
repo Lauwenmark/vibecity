@@ -24,7 +24,8 @@ Une autre interface graphique pourrait se brancher sur `core` et le protocole sa
 ## État et invariants
 
 `City` contient les dimensions, la graine, la date, les finances, les règles, les statistiques,
-un historique de 120 mois et une liste de `Tile`. Ce sont des objets-valeurs exposés en lecture
+un historique de 120 mois et une liste de `Tile`. `day` identifie le prochain jour civil à exécuter ;
+`households` contient les habitants persistants, leurs positions et leurs carnets de chemins. Ce sont des objets-valeurs exposés en lecture
 seule. Le propriétaire de la ville courante est exclusivement l’acteur de `CityServer`.
 Les listes Kotlin ne constituent pas une barrière de sécurité contre un plugin JVM malveillant.
 
@@ -80,7 +81,7 @@ d’un quartier déjà bâti. Les barrages existants bénéficient de la conserv
 Le chargement sauvegarde les octets originaux sous `.pre-slopes.json` avant de rendre la ville
 convertie au serveur ; un nom numéroté évite d’écraser une sauvegarde de secours différente.
 
-Les nouveaux états TCP (protocole 4) et les villes créées par le générateur possèdent toujours la
+Les nouveaux états TCP (protocole 5) et les villes créées par le générateur possèdent toujours la
 grille partagée. Le serveur normalise aussi les villes anciennes fournies directement à son
 constructeur. La sélection et le cache utilisent les quatre sommets : une modification d’un coin
 invalide les portions concernées même si le minimum de la case n’a pas changé.
@@ -91,21 +92,24 @@ invalide les portions concernées même si le minimum de la case n’a pas chang
    Les opérations Java bloquantes n’occupent donc pas les workers CPU de la simulation.
 2. Les commandes rejoignent un `Channel` borné à 256 événements. Un acteur sur `Dispatchers.Default` les traite séquentiellement, sans dépendre des slots d’I/O bloquante.
    Aucune mutation concurrente des finances ou du terrain n’est possible.
-3. Un tick travaille sur un instantané. Analyse des transports et de l’électricité en parallèle ;
+3. Un tick exécute un à trois jours civils selon la vitesse. Le premier jour du mois, analyse
+   des transports et de l’électricité en parallèle ;
    eau et services après l’électricité. Les analyses utilisent `Dispatchers.Default`.
 4. La croissance, la pollution locale, le crime et les incendies sont calculés par lots indépendants.
    La taille des lots dépend de `availableProcessors()`, avec au moins 64 cases par lot pour éviter
    une coroutine par case. `awaitAll()` réunit les résultats dans l’ordre de la carte.
 5. Une réduction calcule les finances, les statistiques et la destruction des emprises incendiées.
    Les systèmes globaux des plugins s’exécutent ensuite dans leur ordre d’enregistrement, puis
-   la mobilité simule une journée individuelle et calcule les charges horaires par domicile,
-   via un nombre borné de coroutines sur `Dispatchers.Default`, puis additionne les charges.
+   la mobilité planifie les itinéraires par domicile via un nombre borné de coroutines sur
+   `Dispatchers.Default`. Un ordonnanceur temporel déterministe exécute les mouvements et arbitre
+   les réservations routières partagées. Les autres jours, les réseaux sont actualisés et la mobilité
+   est exécutée sans répéter la croissance ni les prélèvements mensuels.
 6. L’acteur publie la nouvelle ville, puis accepte la prochaine transaction. Le ticker attend la fin
    du tick avant de planifier le suivant : aucun empilement de ticks en cas de calcul lent.
 
 L’aléatoire est une fonction de la graine, de l’indice et du mois. La simulation donne donc le même
 résultat à un ou plusieurs workers, sous réserve de plugins eux-mêmes déterministes. Un test compare
-huit mois calculés avec 1 et 8 workers.
+huit jours calculés avec 1 et 8 workers ; les tests de mobilité comparent aussi les scores et traces.
 
 La parallélisation exploite le pool CPU standard des coroutines sans imposer une limite artificielle
 à quelques cœurs. Elle ne garantit pas une occupation de 100 % sur une petite carte : ordonnancement,
@@ -127,8 +131,10 @@ Leur influence décroît avec la distance de Manhattan. Les émissions industrie
 s’additionnent ; parcs, éducation, santé, police et épuration modifient des champs locaux.
 
 Le transport autorise toujours le développement dans un rayon de trois cases. Le trafic est désormais
-issu des déplacements de chaque habitant pendant une journée représentative : besoins individuels,
-recherche de chemins multimodaux, horaires, retours au domicile et congestion retardée d’un mois.
+issu des déplacements exécutés chaque jour : besoins individuels, chemins multimodaux, occupation
+et débit routiers bornés, attentes, détours et apprentissage. Les jours de semaine influencent les
+activités ; les retards décalent les sorties suivantes et les habitants restent à leur position
+lorsqu’un déplacement ne peut pas être terminé à minuit.
 `City.mobility.homes` conserve les chemins et charges horaires propres à chaque domicile.
 Le graphe est partagé en lecture seule ; aucune liste globale de chemins n’est nécessaire. Les contrats,
 limites et règles d’inspection sont décrits dans [Mobilité](MOBILITY.md).
@@ -140,6 +146,7 @@ financement et intérêts des emprunts. Les formules sont visibles dans `Simulat
 ## Réplication et pression réseau
 
 Le serveur publie un instantané complet après chaque transaction et tick, avec sa révision.
+Les journées sont exécutées entièrement avant publication ; l’inspecteur rejoue la dernière journée.
 Les clients peuvent ainsi rejoindre ou se reconnecter sans historique d’opérations. Une reconnexion
 est une nouvelle session ; aucune commande n’est automatiquement rejouée.
 

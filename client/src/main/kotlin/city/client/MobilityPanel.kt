@@ -5,7 +5,7 @@ import java.awt.*
 import javax.swing.*
 import javax.swing.table.DefaultTableModel
 
-/** Local inspection of the authoritative snapshot; no simulation runs on the Swing thread. */
+/** Inspect plans, actual traces and each citizen's weekly route memory without running client-side routing. */
 internal class MobilityPanel(
     private val show: (TravelPath?, Int?, Int) -> Unit,
 ) : JPanel(BorderLayout(8, 8)) {
@@ -15,10 +15,15 @@ internal class MobilityPanel(
     private val home = JComboBox<String>()
     private val resident = JSpinner(SpinnerNumberModel(1, 1, 1, 1))
     private val hour = JSlider(0, 1439, 8 * 60)
+    private val weekday = JComboBox((0..6).map(::dayName).toTypedArray())
+    private val view = JComboBox(arrayOf("Plan du matin", "Parcours réalisé", "Carnet d’itinéraires"))
+    private val returning = JCheckBox("Retour")
+    private val remembered = JComboBox<String>()
+    private var memories = emptyList<LearnedRoute>()
     private val heading = JLabel()
     private val detail = JTextArea()
     private val model =
-        object : DefaultTableModel(arrayOf("Besoin", "Départ", "Destination", "Aller", "État"), 0) {
+        object : DefaultTableModel(arrayOf("Besoin", "Départ prévu", "Destination", "Durée prévue", "Réalisation"), 0) {
             override fun isCellEditable(
                 row: Int,
                 column: Int,
@@ -29,14 +34,20 @@ internal class MobilityPanel(
     init {
         border = BorderFactory.createEmptyBorder(12, 12, 12, 12)
         val controls = JPanel(GridLayout(0, 1, 4, 4))
-        controls.add(JLabel("Domicile (x, y) puis numéro de l’habitant"))
+        controls.add(JLabel("Domicile (x, y), puis habitant"))
         controls.add(home)
         controls.add(resident)
         controls.add(heading)
-        controls.add(JLabel("Heure observée · journée représentative du mois"))
+        controls.add(JLabel("Heure observée · journée exécutée"))
         hour.majorTickSpacing = 360
         hour.paintTicks = true
         controls.add(hour)
+        val modes = JPanel(FlowLayout(FlowLayout.LEFT))
+        modes.add(view)
+        modes.add(weekday)
+        modes.add(returning)
+        controls.add(modes)
+        controls.add(remembered)
         add(controls, BorderLayout.NORTH)
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION)
         table.rowHeight = 26
@@ -44,8 +55,8 @@ internal class MobilityPanel(
         detail.isEditable = false
         detail.lineWrap = true
         detail.wrapStyleWord = true
-        detail.rows = 6
-        add(detail, BorderLayout.SOUTH)
+        detail.rows = 7
+        add(JScrollPane(detail), BorderLayout.SOUTH)
         home.addActionListener {
             if (!refreshing) {
                 updateResidentLimit()
@@ -54,7 +65,11 @@ internal class MobilityPanel(
         }
         resident.addChangeListener { if (!refreshing) refresh() }
         hour.addChangeListener { if (!refreshing) display() }
-        table.selectionModel.addListSelectionListener { if (!refreshing && !it.valueIsAdjusting) display() }
+        weekday.addActionListener { if (!refreshing) refreshMemories() }
+        view.addActionListener { if (!refreshing) refreshMemories() }
+        returning.addActionListener { if (!refreshing) refreshMemories() }
+        remembered.addActionListener { if (!refreshing) display() }
+        table.selectionModel.addListSelectionListener { if (!refreshing && !it.valueIsAdjusting) refreshMemories() }
     }
 
     fun updateSnapshot(
@@ -62,6 +77,7 @@ internal class MobilityPanel(
         preferredHome: Int? = null,
     ) {
         val old = preferredHome ?: homes.getOrNull(home.selectedIndex)?.cell
+        val first = city == null
         city = value
         refreshing = true
         homes = value?.mobility?.homes.orEmpty()
@@ -77,6 +93,7 @@ internal class MobilityPanel(
                     0
                 }
             }
+        if (first) weekday.selectedIndex = (value?.mobility?.day ?: 0) % 7
         updateResidentLimit()
         refreshing = false
         refresh()
@@ -98,16 +115,46 @@ internal class MobilityPanel(
         model.rowCount = 0
         val c = city
         val h = homes.getOrNull(home.selectedIndex)
-        val mobility = c?.mobility
-        if (c != null && h != null && mobility != null) {
-            val person = Resident(h.cell, (resident.value as Int) - 1, c.seed)
-            for (trip in mobility.itinerary(person, h)) {
-                val path = trip.path?.let { h.paths[it] }
-                val destination = path?.destination ?: if (trip.need == Need.REST) h.cell else null
-                model.addRow(arrayOf(trip.need.label, if (trip.scheduled) time(trip.departure) else "—", destination?.let { "${it % c.width}, ${it / c.width}" } ?: "—", path?.let { "${it.duration} min" } ?: "—", trip.status))
+        val day = h?.days?.getOrNull((resident.value as Int) - 1)
+        if (c != null && h != null && day != null) {
+            for (activity in day.activities) {
+                val path = activity.route?.let { h.paths[it] }
+                val leg = day.legs.firstOrNull { it.need == activity.need && !it.returning }
+                val status = leg?.status ?: if (activity.scheduled && activity.route != null) "Non effectué" else activity.reason
+                model.addRow(arrayOf(activity.need.label, if (activity.scheduled) time(activity.departure) else "—", path?.destination?.let { "${it % c.width}, ${it / c.width}" } ?: "—", path?.let { "${it.duration} min" } ?: "—", status))
             }
-            table.setRowSelectionInterval(selected.coerceAtMost(model.rowCount - 1), selected.coerceAtMost(model.rowCount - 1))
+            if (model.rowCount > 0) table.setRowSelectionInterval(selected.coerceAtMost(model.rowCount - 1), selected.coerceAtMost(model.rowCount - 1))
         }
+        refreshing = false
+        refreshMemories()
+    }
+
+    private fun refreshMemories() {
+        val h = homes.getOrNull(home.selectedIndex)
+        val person =
+            city
+                ?.households
+                ?.firstOrNull { it.cell == h?.cell }
+                ?.people
+                ?.getOrNull((resident.value as Int) - 1)
+        val need =
+            h
+                ?.days
+                ?.getOrNull((resident.value as Int) - 1)
+                ?.activities
+                ?.getOrNull(table.selectedRow)
+                ?.need
+        memories =
+            person
+                ?.routes
+                .orEmpty()
+                .filter { it.weekday == weekday.selectedIndex && it.need == need && it.returning == returning.isSelected }
+                .sortedByDescending { it.score }
+        refreshing = true
+        remembered.removeAllItems()
+        memories.forEachIndexed { i, memory -> remembered.addItem("Itinéraire ${i + 1} · score ${memory.score} · ${h!!.paths[memory.path].duration} min") }
+        remembered.isEnabled = view.selectedIndex == 2 && memories.isNotEmpty()
+        weekday.isEnabled = view.selectedIndex == 2
         refreshing = false
         display()
     }
@@ -116,31 +163,41 @@ internal class MobilityPanel(
         val c = city
         val mobility = c?.mobility
         val h = homes.getOrNull(home.selectedIndex)
+        val slot = (resident.value as Int) - 1
+        val day = h?.days?.getOrNull(slot)
         val minute = hour.value
-        if (c == null || mobility == null || h == null) {
+        if (c == null || mobility == null || h == null || day == null) {
             heading.text = "Aucun habitant à inspecter"
-            detail.text = "Les déplacements seront calculés au prochain mois de simulation. Après une construction, relancez le temps pour actualiser les itinéraires."
+            detail.text = "Les déplacements seront exécutés au prochain jour de simulation. La mémoire des habitants est conservée après une construction."
             show(null, null, minute / 60)
             return
         }
-        val person = Resident(h.cell, (resident.value as Int) - 1, c.seed)
-        val trips = mobility.itinerary(person, h)
-        val trip = trips.getOrNull(table.selectedRow)
-        val path = trip?.path?.let { h.paths[it] }
-        val position = mobility.position(person, h, minute)
-        heading.text = "${person.label} · ${time(minute)} · position ${position % c.width}, ${position / c.width}"
+        val person =
+            c.households
+                .firstOrNull { it.cell == h.cell }
+                ?.people
+                ?.getOrNull(slot)
+        val activity = day.activities.getOrNull(table.selectedRow)
+        val leg = day.legs.firstOrNull { it.need == activity?.need && it.returning == returning.isSelected }
+        val path =
+            when (view.selectedIndex) {
+                1 -> leg?.trace
+                2 -> memories.getOrNull(remembered.selectedIndex)?.let { h.paths[it.path] }
+                else -> if (returning.isSelected) activity?.returnRoute?.let { h.paths[it] } else activity?.route?.let { h.paths[it] }
+            }
+        val position = day.positionAt(minute) / 4
+        heading.text = "${person?.name ?: day.citizenId} · ${person?.age ?: "?"} ans · ${dayName(mobility.day)} ${epoch.plusDays(mobility.day.toLong())} · ${time(minute)}"
         detail.text =
             buildString {
-                append("Sélectionnez un besoin pour afficher le trajet envisagé, même s’il n’est pas prévu aujourd’hui.\n")
-                if (trip != null) {
-                    append("${trip.need.label} : ${trip.status}. ")
-                    if (path != null) {
-                        append("Modes : ${path.nodes.map { TravelMode.entries[it % 4].label }.distinct().joinToString(" → ")}. ")
-                        if (trip.fulfilled) append("Retour à ${time(trip.returnDeparture)}, domicile à ${time(trip.arrivalHome)}.")
-                    }
+                append("Position réelle : ${position % c.width}, ${position / c.width} (point blanc). Plan du matin, parcours réalisé et carnet sont distincts.\n")
+                if (leg != null) {
+                    append("${leg.status} ; départ ${time(leg.departure)}, arrivée ${leg.arrival?.let(::time) ?: "non atteinte"}. Attente : ${leg.waitMinutes} min.\n")
+                    append(leg.decisions.joinToString(" ; ") { "${time(it.minute)} : ${it.action}" })
+                } else {
+                    append(activity?.reason ?: "Sélectionnez un besoin.")
                 }
-                append("\nPoint blanc : position à l’heure observée. Marche : jaune ; route : orange ; train : bleu ; métro : violet. Retour par le même chemin. Calque Trafic : charge à l’heure choisie (100 % = capacité horaire).\n")
-                append("Ville : ${mobility.completedNeeds} besoins satisfaits, ${mobility.unmetNeeds} non satisfaits sur cette journée.")
+                append("\nCarnet : choisissez un jour et un itinéraire pour consulter son score et son tracé, aller ou retour.\n")
+                append("Ville : ${mobility.completedNeeds} besoins satisfaits, ${mobility.unmetNeeds} non satisfaits. Les voitures illustrent les passages effectivement admis.")
             }
         show(path, position, minute / 60)
     }

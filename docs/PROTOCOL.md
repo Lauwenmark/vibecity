@@ -10,7 +10,7 @@ caractères maximum. Une fin de connexion avant LF ne valide jamais une commande
 Envoyer dans les 10 secondes :
 
 ```json
-{"type":"HELLO","version":4,"name":"Alice","token":""}
+{"type":"HELLO","version":5,"name":"Alice","token":""}
 ```
 
 Le nom contient 1 à 24 lettres, chiffres, espaces, `_` ou `-`. La version doit correspondre.
@@ -74,7 +74,7 @@ Une sauvegarde ne change pas la révision. Une commande refusée ne change ni la
 
 Le message est destiné à un humain. Pour une future interface externe, ajouter des codes d’erreur
 stables avant de dépendre du texte français. `STATE.city.revision` augmente à chaque transaction
-acceptée et à chaque mois simulé ; un événement de présence peut republier la même révision.
+acceptée et à chaque jour simulé ; un événement de présence peut republier la même révision.
 
 ## Débogage manuel
 
@@ -87,7 +87,7 @@ La version du protocole est distincte de celle du plugin (`apiVersion`). Une év
 du schéma devra incrémenter `PROTOCOL_VERSION`. Aucun support d’anciennes versions n’est promis
 par cette première version du jeu.
 
-## Mobilité (version 4)
+## Mobilité (version 5)
 
 Les états `City` incluent `mobility`, nullable lorsque les trajets ne sont pas encore calculés
 ou ont été invalidés par une construction ou un changement de financement. Cet objet contient
@@ -97,4 +97,16 @@ des options sont locaux à sa liste `paths`. Les chemins encodent leurs
 états par `case * 4 + mode` (marche 0, route 1, rail 2, métro 3), avec leurs minutes cumulées.
 Les charges portent une case, un mode et 24 compteurs horaires. Le client reconstruit les horaires
 individuels avec le code partagé de `core` ; il n’effectue aucune recherche d’itinéraire.
-Les clients et serveurs doivent tous utiliser la version 4.
+Les clients et serveurs doivent tous utiliser la version 5.
+
+`City.day` est l’indice du prochain jour à exécuter depuis le 01/01/1900, ou `null` dans une ancienne
+ville : sa date de reprise est alors le premier jour indiqué par `month`. `City.nextCitizenId`
+alloue des identifiants non recyclés. `City.households` conserve les personnes et le registre de
+chemins propre à leur domicile ; les carnets référencent ce registre avec jour, besoin, sens et score.
+`City.trafficRules` contient les coefficients de capacité et d’apprentissage.
+
+`mobility.day` indique la journée exécutée, `executionVersion` son format temporel. Chaque domicile
+contient aussi `days`, les plans et traces de ses habitants. Une trace garde les noeuds et minutes
+écoulées depuis son départ ; une arrivée nullable signifie un trajet inachevé. Les indices des plans,
+retours et carnets sont locaux au domicile. Les positions nocturnes persistent dans les habitants.
+Les caches des protocoles 3 et 4 sont invalidés au chargement ; les données de ville sont conservées.

@@ -86,6 +86,11 @@ data class City(
     val pluginData: Map<String, String> = emptyMap(),
     val terrain: Terrain? = null,
     val mobility: Mobility? = null,
+    /** Index of the next civil day to execute; null resumes legacy saves at their calendar month. */
+    val day: Int? = null,
+    val households: List<Household> = emptyList(),
+    val nextCitizenId: Long = 1,
+    val trafficRules: TrafficRules = TrafficRules(),
 ) {
     init {
         require(width in 16..256 && height in 16..256 && tiles.size == width * height)

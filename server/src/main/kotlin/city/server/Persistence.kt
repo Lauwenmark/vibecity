@@ -33,8 +33,8 @@ object Persistence {
     ): City {
         require(Files.size(path) <= 64L * 1024 * 1024) { "Save too large" }
         val encoded = wireJson.parseToJsonElement(Files.readString(path)).jsonObject
-        // Version 3 used global route indices. Discard only this derived cache; rebuild next month.
-        val legacyMobility = (encoded["mobility"] as? JsonObject)?.containsKey("paths") == true
+        // Versions 3/4 had no temporal execution or persistent citizens. Rebuild only their derived cache.
+        val legacyMobility = (encoded["mobility"] as? JsonObject)?.let { "executionVersion" !in it } == true
         val normalized = if (legacyMobility) JsonObject(encoded + ("mobility" to JsonNull)) else encoded
         val decoded = wireJson.decodeFromJsonElement<City>(normalized)
         val original = if (legacyMobility) decoded.copy(tiles = decoded.tiles.map { it.copy(traffic = 0) }) else decoded
@@ -65,6 +65,7 @@ object Persistence {
             }
         }
         city.mobility?.validate(city, catalog)
+        city.validateCitizens()
         if (original.terrain == null) {
             var suffix = 0
             while (true) {

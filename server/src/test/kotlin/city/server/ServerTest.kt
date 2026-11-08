@@ -131,8 +131,8 @@ class ServerTest {
             val server = CityServer(flat().copy(rules = Rules(speed = 3)), port = 0, savePath = null, tickMillis = 40)
             try {
                 Peer(server.port).use { p ->
-                    val state = p.until { it.city?.month?.let { m -> m >= 3 } == true }.city!!
-                    assertEquals(0, state.month % 3)
+                    val state = p.until { it.city?.day?.let { d -> d >= 3 } == true }.city!!
+                    assertEquals(0, state.day!! % 3)
                     p.send(Request("SPEED", id = 1, value = 0))
                     p.until { it.type == "ACK" && it.id == 1L }
                     val paused = p.until { it.type == "STATE" && it.city!!.rules.speed == 0 }.city!!
@@ -140,7 +140,7 @@ class ServerTest {
                     p.send(Request("TAX", id = 2, value = 8))
                     p.until { it.type == "ACK" && it.id == 2L }
                     val later = p.until { it.type == "STATE" && it.city!!.rules.taxRate == 8 }.city!!
-                    assertEquals(paused.month, later.month)
+                    assertEquals(paused.day, later.day)
                 }
             } finally {
                 server.shutdown()
@@ -151,12 +151,12 @@ class ServerTest {
         runBlocking {
             val directory = Files.createTempDirectory("city-autosave")
             val path = directory.resolve("save.json")
-            val server = CityServer(flat().copy(month = 11, rules = Rules(speed = 3)), port = 0, savePath = path, tickMillis = 40)
+            val server = CityServer(flat().copy(month = 11, day = 364, rules = Rules(speed = 3)), port = 0, savePath = path, tickMillis = 40)
             try {
                 Peer(server.port).use { peer ->
-                    peer.until { (it.city?.month ?: 0) >= 14 }
+                    peer.until { (it.city?.month ?: 0) >= 12 }
                     assertTrue(Files.exists(path))
-                    assertTrue(Persistence.load(path, Catalog()).month >= 14)
+                    assertTrue(Persistence.load(path, Catalog()).month >= 12)
                 }
             } finally {
                 server.shutdown()
