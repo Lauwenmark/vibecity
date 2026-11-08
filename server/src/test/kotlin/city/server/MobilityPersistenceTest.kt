@@ -63,6 +63,25 @@ class MobilityPersistenceTest {
         }
     }
 
+    @Test fun `missing execution marker migrates but malformed modern mobility is rejected`() {
+        val file = Files.createTempFile("mobility-marker", ".json")
+        try {
+            val city = City(width = 16, height = 16, tiles = List(256) { Tile(traffic = 12) }, terrain = Terrain.flat(16, 16, 2), mobility = Mobility(0, emptyList(), 0, 0))
+            val encoded = wireJson.encodeToJsonElement(city).jsonObject
+            val mobility = encoded.getValue("mobility").jsonObject
+            Files.writeString(file, JsonObject(encoded + ("mobility" to JsonObject(mobility - "executionVersion"))).toString())
+            val migrated = Persistence.load(file, Catalog())
+            assertNull(migrated.mobility)
+            assertTrue(migrated.tiles.all { it.traffic == 0 })
+            Files.writeString(file, JsonObject(encoded + ("mobility" to JsonObject(mobility + ("unknown" to JsonPrimitive(1))))).toString())
+            assertFails { Persistence.load(file, Catalog()) }
+            Files.writeString(file, wireJson.encodeToString(city).dropLast(5))
+            assertFails { Persistence.load(file, Catalog()) }
+        } finally {
+            Files.delete(file)
+        }
+    }
+
     @Test fun `saved learning and identities resume deterministically and duplicate ids are rejected`() =
         runBlocking<Unit> {
             val file = Files.createTempFile("citizen-memory", ".json")

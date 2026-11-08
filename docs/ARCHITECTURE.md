@@ -285,3 +285,7 @@ exclusivement jusqu’à son retour ; il est reconstruit avant la recherche suiv
 
 Dijkstra utilise un tas de longs primitifs ordonné par coût puis nœud. Le comparateur des événements
 compare directement minute, priorité et identifiant, sans boxing ni soustraction susceptible de déborder.
+
+Les sauvegardes modernes sont décodées directement depuis un flux. Le marqueur executionVersion
+est obligatoire à la lecture de Mobility ; son absence déclenche uniquement dans Persistence le
+chemin de migration ancien, qui invalide le cache de mobilité. Les autres erreurs restent rejetées.

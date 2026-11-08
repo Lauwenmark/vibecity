@@ -39,7 +39,8 @@ class ServerTest {
         }
 
         fun until(predicate: (Response) -> Boolean): Response {
-            repeat(30) {
+            // A burst can deliver both an ACK and a STATE for each command.
+            repeat(128) {
                 val r = next()
                 if (predicate(r)) return r
             }

@@ -1,6 +1,7 @@
 package city.core
 
 import kotlinx.coroutines.*
+import kotlinx.serialization.Required
 import kotlinx.serialization.Serializable
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.*
@@ -62,7 +63,7 @@ data class Mobility(
     val completedNeeds: Long,
     val unmetNeeds: Long,
     val day: Int = 0,
-    val executionVersion: Int = 1,
+    @Required val executionVersion: Int = 1,
     val roadPeakOccupancy: Map<Int, Int> = emptyMap(),
     val roadOccupancyLimit: Int = 6,
 )

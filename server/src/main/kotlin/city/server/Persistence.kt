@@ -1,7 +1,8 @@
 package city.server
 
 import city.core.*
-import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import java.nio.file.*
@@ -27,18 +28,26 @@ object Persistence {
         }
     }
 
+    @OptIn(ExperimentalSerializationApi::class)
     fun load(
         path: Path,
         catalog: Catalog,
     ): City {
-        // Local snapshots include persistent citizens and routes and can exceed 64 MiB.
-        // Keep loading compatible with save(), which has no serialized-size limit.
-        val encoded = wireJson.parseToJsonElement(Files.readString(path)).jsonObject
-        // Versions 3/4 had no temporal execution or persistent citizens. Rebuild only their derived cache.
-        val legacyMobility = (encoded["mobility"] as? JsonObject)?.let { "executionVersion" !in it } == true
-        val normalized = if (legacyMobility) JsonObject(encoded + ("mobility" to JsonNull)) else encoded
-        val decoded = wireJson.decodeFromJsonElement<City>(normalized)
-        val original = if (legacyMobility) decoded.copy(tiles = decoded.tiles.map { it.copy(traffic = 0) }) else decoded
+        // Modern saves are decoded directly from the stream, without a String or JSON tree.
+        val original =
+            try {
+                Files.newInputStream(path).use { wireJson.decodeFromStream<City>(it) }
+            } catch (failure: SerializationException) {
+                // Only legacy mobility without its execution marker uses the old migration path.
+                // A malformed modern save must never be silently repaired or lose its mobility.
+                val encoded = wireJson.parseToJsonElement(Files.readString(path)).jsonObject
+                val legacy = (encoded["mobility"] as? JsonObject)?.let { "executionVersion" !in it } == true
+                if (!legacy) throw failure
+                val normalized = JsonObject(encoded + ("mobility" to JsonNull))
+                wireJson.decodeFromJsonElement<City>(normalized).let { city ->
+                    city.copy(tiles = city.tiles.map { it.copy(traffic = 0) })
+                }
+            }
         val city = original.withSharedTerrain()
         require(city.month >= 0 && city.revision >= 0 && city.debt in 0..100_000)
         require(city.rules.taxRate in 0..20 && city.rules.speed in 0..3 && city.rules.serviceFunding in 0..100)
