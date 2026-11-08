@@ -259,3 +259,13 @@ la reconstruction des chemins puis remis au pool dans un `finally`, y compris en
 Seuls les nœuds visités sont réinitialisés. Le verrou du pool n’est jamais gardé pendant le calcul ;
 la propriété de l’espace suit l’appel, indépendamment du thread exécutant la coroutine. L’ordre des
 voisins, les départages, les coûts et les points de vérification d’annulation restent inchangés.
+
+La planification quotidienne construit un index temporaire des souvenirs par habitant, jour de
+semaine, besoin et sens du trajet. Les groupes conservent l’ordre de la liste initiale et des ajouts,
+afin de préserver les tirages pondérés déterministes. L’index est construit après l’élagage et la
+validation des souvenirs ; il appartient au worker du domicile et est abandonné après préparation
+des activités. Les carnets persistants et les mutations pendant l’exécution de la journée gardent
+leur représentation existante : aucun index périmé n’est conservé entre deux journées.
+Le routeur indexe également les destinations accessibles par besoin dans des masques immuables,
+pour que la validation répétée des souvenirs ne parcoure plus les listes de destinations. Les listes
+ordonnées restent utilisées pour sélectionner les destinations de manière déterministe.

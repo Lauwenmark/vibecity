@@ -18,6 +18,38 @@ internal class HomeRoutes(
         }
 }
 
+/** Planning-local index. Append order is preserved for deterministic weighted route selection. */
+internal class RouteMemoryIndex(
+    initial: List<LearnedRoute>,
+) {
+    private val groups = arrayOfNulls<MutableList<LearnedRoute>>(7 * Need.entries.size * 2)
+    private val ordered = ArrayList<LearnedRoute>(initial.size)
+    val routes: List<LearnedRoute> get() = ordered
+
+    init {
+        initial.forEach(::add)
+    }
+
+    private fun key(
+        weekday: Int,
+        need: Need,
+        returning: Boolean,
+    ): Int = (weekday * Need.entries.size + need.ordinal) * 2 + if (returning) 1 else 0
+
+    fun get(
+        weekday: Int,
+        need: Need,
+        returning: Boolean,
+    ): List<LearnedRoute> = groups[key(weekday, need, returning)] ?: emptyList()
+
+    fun add(route: LearnedRoute) {
+        val key = key(route.weekday, route.need, route.returning)
+        val group = groups[key] ?: ArrayList<LearnedRoute>().also { groups[key] = it }
+        group.add(route)
+        ordered.add(route)
+    }
+}
+
 internal data class PreparedHome(
     val home: MobilityHome,
     val people: List<Citizen>,
@@ -68,6 +100,7 @@ class MobilitySimulation(
                 val options = choices.map { (need, paths) -> NeedOptions(need, paths.map(registry::intern)) }
                 val validPaths = registry.paths.map(router::valid)
                 val prune = epoch.plusDays(day.toLong()).dayOfMonth == 1
+                val routeIndexes = ArrayList<RouteMemoryIndex>(household.people.size)
                 val people =
                     household.people.map { resident ->
                         var person = if (prune) resident.prune(city.trafficRules) else resident
@@ -76,32 +109,34 @@ class MobilitySimulation(
                                 val path = registry.paths.getOrNull(memory.path)
                                 path != null && validPaths.getOrElse(memory.path) { router.valid(path) } && if (memory.returning) router.serves(memory.need, path.nodes.first() / 4) else router.serves(memory.need, path.destination)
                             }
-                        val memories = valid.toMutableList()
+                        val memories = RouteMemoryIndex(valid)
+                        routeIndexes.add(memories)
                         for (weekday in 0..6) {
                             for (option in options) {
                                 if (!applicable(person.age, option.need, weekday) || option.paths.isEmpty()) continue
-                                if (memories.none { it.weekday == weekday && it.need == option.need && !it.returning }) {
+                                if (memories.get(weekday, option.need, false).isEmpty()) {
                                     val path = option.paths[noise(city.seed xor person.id, option.need.ordinal, weekday) % option.paths.size]
                                     memories.add(LearnedRoute(weekday, option.need, false, path, city.trafficRules.initialScore))
                                     router.path(registry.paths[path].nodes.reversed())?.let { back ->
                                         val backId = registry.intern(back)
-                                        if (memories.none { it.weekday == weekday && it.need == option.need && it.returning && it.path == backId }) {
+                                        if (memories.get(weekday, option.need, true).none { it.path == backId }) {
                                             memories.add(LearnedRoute(weekday, option.need, true, backId, city.trafficRules.initialScore))
                                         }
                                     }
                                 }
                             }
                         }
-                        person = person.copy(routes = memories)
+                        person = person.copy(routes = memories.routes)
                         person
                     }
                 val activities =
-                    people.map { person ->
+                    people.mapIndexed { slot, person ->
+                        val memories = routeIndexes[slot]
                         val variation = noise(city.seed xor person.id, home.cell, 0)
                         val list =
                             listOf(Need.WORK, Need.EDUCATION, Need.HEALTH, Need.FOOD, Need.LEISURE, Need.REST).map { need ->
                                 val scheduled = applicable(person.age, need, day % 7) && (need != Need.HEALTH || (person.id + day) % 7 == 0L)
-                                val selected = chooseRoute(person.routes.filter { it.weekday == day % 7 && it.need == need && !it.returning }, city.seed xor person.id xor (day.toLong() shl 24) xor need.ordinal.toLong())
+                                val selected = chooseRoute(memories.get(day % 7, need, false), city.seed xor person.id xor (day.toLong() shl 24) xor need.ordinal.toLong())
                                 val departure =
                                     when (need) {
                                         Need.WORK -> 7 * 60 + variation % 90
@@ -122,7 +157,7 @@ class MobilitySimulation(
                                 val returnChoice =
                                     selected?.let { chosen ->
                                         val destination = registry.paths[chosen.path].nodes.last()
-                                        chooseRoute(person.routes.filter { it.weekday == day % 7 && it.need == need && it.returning && registry.paths[it.path].nodes.first() == destination }, city.seed xor person.id xor day.toLong() xor (need.ordinal.toLong() shl 32))?.path
+                                        chooseRoute(memories.get(day % 7, need, true).filter { registry.paths[it.path].nodes.first() == destination }, city.seed xor person.id xor day.toLong() xor (need.ordinal.toLong() shl 32))?.path
                                             ?: router.path(registry.paths[chosen.path].nodes.reversed())?.let(registry::intern)
                                     }
                                 PlannedActivity(

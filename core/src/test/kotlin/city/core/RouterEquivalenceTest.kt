@@ -47,6 +47,9 @@ class RouterEquivalenceTest {
                         for (mode in 0..3) assertEquals(expected[cell * 4 + mode], router.duration(node, cell * 4 + mode))
                     }
                 }
+                for (need in Need.entries) {
+                    for (destination in -1..city.tiles.size) assertEquals(reference.serves(need, destination), router.serves(need, destination))
+                }
                 val random = Random(seed)
                 repeat(80) {
                     val start = random.nextInt(city.tiles.size * 4)

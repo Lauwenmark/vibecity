@@ -250,6 +250,12 @@ internal class MobilityRouter(
             }
         }
 
+    // Memory validation asks this repeatedly for shared paths: membership needs no list scan.
+    private val destinationMembership =
+        Array(Need.entries.size) { ordinal ->
+            BooleanArray(size).also { mask -> destinations.getValue(Need.entries[ordinal]).forEach { mask[it] = true } }
+        }
+
     init {
         previous?.aggregateLoads()?.forEach { load ->
             if (load.cell in city.tiles.indices && load.mode.capacity > 0) {
@@ -361,7 +367,7 @@ internal class MobilityRouter(
     fun serves(
         need: Need,
         destination: Int,
-    ): Boolean = destination in destinations.getValue(need)
+    ): Boolean = destination in 0 until size && destinationMembership[need.ordinal][destination]
 
     fun path(nodes: List<Int>): TravelPath? {
         if (nodes.isEmpty()) return null
