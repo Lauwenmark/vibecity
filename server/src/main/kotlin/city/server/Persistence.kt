@@ -89,6 +89,6 @@ object Persistence {
                 suffix++
             }
         }
-        return city
+        return city.shareRouteRegistries()
     }
 }

@@ -17,7 +17,15 @@ class MobilityPersistenceTest {
                 tiles[30] = Tile(zone = Zone.COMMERCIAL_LIGHT, occupants = 8, powered = true)
                 val city = MobilitySimulation(Catalog()).simulate(City(width = 16, height = 16, tiles = tiles, terrain = Terrain.flat(16, 16, 2)))
                 Persistence.save(file, city)
-                assertEquals(city, Persistence.load(file, Catalog()))
+                val loaded = Persistence.load(file, Catalog())
+                assertEquals(city, loaded)
+                assertSame(
+                    loaded.households.single().paths,
+                    loaded.mobility!!
+                        .homes
+                        .single()
+                        .paths,
+                )
                 val invalid =
                     city.copy(
                         mobility =

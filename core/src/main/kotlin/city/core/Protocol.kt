@@ -62,12 +62,12 @@ fun Response.compactState(previous: City?): Response {
 
 /** Restore before coalescing Swing notifications: every network state is a dependency of the next. */
 fun Response.restoreState(previous: City?): Response {
-    val reference = retained ?: return this
+    val reference = retained ?: return if (type == "STATE" && city != null) copy(city = city.shareRouteRegistries()) else this
     val current = requireNotNull(city) { "Missing state payload" }
     require(type == "STATE" && previous != null && previous.revision == reference.revision) { "Missing state baseline" }
     require(current.width == previous.width && current.height == previous.height && current.seed == previous.seed) { "Incompatible state baseline" }
     return copy(
-        city = current.copy(households = if (reference.households) previous.households else current.households, mobility = if (reference.mobility) previous.mobility else current.mobility),
+        city = current.copy(households = if (reference.households) previous.households else current.households, mobility = if (reference.mobility) previous.mobility else current.mobility).shareRouteRegistries(),
         retained = null,
     )
 }

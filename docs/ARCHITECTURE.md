@@ -289,3 +289,7 @@ compare directement minute, priorité et identifiant, sans boxing ni soustractio
 Les sauvegardes modernes sont décodées directement depuis un flux. Le marqueur executionVersion
 est obligatoire à la lecture de Mobility ; son absence déclenche uniquement dans Persistence le
 chemin de migration ancien, qui invalide le cache de mobilité. Les autres erreurs restent rejetées.
+
+Après validation d’une sauvegarde ou reconstruction d’un état réseau, les registres de chemins
+égaux du même domicile sont partagés. Aucun indice ni contenu différent n’est réécrit. Le format
+JSON reste complet ; les vues des tableaux primitifs rendent ce partage immuable.
