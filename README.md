@@ -53,6 +53,11 @@ un habitant et un besoin pour tracer son parcours ; déplacer le curseur horaire
 position. Le calque **Trafic** montre la charge de cette heure, ou la pointe quotidienne quand
 l’inspecteur est fermé. Après une construction, laisser passer un mois pour recalculer les plans.
 
+Les calques Surface et Trafic montrent des voitures animées dont le nombre et la vitesse visuelle
+reflètent la charge routière. La case **Voitures** permet de masquer cette animation, qui se fige
+en pause. Il s’agit d’une illustration de densité ; le point de l’inspecteur reste la position de
+l’habitant sélectionné.
+
 Les [règles de mobilité](docs/MOBILITY.md) détaillent horaires, profils, capacités et limites :
 journée représentative, itinéraires partagés, pas encore de files de véhicules aux carrefours.
 

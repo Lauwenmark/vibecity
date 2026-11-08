@@ -8,7 +8,7 @@ ce projet sont des paramètres de gameplay explicitement choisis et modifiables.
 | Domaine | Réalisé | Différences / reste à développer |
 | --- | --- | --- |
 | Terrain | Sommets partagés, pentes par case, rivière, arbres, élévation/abaissement avec raccords, aplanissement à altitude choisie, ponts | 13 altitudes (0–12), pas de lacs/océan configurables, d’érosion ni de nivellement par rectangle dans l’interface |
-| Vue | Isométrie, altitude, bâtiments procéduraux, zoom, inspection, mini-carte | Pas de rotation, de sprites originaux, d’animations de véhicules ou de sons |
+| Vue | Isométrie, altitude, bâtiments procéduraux, zoom, inspection, mini-carte | Voitures animées illustrant la densité ; pas de rotation, de sprites originaux ou de sons |
 | Zonage | R/C/I léger et dense, croissance/déclin, demande, desserte, fiscalité | Développement par case ; pas de regroupement des lots en immeubles multi-cases ni de styles par époque |
 | Électricité | 9 familles : charbon, fioul, gaz, nucléaire, éolien, solaire, hydro, micro-ondes, fusion | Barrages neufs sur rampe couverte d’eau, sans modèle de débit ; capacités abstraites ; pas de durée de vie, de renouvellement des centrales, de saisonnalité ni d’accident nucléaire |
 | Eau | Pompes alimentées, conduites, château d’eau, dessalement, épuration | Château d’eau traité comme une source fixe, sans réservoir dynamique ; pas de sécheresse ni de salinité |

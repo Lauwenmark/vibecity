@@ -25,14 +25,71 @@ class CityCanvas(
     private val inspectResident: (Int) -> Unit = {},
 ) : JPanel() {
     private val cache = SceneCache()
+    private var sceneRenderer: CityRenderer? = null
     internal val renderedChunkCount: Long get() = cache.renderedChunks
     internal val cachedChunkCount: Int get() = cache.size
     private var projection: CityProjection? = null
+    private val roadTraffic = RoadTrafficAnimation()
+    private var animationSeconds = 0.0
+    private var previousFrame = 0L
+    private val animationTimer =
+        Timer(50) {
+            val now = System.nanoTime()
+            if (previousFrame != 0L) advanceTrafficAnimation((now - previousFrame) / 1_000_000_000.0)
+            previousFrame = now
+        }.apply { isCoalesce = true }
+    internal val trafficAnimationRunning: Boolean get() = animationTimer.isRunning
+    var animatedTraffic = true
+        set(value) {
+            field = value
+            syncAnimationTimer()
+            repaint()
+        }
+
+    private fun refreshTraffic() {
+        roadTraffic.update(city, trafficHour, zoom, catalog)
+        syncAnimationTimer()
+    }
+
+    private fun syncAnimationTimer() {
+        val active =
+            isShowing && animatedTraffic && city != null && city!!.rules.speed > 0 &&
+                (layer == Layer.SURFACE || layer == Layer.TRAFFIC) && !roadTraffic.isEmpty
+        if (active && !animationTimer.isRunning) {
+            previousFrame = System.nanoTime()
+            animationTimer.start()
+        } else if (!active) {
+            animationTimer.stop()
+            previousFrame = 0L
+        }
+    }
+
+    internal fun advanceTrafficAnimation(seconds: Double) {
+        if (!animatedTraffic || city?.rules?.speed == 0 || (layer != Layer.SURFACE && layer != Layer.TRAFFIC)) return
+        animationSeconds += seconds.coerceIn(0.0, .25)
+        // Repaint the visible viewport from cached scenery; no scene invalidation per frame.
+        repaint(visibleRect)
+    }
+
+    override fun addNotify() {
+        super.addNotify()
+        syncAnimationTimer()
+    }
+
+    override fun removeNotify() {
+        animationTimer.stop()
+        previousFrame = 0L
+        super.removeNotify()
+    }
+
     var city: City? = null
         set(value) {
             val previous = field
             if (previous === value) return
             field = value
+            sceneRenderer = null
+            refreshTraffic()
+            if (previous?.mobility != value?.mobility && animatedTraffic) repaint()
             if (value == null || previous == null || value.width != previous.width || value.height != previous.height) {
                 selected = -1
                 updateSize()
@@ -60,6 +117,8 @@ class CityCanvas(
         set(value) {
             if (field == value) return
             field = value
+            sceneRenderer = null
+            refreshTraffic()
             cache.clear()
             repaint()
         }
@@ -67,6 +126,8 @@ class CityCanvas(
         set(value) {
             if (field == value) return
             field = value
+            sceneRenderer = null
+            syncAnimationTimer()
             cache.clear()
             repaint()
         }
@@ -75,6 +136,8 @@ class CityCanvas(
             val bounded = value.coerceIn(.5, 2.0)
             if (field == bounded) return
             field = bounded
+            sceneRenderer = null
+            refreshTraffic()
             updateSize()
             cache.clear()
             repaint()
@@ -91,6 +154,8 @@ class CityCanvas(
         set(value) {
             if (field == value) return
             field = value
+            sceneRenderer = null
+            refreshTraffic()
             cache.clear()
             repaint()
         }
@@ -110,6 +175,7 @@ class CityCanvas(
     init {
         background = Color(0x101e29)
         toolTipText = ""
+        addHierarchyListener { if (it.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L) syncAnimationTimer() }
         val mouse =
             object : MouseAdapter() {
                 override fun mousePressed(e: MouseEvent) {
@@ -207,7 +273,9 @@ class CityCanvas(
         val g = graphics.create() as Graphics2D
         try {
             val clip = (g.clipBounds ?: Rectangle(0, 0, width, height)).intersection(Rectangle(0, 0, width, height))
-            cache.paint(g, clip, background, CityRenderer(c, catalog, layer, zoom, trafficHour))
+            val renderer = sceneRenderer ?: CityRenderer(c, catalog, layer, zoom, trafficHour).also { sceneRenderer = it }
+            cache.paint(g, clip, background, renderer)
+            if (animatedTraffic && (layer == Layer.SURFACE || layer == Layer.TRAFFIC)) roadTraffic.paint(g, clip, animationSeconds)
             paintItinerary(g, c)
             if (selected in c.tiles.indices) {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)

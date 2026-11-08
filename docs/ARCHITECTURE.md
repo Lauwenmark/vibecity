@@ -155,7 +155,15 @@ sur demande. La taille maximale de carte et les files bornées ne remplacent pas
 
 ## Rendu Swing et réactivité du pointeur
 
-`CityCanvas` sépare la scène de la sélection survolée. `SceneCache` conserve des portions d’image
+`CityCanvas` sépare la scène de la sélection survolée et des voitures animées.
+`RoadTrafficAnimation` prépare les liaisons routières, charges et masques de bâtiments lors des
+changements d’état, d’heure, de catalogue ou de zoom. Un timer Swing coalescé demande au plus
+20 rafraîchissements par seconde de la zone visible : il ne modifie pas le cache du paysage.
+Les liaisons hors du clip ne sont pas dessinées. Les voitures restent sous les surcouches de
+trajet et de sélection. Le timer s’arrête en pause, sur les calques techniques, lorsque la vue
+est masquée ou retirée, ou quand l’utilisateur décoche Voitures.
+
+`SceneCache` conserve des portions d’image
 RGB de 256 × 256 pixels logiques, avec une bordure technique de deux pixels. Le cache LRU est limité
 à 128 portions, soit environ 33 Mio de pixels par fenêtre, indépendamment de la taille de la carte.
 Le survol redessine uniquement les anciens et nouveaux contours ; rester sur la même case ne

@@ -15,6 +15,25 @@ Choisir le calque **Trafic** pour voir la charge à l’heure de l’inspecteur.
 ce calque affiche la pointe journalière. Vert signifie faible charge ; rouge signifie capacité
 horaire atteinte ou dépassée. L’inspection de case affiche toujours la charge de pointe.
 
+### Voitures animées
+
+Les calques Surface et Trafic affichent de petites voitures sur les routes. La case **Voitures**
+dans la barre de vue permet de les masquer. Leur nombre reflète les compteurs ROAD de l’heure
+choisie dans l’inspecteur ; sans inspecteur, la pointe journalière est utilisée. La densité est
+actualisée à chaque nouvel état de ville. Les charges des trains et du métro ne créent pas de voitures.
+
+Chaque liaison entre deux cases routières connectées utilise le minimum de leurs charges : aucun
+véhicule ne traverse une coupure, une connexion de pente invalide ou une case incendiée. Quatre
+voitures par liaison représentent une charge nominale complète ; le rendu est plafonné à six en
+surcharge. Plus la charge est forte, plus le mouvement visuel est lent. Les routes sont élargies
+pour rendre les deux files lisibles ; les bâtiments au premier plan masquent les véhicules.
+
+Il s’agit d’une illustration locale de densité, sans association voiture/habitant ni direction
+réelle déduite des déplacements. Les motifs bouclent sur chaque liaison ; il n’y a pas de simulation
+de collision ou de files physiques. Le curseur ne fait pas défiler automatiquement la journée.
+L’animation est figée en pause, arrêtée hors des deux calques concernés ou quand la fenêtre est
+masquée, et peut être désactivée indépendamment de la simulation.
+
 Les constructions et changements de financement invalident les parcours : ils sont recalculés
 au prochain mois. En pause, l’inspecteur explique cette attente au lieu de montrer des chemins
 qui traverseraient des infrastructures supprimées. Les anciennes sauvegardes acquièrent leurs

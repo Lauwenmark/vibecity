@@ -76,14 +76,14 @@ internal class CityRenderer(
                 }
                 if (t.road || t.rail) {
                     g.color = if (t.road) Color(0x47535a) else Color(0x938d80)
-                    g.stroke = BasicStroke((if (t.road) 6 else 3) * zoom.toFloat())
+                    g.stroke = BasicStroke((if (t.road) 9 else 3) * zoom.toFloat())
                     for (n in city.neighbors(i)) {
                         if ((if (t.road) city.tiles[n].road else city.tiles[n].rail) && city.transportConnects(i, n)) {
                             val edge = edgePoint(diamond, n % city.width - x, n / city.width - y)
                             g.drawLine(sx, sy, edge.x, edge.y)
                         }
                     }
-                    g.fillOval(sx - 3, sy - 2, 6, 4)
+                    if (t.road) g.fillOval(sx - 4, sy - 3, 8, 6) else g.fillOval(sx - 3, sy - 2, 6, 4)
                     g.stroke = BasicStroke(1f)
                 }
                 if (layer == Layer.WATER) {
@@ -104,13 +104,8 @@ internal class CityRenderer(
                     if (t.building != null) {
                         val def = catalog[t.building]
                         val color = Color(def?.color ?: 0xaaaaaa)
-                        val height =
-                            when {
-                                def?.residents != null && def.residents > 0 -> 55
-                                def?.power != null && def.power > 0 -> 27
-                                else -> 16
-                            }
-                        block(g, sx, sy, w - 2, h - 1, (height * zoom).toInt(), color)
+                        val geometry = buildingGeometry(t, def, zoom)!!
+                        block(g, sx, sy, geometry.width, geometry.depth, geometry.height, color)
                         if (t.anchor == i) {
                             g.color = Color(0xeff4ef)
                             g.font = Font("Dialog", Font.BOLD, (10 * zoom).toInt().coerceAtLeast(8))
@@ -123,18 +118,17 @@ internal class CityRenderer(
                                     "fire" -> "F"
                                     else -> def?.name?.take(1) ?: "?"
                                 }
-                            g.drawString(label, sx - 3, sy - (height * zoom).toInt())
+                            g.drawString(label, sx - 3, sy - geometry.height)
                         }
                     } else if (t.occupants > 0) {
-                        val density = (t.occupants.toDouble() / max(1, t.zone.capacity)).coerceIn(0.0, 1.0)
-                        val height = ((if (t.zone.name.endsWith("DENSE")) 10 + density * 40 else 5 + density * 10) * zoom).toInt()
+                        val geometry = buildingGeometry(t, null, zoom)!!
                         block(
                             g,
                             sx,
                             sy,
-                            (w * .65).toInt(),
-                            (h * .65).toInt(),
-                            height,
+                            geometry.width,
+                            geometry.depth,
+                            geometry.height,
                             when {
                                 t.zone.residential -> Color(0xc6d1b3)
                                 t.zone.commercial -> Color(0x80b6d0)
@@ -242,4 +236,33 @@ internal class CityRenderer(
         g.color = Color(0x4b8052)
         g.fillPolygon(intArrayOf(x - (5 * z).toInt(), x, x), intArrayOf(y - 6, y - (18 * z).toInt(), y - 6), 3)
     }
+}
+
+/** Shared dimensions for painted buildings and vehicle occlusion. */
+internal data class BuildingGeometry(
+    val width: Int,
+    val depth: Int,
+    val height: Int,
+)
+
+internal fun buildingGeometry(
+    tile: Tile,
+    definition: BuildingDef?,
+    zoom: Double,
+): BuildingGeometry? {
+    val w = (16 * zoom).roundToInt()
+    val h = (8 * zoom).roundToInt()
+    if (tile.building != null) {
+        val height =
+            when {
+                (definition?.residents ?: 0) > 0 -> 55
+                (definition?.power ?: 0) > 0 -> 27
+                else -> 16
+            }
+        return BuildingGeometry(w - 2, h - 1, (height * zoom).toInt())
+    }
+    if (tile.occupants <= 0) return null
+    val density = (tile.occupants.toDouble() / max(1, tile.zone.capacity)).coerceIn(0.0, 1.0)
+    val height = ((if (tile.zone.name.endsWith("DENSE")) 10 + density * 40 else 5 + density * 10) * zoom).toInt()
+    return BuildingGeometry((w * .65).toInt(), (h * .65).toInt(), height)
 }

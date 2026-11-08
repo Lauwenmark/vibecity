@@ -88,6 +88,14 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         val layers = JComboBox(Layer.entries.map { it.label }.toTypedArray())
         layers.addActionListener { canvas.layer = Layer.entries[layers.selectedIndex] }
         viewBar.add(layers)
+        viewBar.add(
+            JCheckBox("Voitures", true).apply {
+                isOpaque = false
+                foreground = ink
+                toolTipText = "Densité routière animée : heure de l’inspecteur, sinon pointe journalière. Animation figée en pause."
+                addActionListener { canvas.animatedTraffic = isSelected }
+            },
+        )
         viewBar.add(button("Habitants / trajets…") { inspectResidents(inspectedCell ?: 0) })
         viewBar.add(button("−") { canvas.zoom -= .15 })
         viewBar.add(button("+") { canvas.zoom += .15 })

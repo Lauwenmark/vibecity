@@ -41,6 +41,27 @@ fun main() =
             }
             awaitText("1 maire(s)")
             SwingUtilities.invokeAndWait {
+                val canvas = components(window).filterIsInstance<CityCanvas>().single()
+                val snapshot = requireNotNull(canvas.city)
+                check(!canvas.trafficAnimationRunning)
+                canvas.city = snapshot.copy(rules = snapshot.rules.copy(speed = 1))
+                check(canvas.trafficAnimationRunning)
+                canvas.layer = Layer.WATER
+                check(!canvas.trafficAnimationRunning)
+                canvas.layer = Layer.SURFACE
+                val toggle = components(window).filterIsInstance<JCheckBox>().single { it.text == "Voitures" }
+                toggle.doClick()
+                check(!canvas.trafficAnimationRunning)
+                toggle.doClick()
+                check(canvas.trafficAnimationRunning)
+                window.isVisible = false
+                check(!canvas.trafficAnimationRunning)
+                window.isVisible = true
+                check(canvas.trafficAnimationRunning)
+                canvas.city = snapshot
+                check(!canvas.trafficAnimationRunning)
+            }
+            SwingUtilities.invokeAndWait {
                 components(window).filterIsInstance<JButton>().single { it.text == "Habitants / trajets…" }.doClick()
                 val dialog = window.ownedWindows.filterIsInstance<JDialog>().single { it.isVisible }
                 val table = components(dialog).filterIsInstance<JTable>().single()
