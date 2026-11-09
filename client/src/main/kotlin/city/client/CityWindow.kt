@@ -104,6 +104,14 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
                 addActionListener { canvas.animatedTraffic = isSelected }
             },
         )
+        viewBar.add(
+            JCheckBox("Satisfaction", true).apply {
+                isOpaque = false
+                foreground = ink
+                toolTipText = "Satisfaction moyenne par habitation : vert ≥ 70 %, jaune ≥ 40 %, rouge < 40 %."
+                addActionListener { canvas.showSatisfaction = isSelected }
+            },
+        )
         viewBar.add(button("Habitants / trajets…") { inspectResidents(inspectedCell ?: 0) })
         viewBar.add(button("−") { canvas.zoom -= .15 })
         viewBar.add(button("+") { canvas.zoom += .15 })
@@ -364,8 +372,22 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
             } else {
                 "pente composée"
             }
-        val text = "Case ${i % c.width}, ${i / c.width} · altitude ${surface.minimum}–${surface.maximum} ($slope)\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\nOccupants : ${t.occupants}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Charge de pointe ${t.traffic} %"
-        if (inspector.text != text) inspector.text = text
+        val text = "Case ${i % c.width}, ${i / c.width} · altitude ${surface.minimum}–${surface.maximum} ($slope)\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\n${if (t.zone.commercial || t.zone.industrial) "Emplois" else "Habitants"} : ${if (t.zone.residential || t.building == null) {
+            t.occupants
+        } else {
+            c.households
+                .firstOrNull { it.cell == i }
+                ?.people
+                ?.size ?: 0
+        }}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Charge de pointe ${t.traffic} %"
+        val household = c.households.firstOrNull { it.cell == i }
+        val opinion =
+            household
+                ?.takeIf { it.people.isNotEmpty() }
+                ?.let {
+                    "\nSatisfaction moyenne : %.1f %% (%+.2f / jour)\nRisque de déménagement : %.2f %% / jour".format(it.satisfaction, it.people.map { p -> p.wellbeing.trend }.average(), it.moveProbability() * 100)
+                }.orEmpty()
+        if (inspector.text != text + opinion) inspector.text = text + opinion
     }
 
     fun connect(

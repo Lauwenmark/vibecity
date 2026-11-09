@@ -76,6 +76,7 @@ class Commands(
                             rail = false,
                             powerLine = false,
                             building = null,
+                            residentialOccupancy = null,
                             anchor = -1,
                             occupants = 0,
                             trees = false,

@@ -15,7 +15,7 @@ class MobilityPersistenceTest {
                 val tiles = MutableList(256) { Tile() }
                 tiles[17] = Tile(zone = Zone.RESIDENTIAL_LIGHT, occupants = 12, powered = true)
                 tiles[30] = Tile(zone = Zone.COMMERCIAL_LIGHT, occupants = 8, powered = true)
-                val city = MobilitySimulation(Catalog()).simulate(City(width = 16, height = 16, tiles = tiles, terrain = Terrain.flat(16, 16, 2)))
+                val city = updateWellbeing(MobilitySimulation(Catalog()).simulate(City(width = 16, height = 16, tiles = tiles, terrain = Terrain.flat(16, 16, 2))), Catalog())
                 Persistence.save(file, city)
                 val loaded = Persistence.load(file, Catalog())
                 assertEquals(city, loaded)
@@ -97,7 +97,7 @@ class MobilityPersistenceTest {
                 val tiles = MutableList(256) { Tile() }
                 tiles[17] = Tile(zone = Zone.RESIDENTIAL_LIGHT, occupants = 2, powered = true)
                 tiles[30] = Tile(zone = Zone.COMMERCIAL_LIGHT, occupants = 8, powered = true)
-                val city = MobilitySimulation(Catalog()).simulate(City(width = 16, height = 16, tiles = tiles, terrain = Terrain.flat(16, 16, 2)))
+                val city = updateWellbeing(MobilitySimulation(Catalog()).simulate(City(width = 16, height = 16, tiles = tiles, terrain = Terrain.flat(16, 16, 2))), Catalog())
                 Persistence.save(file, city)
                 val restored = Persistence.load(file, Catalog())
                 assertEquals(city.households, restored.households)

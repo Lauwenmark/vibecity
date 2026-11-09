@@ -44,6 +44,12 @@ fun main() =
             SwingUtilities.invokeAndWait {
                 val canvas = components(window).filterIsInstance<CityCanvas>().single()
                 val snapshot = requireNotNull(canvas.city)
+                val satisfaction = components(window).filterIsInstance<JCheckBox>().single { it.text == "Satisfaction" }
+                check(canvas.showSatisfaction)
+                satisfaction.doClick()
+                check(!canvas.showSatisfaction)
+                satisfaction.doClick()
+                check(canvas.showSatisfaction)
                 check(!canvas.trafficAnimationRunning)
                 canvas.city = snapshot.copy(rules = snapshot.rules.copy(speed = 1))
                 check(canvas.trafficAnimationRunning)

@@ -74,8 +74,8 @@ class MobilitySimulation(
                     val count =
                         if (tile.zone.residential) {
                             tile.occupants
-                        } else if (tile.anchor == i && tile.powered && tile.building != null) {
-                            catalog[tile.building].residents
+                        } else if (tile.anchor == i && tile.building != null) {
+                            tile.residentialOccupancy ?: catalog[tile.building].residents
                         } else {
                             0
                         }
@@ -100,19 +100,28 @@ class MobilitySimulation(
                 val options = choices.map { (need, paths) -> NeedOptions(need, paths.map(registry::intern)) }
                 val validPaths = registry.paths.map(router::valid)
                 val prune = epoch.plusDays(day.toLong()).dayOfMonth == 1
+                val workPaths = mutableMapOf<Int, Int?>()
+                for (job in household.people.mapNotNull { it.wellbeing.workplace }.distinct()) {
+                    if (router.serves(Need.WORK, job)) workPaths[job] = router.route(home.cell * 4, job * 4)?.let(registry::intern)
+                }
                 val routeIndexes = ArrayList<RouteMemoryIndex>(household.people.size)
                 val people =
                     household.people.map { resident ->
                         var person = if (prune) resident.prune(city.trafficRules) else resident
+                        val employer = person.wellbeing.workplace?.takeIf { router.serves(Need.WORK, it) }
+                        val personalOptions =
+                            options.map { option ->
+                                if (option.need == Need.WORK && employer != null) option.copy(paths = listOfNotNull(workPaths[employer])) else option
+                            }
                         val valid =
                             person.routes.filter { memory ->
                                 val path = registry.paths.getOrNull(memory.path)
-                                path != null && validPaths.getOrElse(memory.path) { router.valid(path) } && if (memory.returning) router.serves(memory.need, path.nodes.first() / 4) else router.serves(memory.need, path.destination)
+                                path != null && (memory.need != Need.WORK || employer == null || (if (memory.returning) path.nodes.first() / 4 else path.destination) == employer) && validPaths.getOrElse(memory.path) { router.valid(path) } && if (memory.returning) router.serves(memory.need, path.nodes.first() / 4) else router.serves(memory.need, path.destination)
                             }
                         val memories = RouteMemoryIndex(valid)
                         routeIndexes.add(memories)
                         for (weekday in 0..6) {
-                            for (option in options) {
+                            for (option in personalOptions) {
                                 if (!applicable(person.age, option.need, weekday) || option.paths.isEmpty()) continue
                                 if (memories.get(weekday, option.need, false).isEmpty()) {
                                     val path = option.paths[noise(city.seed xor person.id, option.need.ordinal, weekday) % option.paths.size]

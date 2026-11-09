@@ -1,4 +1,4 @@
-# Protocole TCP v8
+# Protocole TCP v9
 
 Chaque trame est un objet JSON UTF-8 terminé par LF (`\n`). CRLF est également accepté. Les retours
 à la ligne dans les chaînes sont échappés par JSON. Aucune sérialisation Java n’est utilisée.
@@ -9,7 +9,7 @@ Le serveur accepte des requêtes de 8 192 caractères maximum et le client des r
 Envoyer dans les 10 secondes :
 
 ```json
-{"type":"HELLO","version":8,"name":"Alice","token":""}
+{"type":"HELLO","version":9,"name":"Alice","token":""}
 ```
 
 Le nom contient 1 à 24 lettres, chiffres, espaces, `_` ou `-`. La version doit correspondre.
@@ -96,7 +96,7 @@ des options sont locaux à sa liste `paths`. Les chemins encodent leurs
 états par `case * 4 + mode` (marche 0, route 1, rail 2, métro 3), avec leurs minutes cumulées.
 Les charges portent une case, un mode et 24 compteurs horaires. Le client reconstruit les horaires
 individuels avec le code partagé de `core` ; il n’effectue aucune recherche d’itinéraire.
-Les clients et serveurs doivent tous utiliser la version 8.
+Les clients et serveurs doivent tous utiliser la version 9.
 
 `City.day` est l’indice du prochain jour à exécuter depuis le 01/01/1900, ou `null` dans une ancienne
 ville : sa date de reprise est alors le premier jour indiqué par `month`. `City.nextCitizenId`
@@ -117,7 +117,7 @@ porter `retained: {"revision": N, "households": true, "mobility": false}` : les 
 par `true` sont repris de la précédente ville reçue, dont la révision doit être exactement N.
 Le champ omis est représenté par `[]` pour `households`, par `null` pour `mobility`.
 Avec `false`, la valeur reçue remplace toujours la précédente, y compris `null` ou une liste vide.
-Sans `retained`, les habitants et la mobilité sont intégralement transmis. En version 8, la carte peut
+Sans `retained`, les habitants et la mobilité sont intégralement transmis. En version 9, la carte peut
 être différentielle via `delta` (voir ci-dessous), même sans `retained`.
 
 Le client reconstruit **chaque** état sur le lecteur réseau avant de regrouper les notifications
@@ -144,7 +144,7 @@ Un dépassement déconnecte le client lent, sans supprimer de delta au milieu d�
 reconnexion repart d’un état complet. L’état en cours d’écriture est inclus dans le comptage.
 
 
-## Carte différentielle et rafales (version 8)
+## Carte différentielle et rafales (version 9)
 
 Chaque `STATE` contient exactement l’un de `city` ou `delta` (l’autre vaut `null`). Le premier état
 reste un `city` complet. Un `delta` contient `baseRevision`, `width`, `height`, `seed`, puis :
@@ -176,3 +176,12 @@ Les exceptions du lecteur et de l’écrivain sont traitées à la frontière de
 sa socket et sa file sont fermées. Son départ est transmis même si la file des commandes est pleine.
 Une rupture réseau ou l’exclusion d’un client lent n’arrête ni les autres sessions ni l’acceptation
 de nouvelles connexions.
+
+## Satisfaction (version 9)
+
+Chaque habitant transporte `wellbeing` (score et pression mémorisés, tendance, ancienneté,
+emploi, budget, métriques de trajets et pénalités numériques dans l’ordre `OpinionFactor`).
+`Tile.residentialOccupancy`, nullable, conserve l’occupation effective des bâtiments résidentiels
+spéciaux après des départs. Les valeurs par défaut permettent de charger les anciennes sauvegardes.
+Les clients v8 ne peuvent pas décoder ces champs : redémarrer serveur et clients en v9 et
+recompiler les plugins contre le nouveau `core`. La reconstruction différentielle reste inchangée.

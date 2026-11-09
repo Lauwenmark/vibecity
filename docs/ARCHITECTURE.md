@@ -81,7 +81,7 @@ d’un quartier déjà bâti. Les barrages existants bénéficient de la conserv
 Le chargement sauvegarde les octets originaux sous `.pre-slopes.json` avant de rendre la ville
 convertie au serveur ; un nom numéroté évite d’écraser une sauvegarde de secours différente.
 
-Les nouveaux états TCP (protocole 8) et les villes créées par le générateur possèdent toujours la
+Les nouveaux états TCP (protocole 9) et les villes créées par le générateur possèdent toujours la
 grille partagée. Le serveur normalise aussi les villes anciennes fournies directement à son
 constructeur. La sélection et le cache utilisent les quatre sommets : une modification d’un coin
 invalide les portions concernées même si le minimum de la case n’a pas changé.
@@ -300,8 +300,58 @@ JSON reste complet ; les vues des tableaux primitifs rendent ce partage immuable
 ## Publication des états
 
 L’encodeur compare chaque état à la dernière ville réellement encodée, et regroupe les instantanés
-encore en attente avec un intervalle minimal de 50 ms. Le protocole 8 transmet les cases et sommets
+encore en attente avec un intervalle minimal de 50 ms. Le protocole 9 transmet les cases et sommets
 modifiés pour les changements localisés ; les états initiaux et les changements denses gardent une
 carte complète. Les carnets et la mobilité inchangés restent réutilisés par référence de révision.
 Le client reconstruit chaque état dans l’ordre avant le regroupement des notifications Swing.
 Les files par client restent bornées ; un client trop lent est déconnecté sans compromettre le serveur.
+
+## Satisfaction et déménagements
+
+Chaque `Citizen` conserve un `Wellbeing`, sérialisé dans les sauvegardes et les états TCP v9.
+Les anciens habitants commencent à 75 %. Après l’exécution de la journée, `updateWellbeing`
+évalue leurs activités réellement accomplies et les lieux réellement visités. Les besoins
+manqués ont des poids différents (courses 18, repos 15, loisirs 4, soins/éducation selon l’âge).
+Le temps de déplacement, les retards par rapport au départ prévu et les distances en cases sont
+mesurés ; leur pénalité est le maximum des trois contributions, plafonné à 25, pour ne pas
+additionner trois fois le même trajet. Le délai moyen d’accomplissement inclut le séjour sur place.
+
+Les autres facteurs sont la criminalité (65 % domicile, 35 % destinations), la couverture incendie,
+l’eau, l’électricité, la pollution résidentielle, l’emploi, le budget, le logement, les soins,
+l’éducation, le bruit et les espaces verts. Les champs de services respectent l’alimentation,
+le financement et les rayons de Manhattan. Les personnes âgées ont davantage besoin de soins ;
+les mineurs d’éducation. La qualité du logement utilise la valeur foncière ; au-delà de 85 % de
+la capacité nominale, une pénalité d’occupation apparaît. Le bruit est un proxy du trafic et de
+l’industrie adjacente, et les parcs/arbres réduisent le manque d’espaces verts.
+
+La somme des pénalités est plafonnée à 100 puis lissée : 80 % de la pression mémorisée,
+20 % de celle du jour. La satisfaction cible est `100 − pression`. La remontée est limitée à
+0,35 point par jour ; la baisse absorbe 12 % de l’écart, au maximum 4 points par jour.
+Une nuisance modérée converge ainsi vers une satisfaction intermédiaire au lieu de vider
+inéluctablement la ville. Les facteurs affichés sont ceux du jour, avant lissage.
+
+Les emplois commerciaux/industriels ont une capacité finie. Les contrats existants sont conservés
+en priorité tant que leur établissement fonctionne ; les candidats sont recrutés après avoir
+atteint un lieu de travail disposant d’une place. Leurs prochains trajets ciblent cet employeur.
+Le contrat est conservé le week-end et lors d’un retard ; l’activité manquée reste pénalisée.
+L’ancienneté d’emploi et la durée du chômage sont suivies. L’économie domestique reste simplifiée :
+revenu quotidien 50 pour un salarié, pension 28 après 66 ans, allocation 12 pour un adulte sans
+emploi ; loyer par personne `5 + valeur foncière / 10` (+2 en résidentiel léger), consommation
+10 par adulte et 6 par enfant, plus impôts au taux municipal. Revenus et dépenses sont mutualisés
+par foyer. Il n’existe pas encore de marché immobilier, d’épargne ni de qualifications professionnelles.
+
+Le modèle historique appelle « foyer » l’ensemble des habitants d’une case : ce n’est pas encore
+une partition de l’immeuble en familles. Sa satisfaction moyenne pilote un tirage déterministe
+quotidien sous 60 %, modulé par la durée d’insatisfaction (plein effet à 30 jours) et l’ancienneté
+résidentielle (risque divisé par deux après deux ans). Le risque maximal est de 8 % par jour.
+À la frontière entre deux journées, un foyer entièrement rentré peut rejoindre une habitation
+vide, suffisamment grande, desservie et sensiblement meilleure ; faute d’alternative il quitte
+la ville. Identités et opinions sont conservées lors d’un relogement, les anciens itinéraires
+sont effacés. La population des arcologies ne disparaît plus lors d’une panne et une occupation
+explicite empêche de recréer automatiquement les habitants partis. La croissance mensuelle
+reste le mécanisme simplifié d’arrivée de nouveaux habitants.
+
+La case « Satisfaction » affiche sur le calque Surface un visage par habitation (vert ≥70 %, jaune
+≥40 %, rouge sinon). Les scores sont agrégés à réception de l’état et dessinés en surimpression,
+sans invalider les images du décor. L’inspecteur donne moyenne, tendance et probabilité de départ ;
+l’inspecteur des habitants expose budget, emploi, trajets et causes de l’insatisfaction.

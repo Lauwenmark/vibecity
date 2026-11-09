@@ -34,8 +34,9 @@ class Simulation(
                 val water = network(current, true, power.supplied)
                 current.copy(tiles = current.tiles.mapIndexed { i, tile -> tile.copy(powered = power.supplied[i], watered = water.supplied[i]) }, revision = city.revision + 1)
             }
-        val result = MobilitySimulation(catalog, workers).simulate(current.copy(day = day), city.mobility)
-        return result.copy(day = day + 1)
+        current = migrateUnhappyHouseholds(current.copy(day = day), catalog)
+        val result = updateWellbeing(MobilitySimulation(catalog, workers).simulate(current, current.mobility), catalog)
+        return result.copy(day = day + 1, stats = result.stats.copy(population = result.households.sumOf { it.people.size }))
     }
 
     private suspend fun economicStep(city: City): City =
@@ -52,8 +53,8 @@ class Simulation(
                 city.tiles.filter { it.zone.residential }.sumOf { it.occupants } +
                     city.tiles
                         .withIndex()
-                        .filter { (i, t) -> t.anchor == i && t.building != null && power.supplied[i] }
-                        .sumOf { catalog[it.value.building!!].residents }
+                        .filter { (i, t) -> t.anchor == i && t.building != null }
+                        .sumOf { it.value.residentialOccupancy ?: catalog[it.value.building!!].residents }
             val jobs = city.tiles.filter { it.zone.commercial || it.zone.industrial }.sumOf { it.occupants }
             val rDemand = (45 + jobs / 4 - population / 8 - (city.rules.taxRate - 7) * 8).coerceIn(-100, 100)
             val cDemand = (25 + population / 10 - city.tiles.filter { it.zone.commercial }.sumOf { it.occupants } / 3 - (city.rules.taxRate - 7) * 6).coerceIn(-100, 100)
@@ -118,13 +119,13 @@ class Simulation(
                     .filter { it.value.fire > 6 }
                     .map { if (it.value.anchor >= 0) it.value.anchor else it.index }
                     .toSet()
-            val tiles = evolved.mapIndexed { i, t -> if (i in burnt || t.anchor in burnt) t.copy(building = null, anchor = -1, occupants = 0, fire = 0, trees = false) else t }
+            val tiles = evolved.mapIndexed { i, t -> if (i in burnt || t.anchor in burnt) t.copy(building = null, residentialOccupancy = null, anchor = -1, occupants = 0, fire = 0, trees = false) else t }
             val residents =
                 tiles.filter { it.zone.residential }.sumOf { it.occupants } +
                     tiles
                         .withIndex()
-                        .filter { (i, t) -> t.anchor == i && t.building != null && t.powered }
-                        .sumOf { catalog[it.value.building!!].residents }
+                        .filter { (i, t) -> t.anchor == i && t.building != null }
+                        .sumOf { it.value.residentialOccupancy ?: catalog[it.value.building!!].residents }
             val employment = tiles.filter { it.zone.commercial || it.zone.industrial }.sumOf { it.occupants }
             val income = (residents + employment).toLong() * city.rules.taxRate / 12
             val upkeep = tiles.withIndex().filter { (i, t) -> t.anchor == i && t.building != null }.sumOf { catalog[it.value.building!!].upkeep.toLong() } * city.rules.serviceFunding / 100

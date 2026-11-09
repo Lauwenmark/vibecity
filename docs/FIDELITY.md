@@ -53,3 +53,10 @@ ignitions et la propagation, pas l’extinction instantanée d’un feu existant
 
 Les interfaces de règles et les modules séparés servent à intégrer ces évolutions sans réécrire
 la couche TCP ni rendre l’interface Swing responsable des règles de simulation.
+
+La satisfaction individuelle tient désormais compte des besoins, déplacements, services, nuisances,
+emploi et budget. Elle agit sur les déménagements collectifs par case. Le « foyer » reste tout
+l’immeuble, pas une famille démographique ; salaires, allocations, pensions, loyers, qualité du
+logement et bruit sont des modèles simplifiés documentés dans ARCHITECTURE.md. L’attachement
+repose sur l’ancienneté, sans graphe de relations sociales. Un contrat ne garantit pas la présence
+au travail et un accès physique à un service ne modélise pas sa file d’attente ni sa capacité.

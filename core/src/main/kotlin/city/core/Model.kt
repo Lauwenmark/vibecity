@@ -44,6 +44,8 @@ data class Tile(
     val landValue: Int = 50,
     val traffic: Int = 0,
     val fire: Int = 0,
+    /** Actual residential building population; null initializes legacy arcologies at capacity. */
+    val residentialOccupancy: Int? = null,
 )
 
 @Serializable

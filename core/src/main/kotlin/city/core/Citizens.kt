@@ -49,6 +49,7 @@ data class Citizen(
     val age: Int,
     val routes: List<LearnedRoute> = emptyList(),
     val position: Int,
+    val wellbeing: Wellbeing = Wellbeing(),
 )
 
 @Serializable
@@ -145,6 +146,16 @@ fun City.validateCitizens() {
         for (person in household.people) {
             require(person.id in 1 until nextCitizenId && ids.add(person.id))
             require(person.name.length in 1..120 && person.age in 0..120 && person.position in 0 until tiles.size * 4)
+            val opinion = person.wellbeing
+            require(opinion.satisfaction.isFinite() && opinion.satisfaction in 0.0..100.0)
+            require(opinion.pressure.isFinite() && opinion.pressure in 0.0..100.0 && opinion.trend.isFinite())
+            require(opinion.unhappyDays >= 0 && opinion.residenceDays >= 0 && opinion.employedDays >= 0 && opinion.unemployedDays >= 0)
+            require(opinion.workplace == null || opinion.workplace in tiles.indices)
+            require(opinion.income.isFinite() && opinion.income >= 0 && opinion.costs.isFinite() && opinion.costs >= 0)
+            require(opinion.travelMinutes >= 0 && opinion.averageDelay.isFinite() && opinion.averageDelay >= 0 && opinion.distance >= 0 && opinion.unmet >= 0)
+            require(opinion.averageFulfillmentMinutes.isFinite() && opinion.averageFulfillmentMinutes >= 0)
+            require(opinion.factors.isEmpty() || opinion.factors.size == OpinionFactor.entries.size)
+            require(opinion.factors.all { it.isFinite() && it >= 0 })
             for (route in person.routes) {
                 require(route.weekday in 0..6 && route.path in household.paths.indices && route.score in 0..trafficRules.maxScore)
             }

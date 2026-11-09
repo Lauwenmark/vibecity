@@ -25,6 +25,13 @@ class CityCanvas(
     private val inspectResident: (Int) -> Unit = {},
 ) : JPanel() {
     private val cache = SceneCache()
+    private var satisfactionScores: List<Pair<Int, Double>> = emptyList()
+    var showSatisfaction = true
+        set(value) {
+            field = value
+            repaint()
+        }
+
     private var sceneRenderer: CityRenderer? = null
     internal val renderedChunkCount: Long get() = cache.renderedChunks
     internal val cachedChunkCount: Int get() = cache.size
@@ -87,6 +94,15 @@ class CityCanvas(
             val previous = field
             if (previous === value) return
             field = value
+            if (previous?.households !== value?.households) {
+                satisfactionScores =
+                    value
+                        ?.households
+                        .orEmpty()
+                        .filter { it.people.isNotEmpty() }
+                        .map { it.cell to it.satisfaction }
+                if (showSatisfaction) repaint()
+            }
             sceneRenderer = null
             refreshTraffic()
             if (previous?.mobility != value?.mobility && animatedTraffic) repaint()
@@ -320,6 +336,7 @@ class CityCanvas(
             val renderer = sceneRenderer ?: CityRenderer(c, catalog, layer, zoom, trafficHour, rotation).also { sceneRenderer = it }
             cache.paint(g, clip, background, renderer)
             if (animatedTraffic && (layer == Layer.SURFACE || layer == Layer.TRAFFIC)) roadTraffic.paint(g, clip, animationSeconds)
+            if (showSatisfaction && layer == Layer.SURFACE) paintSatisfaction(g, c, clip)
             paintItinerary(g, c)
             if (selected in c.tiles.indices) {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
@@ -337,6 +354,38 @@ class CityCanvas(
             }
         } finally {
             g.dispose()
+        }
+    }
+
+    /** Screen-sized faces remain readable at every zoom, without invalidating scenery chunks. */
+    private fun paintSatisfaction(
+        g: Graphics2D,
+        c: City,
+        clip: Rectangle,
+    ) {
+        val p = projection ?: return
+        for ((cell, score) in satisfactionScores) {
+            val tile = c.tiles[cell]
+            val geometry = buildingGeometry(tile, tile.building?.let { catalog[it] }, zoom) ?: continue
+            val x = p.screenX(cell % c.width, cell / c.width)
+            val y = p.centerY(cell % c.width, cell / c.width, c.surface(cell)) - geometry.height - 13
+            if (!clip.intersects(Rectangle(x - 10, y - 10, 20, 20))) continue
+            g.color =
+                when {
+                    score >= 70 -> Color(0x88d679)
+                    score >= 40 -> Color(0xffd166)
+                    else -> Color(0xef7770)
+                }
+            g.fillOval(x - 9, y - 9, 18, 18)
+            g.color = Color(0x243743)
+            g.drawOval(x - 9, y - 9, 18, 18)
+            g.fillOval(x - 4, y - 3, 2, 2)
+            g.fillOval(x + 2, y - 3, 2, 2)
+            when {
+                score >= 70 -> g.drawArc(x - 4, y - 2, 8, 7, 180, 180)
+                score >= 40 -> g.drawLine(x - 4, y + 4, x + 4, y + 4)
+                else -> g.drawArc(x - 4, y + 3, 8, 7, 0, 180)
+            }
         }
     }
 

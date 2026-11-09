@@ -189,6 +189,18 @@ internal class MobilityPanel(
         heading.text = "${person?.name ?: day.citizenId} · ${person?.age ?: "?"} ans · ${dayName(mobility.day)} ${epoch.plusDays(mobility.day.toLong())} · ${time(minute)}"
         detail.text =
             buildString {
+                person?.wellbeing?.let { w ->
+                    append("Satisfaction : %.1f %% (%+.2f / jour), %d jours d’insatisfaction, ancienneté %d jours.\n".format(w.satisfaction, w.trend, w.unhappyDays, w.residenceDays))
+                    append("Emploi : ${w.workplace?.let { "${it % c.width}, ${it / c.width}" } ?: "aucun"} ; revenus et dépenses du foyer par personne : %.1f / %.1f $ par jour.\n".format(w.income, w.costs))
+                    append("Déplacements : ${w.travelMinutes} min, ${w.distance} cases ; retard moyen %.1f min ; ${w.unmet} besoins non satisfaits.\n".format(w.averageDelay))
+                    append("Délai moyen de satisfaction des activités accomplies : %.1f min (activité comprise).\n".format(w.averageFulfillmentMinutes))
+                    val factors =
+                        OpinionFactor.entries
+                            .map { it to w.factors.getOrElse(it.ordinal) { 0.0 } }
+                            .filter { it.second > .05 }
+                            .sortedByDescending { it.second }
+                    append(if (factors.isEmpty()) "Aucun facteur négatif.\n" else factors.joinToString(" ; ") { (factor, value) -> "${factor.label} : −%.1f".format(value) } + "\n")
+                }
                 append("Position réelle : ${position % c.width}, ${position / c.width} (point blanc). Plan du matin, parcours réalisé et carnet sont distincts.\n")
                 if (leg != null) {
                     append("${leg.status} ; départ ${time(leg.departure)}, arrivée ${leg.arrival?.let(::time) ?: "non atteinte"}. Attente : ${leg.waitMinutes} min.\n")

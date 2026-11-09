@@ -503,8 +503,8 @@ fun Mobility.validate(
         val expected =
             if (tile.zone.residential) {
                 tile.occupants
-            } else if (tile.anchor == home.cell && tile.powered && tile.building != null) {
-                catalog[tile.building].residents
+            } else if (tile.anchor == home.cell && tile.building != null) {
+                tile.residentialOccupancy ?: catalog[tile.building].residents
             } else {
                 0
             }
