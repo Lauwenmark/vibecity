@@ -89,7 +89,15 @@ utiliser un réseau de confiance ou un tunnel SSH/VPN pour jouer à distance. Le
 chiffrement et ne fournit pas d’identités individuelles.
 
 La taille de carte peut aller de 16 à 256 cases de côté ; 64 est la valeur par défaut. Une sauvegarde
-existante prend priorité sur `--seed` et `--size`. Un serveur correspond à une ville. `Ctrl+C`
+existante prend priorité sur `--seed` et `--size` ; le serveur signale alors que ces options sont
+ignorées. Pour créer une carte 256×256, choisir un chemin de sauvegarde qui n’existe pas encore :
+
+```sh
+./gradlew :server:run --args="--size 256 --save saves/new-256.json"
+```
+
+La syntaxe `--size=256` est également acceptée. Avec Gradle, les options du serveur doivent être
+placées dans `--args`. Un serveur correspond à une ville. `Ctrl+C`
 sauvegarde et arrête le serveur autonome ; l’arrêt forcé du processus ne le garantit pas.
 
 ## Construire sa ville
