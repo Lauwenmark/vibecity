@@ -86,6 +86,33 @@ class SimulationTest {
             assertFalse(result.tiles[15].watered)
         }
 
+    @Test fun `developed zones transmit water but empty zoning breaks the chain`() =
+        runBlocking {
+            var city = place(flat(), "pump", 0, 0)
+            city = place(city, "coal", 0, 2)
+            city = place(city, "power", 0, 1)
+            val zones = Zone.entries.filter { it != Zone.NONE }
+            for ((offset, zone) in zones.withIndex()) {
+                city = place(city, "zone:${zone.name}", offset + 1, 0)
+            }
+            val end = zones.size + 1
+            city = place(city, "pipe", end, 0)
+            city = city.copy(tiles = city.tiles.mapIndexed { i, t -> if (i in 1..zones.size) t.copy(occupants = 10) else t })
+            // Exercise both monthly evolution and ordinary daily network refresh.
+            for (day in listOf(0, 1)) {
+                val connected = Simulation(catalog).step(city.copy(day = day))
+                assertTrue((0..end).all { connected.tiles[it].watered })
+                for (gap in 1..zones.size) {
+                    val emptyZone = city.copy(day = day, tiles = city.tiles.mapIndexed { i, t -> if (i == gap) t.copy(occupants = 0) else t })
+                    val disconnected = Simulation(catalog).step(emptyZone)
+                    assertTrue(disconnected.tiles[gap - 1].watered)
+                    assertTrue((gap..end).none { disconnected.tiles[it].watered })
+                    val reconnected = Simulation(catalog).step(place(emptyZone, "pipe", gap, 0))
+                    assertTrue(reconnected.tiles[end].watered)
+                }
+            }
+        }
+
     @Test fun `parallel scheduling does not change simulation results`() =
         runBlocking {
             var serial = demoCity()

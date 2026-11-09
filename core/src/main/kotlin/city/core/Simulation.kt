@@ -174,7 +174,7 @@ class Simulation(
         val supplied = BooleanArray(city.tiles.size)
         var total = 0
 
-        fun conducts(t: Tile) = if (water) t.pipe || t.building != null else t.powerLine || t.building != null || t.zone != Zone.NONE
+        fun conducts(t: Tile) = if (water) t.pipe || t.building != null || (t.zone != Zone.NONE && t.occupants > 0) else t.powerLine || t.building != null || t.zone != Zone.NONE
         for (start in city.tiles.indices) {
             if (visited[start] || !conducts(city.tiles[start])) continue
             val component = ArrayList<Int>()

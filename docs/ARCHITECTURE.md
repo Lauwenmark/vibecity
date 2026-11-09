@@ -126,8 +126,8 @@ quartier en panne. Les infrastructures seules ne consomment pas de capacité. Ch
 ou de bâtiment en consomme une, attribuée dans l’ordre des indices ; c’est une simplification
 explicite, pas un calcul physique ni une priorité équitable en cas de pénurie.
 
-L’électricité traverse les zones, bâtiments et lignes. L’eau traverse les conduites et bâtiments,
-et ses sources ont besoin d’électricité. L’eau élève la capacité de développement d’une zone de
+L’électricité traverse les zones, bâtiments et lignes. L’eau traverse les conduites, les bâtiments placés et les zones développées (occupants > 0).
+Un simple zonage vide ne transmet pas l’eau. Ses sources ont besoin d’électricité. L’eau élève la capacité de développement d’une zone de
 60 % à 100 %. Les services exigent une alimentation et leur efficacité dépend du financement.
 Leur influence décroît avec la distance de Manhattan. Les émissions industrielles et des centrales
 s’additionnent ; parcs, éducation, santé, police et épuration modifient des champs locaux.
