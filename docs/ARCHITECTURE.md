@@ -81,7 +81,7 @@ d’un quartier déjà bâti. Les barrages existants bénéficient de la conserv
 Le chargement sauvegarde les octets originaux sous `.pre-slopes.json` avant de rendre la ville
 convertie au serveur ; un nom numéroté évite d’écraser une sauvegarde de secours différente.
 
-Les nouveaux états TCP (protocole 7) et les villes créées par le générateur possèdent toujours la
+Les nouveaux états TCP (protocole 8) et les villes créées par le générateur possèdent toujours la
 grille partagée. Le serveur normalise aussi les villes anciennes fournies directement à son
 constructeur. La sélection et le cache utilisent les quatre sommets : une modification d’un coin
 invalide les portions concernées même si le minimum de la case n’a pas changé.
@@ -89,8 +89,10 @@ invalide les portions concernées même si le minimum de la case n’a pas chang
 ## Ordonnancement et coroutines
 
 1. Chaque socket dispose d’une coroutine de lecture et d’une coroutine d’écriture sur une vue de `Dispatchers.IO` réservant assez de slots pour les deux sens des 32 sockets.
-   Les opérations Java bloquantes n’occupent donc pas les workers CPU de la simulation.
-2. Les commandes rejoignent un `Channel` borné à 256 événements. Un acteur sur `Dispatchers.Default` les traite séquentiellement, sans dépendre des slots d’I/O bloquante.
+   Les opérations Java bloquantes n’occupent donc pas les workers CPU de la simulation. Chaque session
+   dépend directement du superviseur et intercepte ses erreurs hors de son scope de lecture/écriture :
+   une rupture ne peut pas annuler la boucle d’acceptation ni les autres sessions.
+2. Les commandes rejoignent un `Channel` borné à 256 événements. Un acteur sur la vue réservée de `Dispatchers.IO` les traite séquentiellement ; la simulation et l’encodage utilisent `Dispatchers.Default`.
    Aucune mutation concurrente des finances ou du terrain n’est possible.
 3. Un tick exécute un à trois jours civils selon la vitesse. Le premier jour du mois, analyse
    des transports et de l’électricité en parallèle ;
@@ -293,3 +295,13 @@ chemin de migration ancien, qui invalide le cache de mobilité. Les autres erreu
 Après validation d’une sauvegarde ou reconstruction d’un état réseau, les registres de chemins
 égaux du même domicile sont partagés. Aucun indice ni contenu différent n’est réécrit. Le format
 JSON reste complet ; les vues des tableaux primitifs rendent ce partage immuable.
+
+
+## Publication des états
+
+L’encodeur compare chaque état à la dernière ville réellement encodée, et regroupe les instantanés
+encore en attente avec un intervalle minimal de 50 ms. Le protocole 8 transmet les cases et sommets
+modifiés pour les changements localisés ; les états initiaux et les changements denses gardent une
+carte complète. Les carnets et la mobilité inchangés restent réutilisés par référence de révision.
+Le client reconstruit chaque état dans l’ordre avant le regroupement des notifications Swing.
+Les files par client restent bornées ; un client trop lent est déconnecté sans compromettre le serveur.

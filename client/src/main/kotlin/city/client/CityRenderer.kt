@@ -108,7 +108,7 @@ internal class CityRenderer(
                         val def = catalog[t.building]
                         val color = Color(def?.color ?: 0xaaaaaa)
                         val geometry = buildingGeometry(t, def, zoom)!!
-                        block(g, sx, sy, geometry.width, geometry.depth, geometry.height, color)
+                        block(g, sx, sy + geometry.depth, geometry.width, geometry.depth, geometry.height, color)
                         if (t.anchor == i) {
                             g.color = Color(0xeff4ef)
                             g.font = Font("Dialog", Font.BOLD, (10 * zoom).toInt().coerceAtLeast(8))
@@ -121,14 +121,14 @@ internal class CityRenderer(
                                     "fire" -> "F"
                                     else -> def?.name?.take(1) ?: "?"
                                 }
-                            g.drawString(label, sx - 3, sy - geometry.height)
+                            g.drawString(label, sx - 3, sy + geometry.depth - geometry.height)
                         }
                     } else if (t.occupants > 0) {
                         val geometry = buildingGeometry(t, null, zoom)!!
                         block(
                             g,
                             sx,
-                            sy,
+                            sy + geometry.depth,
                             geometry.width,
                             geometry.depth,
                             geometry.height,

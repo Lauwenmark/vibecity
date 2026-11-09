@@ -237,6 +237,8 @@ class CityServer(
                 events.send(Event.Encoded(snapshot.sequence, frame))
                 previous = snapshot.response.city
                 generation = snapshot.generation
+                // Coalesce drag bursts before encoding; never drop an already encoded delta.
+                delay(50)
             }
         }
         scope.launch {
@@ -249,7 +251,8 @@ class CityServer(
                         continue
                     }
                     sockets.add(socket)
-                    launch { handle(socket) }
+                    // Each peer belongs directly to the supervisor, never to the accept loop.
+                    scope.launch { handle(socket) }
                 }
             } catch (e: Exception) {
                 if (running.get()) System.err.println("Accept: ${e.message}")
@@ -266,10 +269,11 @@ class CityServer(
         }
     }
 
-    private suspend fun handle(socket: Socket) =
-        coroutineScope {
-            var session: Session? = null
-            try {
+    private suspend fun handle(socket: Socket) {
+        var session: Session? = null
+        try {
+            // Catch outside the scope: writer failures are rethrown when its children finish.
+            coroutineScope {
                 socket.tcpNoDelay = true
                 socket.soTimeout = 10000
                 val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
@@ -316,16 +320,21 @@ class CityServer(
                     connected.close()
                     writerJob.cancel()
                 }
-            } catch (e: Exception) {
-                if (e is CancellationException) throw e
-                if (running.get()) System.err.println("Client closed: ${e.message}")
-            } finally {
-                session?.let { events.trySend(Event.Leave(it)) }
-                sockets.remove(socket)
-                clientCount.decrementAndGet()
-                runCatching { socket.close() }
             }
+        } catch (e: Exception) {
+            if (e is CancellationException) throw e
+            if (running.get()) System.err.println("Client closed: ${e.message}")
+        } finally {
+            session?.close()
+            // A full command mailbox must not lose the departure and retain a dead session.
+            withContext(NonCancellable) {
+                session?.let { if (running.get()) runCatching { events.send(Event.Leave(it)) } }
+            }
+            sockets.remove(socket)
+            clientCount.decrementAndGet()
+            runCatching { socket.close() }
         }
+    }
 
     private fun send(
         s: Session,

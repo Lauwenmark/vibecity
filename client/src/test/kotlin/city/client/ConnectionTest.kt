@@ -38,7 +38,7 @@ class ConnectionTest {
                     }
                 }
             Connection("127.0.0.1", listener.localPort, "Test", "", {
-                if (it.retained != null || it.sharedRouteHomes.isNotEmpty()) finalState.completeExceptionally(AssertionError("Unrestored state"))
+                if (it.delta != null || it.retained != null || it.sharedRouteHomes.isNotEmpty()) finalState.completeExceptionally(AssertionError("Unrestored state"))
                 if (it.city?.revision == initial.revision) {
                     val restored = requireNotNull(it.city)
                     if (restored != initial || restored.households

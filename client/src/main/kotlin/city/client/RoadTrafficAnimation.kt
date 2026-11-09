@@ -65,8 +65,8 @@ internal class RoadTrafficAnimation {
         val buildings = mutableMapOf<Pair<Int, Int>, MutableList<Shape>>()
         city.tiles.forEachIndexed { i, tile ->
             val sx = projection.screenX(i % city.width, i / city.width)
-            val sy = projection.centerY(i % city.width, i / city.width, city.surface(i))
             val geometry = buildingGeometry(tile, catalog[tile.building], zoom) ?: return@forEachIndexed
+            val sy = projection.centerY(i % city.width, i / city.width, city.surface(i)) + geometry.depth
             val (w, h, z) = geometry
             val shape = Polygon(intArrayOf(sx - w, sx, sx + w, sx + w, sx, sx - w), intArrayOf(sy - h - z, sy - 2 * h - z, sy - h - z, sy - h, sy, sy - h), 6)
             val bounds = shape.bounds

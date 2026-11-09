@@ -1,4 +1,4 @@
-# Protocole TCP v7
+# Protocole TCP v8
 
 Chaque trame est un objet JSON UTF-8 terminé par LF (`\n`). CRLF est également accepté. Les retours
 à la ligne dans les chaînes sont échappés par JSON. Aucune sérialisation Java n’est utilisée.
@@ -9,7 +9,7 @@ Le serveur accepte des requêtes de 8 192 caractères maximum et le client des r
 Envoyer dans les 10 secondes :
 
 ```json
-{"type":"HELLO","version":7,"name":"Alice","token":""}
+{"type":"HELLO","version":8,"name":"Alice","token":""}
 ```
 
 Le nom contient 1 à 24 lettres, chiffres, espaces, `_` ou `-`. La version doit correspondre.
@@ -63,7 +63,7 @@ Exemple de commande et d’accusé de réception (champs par défaut omis pour l
 {"type":"ACK","id":1,"message":"Alice : road"}
 ```
 
-Après une mutation, tous les clients reçoivent un `STATE`. Un ACK confirme une transaction en
+Après une ou plusieurs mutations rapprochées, tous les clients reçoivent un `STATE` reflétant leur résultat. Un ACK confirme une transaction en
 mémoire, **pas** une sauvegarde durable. Seul l’ACK de `SAVE` confirme la fin de l’écriture du fichier.
 Une sauvegarde ne change pas la révision. Une commande refusée ne change ni la révision ni les fonds.
 
@@ -96,7 +96,7 @@ des options sont locaux à sa liste `paths`. Les chemins encodent leurs
 états par `case * 4 + mode` (marche 0, route 1, rail 2, métro 3), avec leurs minutes cumulées.
 Les charges portent une case, un mode et 24 compteurs horaires. Le client reconstruit les horaires
 individuels avec le code partagé de `core` ; il n’effectue aucune recherche d’itinéraire.
-Les clients et serveurs doivent tous utiliser la version 7.
+Les clients et serveurs doivent tous utiliser la version 8.
 
 `City.day` est l’indice du prochain jour à exécuter depuis le 01/01/1900, ou `null` dans une ancienne
 ville : sa date de reprise est alors le premier jour indiqué par `month`. `City.nextCitizenId`
@@ -117,7 +117,8 @@ porter `retained: {"revision": N, "households": true, "mobility": false}` : les 
 par `true` sont repris de la précédente ville reçue, dont la révision doit être exactement N.
 Le champ omis est représenté par `[]` pour `households`, par `null` pour `mobility`.
 Avec `false`, la valeur reçue remplace toujours la précédente, y compris `null` ou une liste vide.
-Sans `retained`, l’état est complet. Les autres champs de `city` sont toujours transmis.
+Sans `retained`, les habitants et la mobilité sont intégralement transmis. En version 8, la carte peut
+être différentielle via `delta` (voir ci-dessous), même sans `retained`.
 
 Le client reconstruit **chaque** état sur le lecteur réseau avant de regrouper les notifications
 pour Swing. Une référence absente ou incompatible ferme la connexion au lieu d’appliquer un état
@@ -141,3 +142,37 @@ Une seule trame dépassant son budget est autorisée lorsque sa catégorie est v
 les grandes villes et catalogues ; aucune seconde trame de cette catégorie ne peut s’accumuler.
 Un dépassement déconnecte le client lent, sans supprimer de delta au milieu d’une chaîne. Une
 reconnexion repart d’un état complet. L’état en cours d’écriture est inclus dans le comptage.
+
+
+## Carte différentielle et rafales (version 8)
+
+Chaque `STATE` contient exactement l’un de `city` ou `delta` (l’autre vaut `null`). Le premier état
+reste un `city` complet. Un `delta` contient `baseRevision`, `width`, `height`, `seed`, puis :
+
+- `tiles` : objet JSON associant l’indice d’une case à sa nouvelle valeur `Tile` complète ;
+- `vertices` : objet JSON associant l’indice d’un sommet à sa nouvelle altitude ;
+- tous les autres champs de `City`, sauf `terrain`, qui remplacent les valeurs précédentes :
+  `revision`, `month`, `treasury`, `debt`, `rules`, `stats`, `history`, `notices`, `pluginData`,
+  `mobility`, `day`, `households`, `nextCitizenId`, `trafficRules`.
+
+Les indices sont des clés JSON décimales. Une case ou un sommet absent est conservé depuis la
+ville précédente. Le client vérifie sa révision, ses dimensions, sa graine, les indices et les
+invariants du relief, puis reconstruit une `City` complète. Il applique ensuite `retained` et
+`sharedRouteHomes` comme auparavant, avant de notifier Swing. Une valeur vide ou `null` dans les
+autres champs remplace bien l’ancienne valeur, sauf marqueur `retained` explicite.
+
+Le serveur compare les valeurs des cases et sommets, pas seulement l’identité des listes.
+Si plus de la moitié des cases ou des sommets changent, il transmet la carte complète. Une arrivée
+force également une nouvelle base complète pour garantir la synchronisation du nouveau client.
+Les sauvegardes restent complètes et leur format ne change pas.
+
+L’encodeur attend 50 ms après chaque état encodé : les mises à jour en attente sont regroupées,
+avec au plus 20 états par seconde. Chaque commande reste appliquée et reçoit son propre ACK ou
+ERROR ; seul l’affichage des états intermédiaires peut être regroupé. Aucun delta déjà encodé
+n’est supprimé : il peut servir de base au suivant.
+
+Chaque session dépend directement du superviseur, indépendamment de la boucle d’acceptation.
+Les exceptions du lecteur et de l’écrivain sont traitées à la frontière de la session ; ses tâches,
+sa socket et sa file sont fermées. Son départ est transmis même si la file des commandes est pleine.
+Une rupture réseau ou l’exclusion d’un client lent n’arrête ni les autres sessions ni l’acceptation
+de nouvelles connexions.

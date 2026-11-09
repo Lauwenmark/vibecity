@@ -183,6 +183,13 @@ class CityCanvas(
             repaint()
         }
     var tool = "inspect"
+        set(value) {
+            if (field == value) return
+            val old = selectionBounds(selected)
+            field = value
+            old?.let { repaint(it) }
+            selectionBounds(selected)?.let { repaint(it) }
+        }
     private var lastPaint = -1
 
     init {
@@ -261,7 +268,20 @@ class CityCanvas(
     private fun selectionBounds(index: Int): Rectangle? {
         val c = city ?: return null
         if (index !in c.tiles.indices) return null
-        return projection?.polygon(c, index)?.bounds?.apply { grow(3, 3) }
+        val p = projection ?: return null
+        return selectionCells(index).map { p.polygon(c, it).bounds }.reduce { bounds, next -> bounds.apply { add(next) } }.apply { grow(3, 3) }
+    }
+
+    /** Match the world-space footprint used by BUILD, clipped without wrapping at map edges. */
+    internal fun selectionCells(index: Int): List<Int> {
+        val c = city ?: return emptyList()
+        if (index !in c.tiles.indices) return emptyList()
+        val size = catalog[tool]?.size ?: 1
+        val x = index % c.width
+        val y = index / c.width
+        return (y until minOf(y + size, c.height)).flatMap { row ->
+            (x until minOf(x + size, c.width)).map { column -> c.index(column, row) }
+        }
     }
 
     private fun updateSize() {
@@ -305,7 +325,15 @@ class CityCanvas(
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
                 g.color = Color(0xffe1a0)
                 g.stroke = BasicStroke(2f)
-                g.drawPolygon(projection!!.polygon(c, selected))
+                for (cell in selectionCells(selected)) {
+                    val polygon = projection!!.polygon(c, cell)
+                    if (catalog.containsKey(tool)) {
+                        g.color = Color(255, 225, 160, 65)
+                        g.fillPolygon(polygon)
+                    }
+                    g.color = Color(0xffe1a0)
+                    g.drawPolygon(polygon)
+                }
             }
         } finally {
             g.dispose()

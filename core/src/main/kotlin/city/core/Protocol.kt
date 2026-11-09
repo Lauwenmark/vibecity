@@ -5,7 +5,7 @@ import kotlinx.serialization.json.Json
 import java.io.BufferedReader
 import java.io.EOFException
 
-const val PROTOCOL_VERSION = 7
+const val PROTOCOL_VERSION = 8
 val wireJson =
     Json {
         encodeDefaults = true
@@ -37,6 +37,7 @@ data class Response(
     val players: List<String> = emptyList(),
     val retained: RetainedState? = null,
     val sharedRouteHomes: List<Int> = emptyList(),
+    val delta: StateDelta? = null,
 )
 
 /** Large immutable fields omitted only when the preceding transmitted state owns the same objects. */
@@ -64,7 +65,7 @@ fun Response.compactState(previous: City?): Response {
             this
         }
     val payload = compact.city!!
-    val moving = payload.mobility ?: return compact
+    val moving = payload.mobility ?: return compact.compactMap(previous)
     val byCell = current.households.associateBy { it.cell }
     val shared = mutableListOf<Int>()
     val homes =
@@ -76,16 +77,17 @@ fun Response.compactState(previous: City?): Response {
                 home
             }
         }
-    return if (shared.isEmpty()) compact else compact.copy(city = payload.copy(mobility = moving.copy(homes = homes)), sharedRouteHomes = shared)
+    return (if (shared.isEmpty()) compact else compact.copy(city = payload.copy(mobility = moving.copy(homes = homes)), sharedRouteHomes = shared)).compactMap(previous)
 }
 
 /** Reconstruct each wire state before coalescing notifications: subsequent deltas depend on it. */
 fun Response.restoreState(previous: City?): Response {
-    val current = city
-    if (type != "STATE" || current == null) {
-        require(retained == null && sharedRouteHomes.isEmpty()) { "Missing state payload" }
+    if (type != "STATE") {
+        require(delta == null && retained == null && sharedRouteHomes.isEmpty()) { "Unexpected state payload" }
         return this
     }
+    require((city != null) != (delta != null)) { "Expected one state payload" }
+    val current = city ?: delta!!.restore(previous)
     val reference = retained
     var restored =
         if (reference == null) {
@@ -114,7 +116,7 @@ fun Response.restoreState(previous: City?): Response {
         require(found == shared) { "Missing mobility home" }
         restored = restored.copy(mobility = moving.copy(homes = homes))
     }
-    return copy(city = restored.shareRouteRegistries(), retained = null, sharedRouteHomes = emptyList())
+    return copy(city = restored.shareRouteRegistries(), retained = null, sharedRouteHomes = emptyList(), delta = null)
 }
 
 /** Enforces a bound before allocating an unbounded line; EOF never commits a partial command. */

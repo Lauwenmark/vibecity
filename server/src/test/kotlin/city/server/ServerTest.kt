@@ -166,6 +166,75 @@ class ServerTest {
             }
         }
 
+    @Test fun `reset during a blocked snapshot write preserves other clients and future accepts`() =
+        runBlocking {
+            // A small receive window leaves the large baseline in flight when RST arrives.
+            val initial = flat().copy(pluginData = mapOf("test.payload" to "x".repeat(4 * 1024 * 1024)))
+            val server = CityServer(initial, port = 0, savePath = null)
+            try {
+                Peer(server.port, "Alice").use { healthy ->
+                    healthy.until { it.type == "STATE" }
+                    Socket().use { broken ->
+                        broken.receiveBufferSize = 1024
+                        broken.soTimeout = 5000
+                        broken.connect(java.net.InetSocketAddress("127.0.0.1", server.port))
+                        val writer = broken.getOutputStream().bufferedWriter(Charsets.UTF_8)
+                        writer.write(wireJson.encodeToString(Request("HELLO", name = "Broken")))
+                        writer.newLine()
+                        writer.flush()
+                        val welcome = readFrame(broken.getInputStream().bufferedReader(Charsets.UTF_8), 64 * 1024)
+                        assertEquals("WELCOME", wireJson.decodeFromString<Response>(welcome!!).type)
+                        // Wait until the snapshot has been encoded and offered to both writers.
+                        healthy.until { "Broken" in it.players }
+                        broken.setSoLinger(true, 0)
+                    }
+                    healthy.until { it.type == "STATE" && "Broken" !in it.players }
+                    healthy.send(Request("PING", id = 1))
+                    assertEquals("PONG", healthy.until { it.id == 1L }.type)
+                    Peer(server.port, "Bob").use { newcomer ->
+                        assertEquals("WELCOME", newcomer.next().type)
+                        newcomer.until { it.type == "STATE" }
+                        newcomer.send(Request("BUILD", id = 1, tool = "level", x = 8, y = 8, value = 3))
+                        val state = newcomer.until { it.city?.revision == 1L }.city!!
+                        assertEquals(state, healthy.until { it.city?.revision == 1L }.city)
+                    }
+                }
+            } finally {
+                server.shutdown()
+            }
+        }
+
+    @Test fun `level drag burst converges on both clients and a reconnect gets a full baseline`() =
+        runBlocking {
+            val initial = City(width = 128, height = 128, tiles = List(128 * 128) { Tile() }, rules = Rules(speed = 0), terrain = Terrain.flat(128, 128))
+            val requests = List(60) { Request("BUILD", id = it + 1L, tool = "level", x = 8 + it, y = 8, value = 3) }
+            val commands = Commands(Catalog())
+            val expected = requests.fold(initial, commands::apply)
+            val server = CityServer(initial, port = 0, savePath = null)
+            try {
+                Peer(server.port, "Alice").use { a ->
+                    Peer(server.port, "Bob").use { b ->
+                        a.until { it.type == "STATE" }
+                        b.until { it.type == "STATE" }
+                        coroutineScope {
+                            val first = async(Dispatchers.IO) { a.until { it.city?.revision == 60L }.city }
+                            val second = async(Dispatchers.IO) { b.until { it.city?.revision == 60L }.city }
+                            withContext(Dispatchers.IO) { requests.forEach(a::send) }
+                            assertEquals(expected, first.await())
+                            assertEquals(expected, second.await())
+                        }
+                        Peer(server.port, "Charlie").use { c ->
+                            assertEquals(expected, c.until { it.type == "STATE" }.city)
+                            c.send(Request("PING", id = 1))
+                            assertEquals("PONG", c.until { it.id == 1L }.type)
+                        }
+                    }
+                }
+            } finally {
+                server.shutdown()
+            }
+        }
+
     @Test fun `bad token is disconnected while valid peer keeps working`() =
         runBlocking {
             val server = CityServer(flat(), port = 0, token = "secret", savePath = null)

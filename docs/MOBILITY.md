@@ -141,7 +141,7 @@ calques ou quand la fenêtre est masquée. Elle reste une surcouche indépendant
 
 ## Persistance, parallélisme et limites
 
-Le protocole est en **version 7** : redémarrer serveur et clients ensemble et recompiler les plugins.
+Le protocole est en **version 8** : redémarrer serveur et clients ensemble et recompiler les plugins.
 Les anciennes sauvegardes sans habitants persistants initialisent leurs identités au prochain jour.
 Les anciens caches de mobilité sont invalidés, sans réécrire le fichier d’origine. Les sauvegardes
 nouvelles conservent identités, scores, positions nocturnes et traces de la dernière journée.

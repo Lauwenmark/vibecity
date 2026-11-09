@@ -35,6 +35,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
     private val disasters = JCheckBox("Incendies aléatoires")
     private val terrainAltitude = JSpinner(SpinnerNumberModel(2, 0, Terrain.MAX_HEIGHT, 1))
     private val tools = JPanel()
+    private val activeTool = JLabel("Inspection")
     private val chart = HistoryChart()
     private val minimap = MiniMap()
     private val canvas = CityCanvas(::inspect, ::build, ::inspectResidents)
@@ -78,7 +79,14 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         toolScroll.border = null
         toolScroll.horizontalScrollBarPolicy = ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER
         toolScroll.verticalScrollBar.unitIncrement = 24
-        add(toolScroll, BorderLayout.WEST)
+        val palette = JPanel(BorderLayout())
+        palette.background = panel
+        palette.add(toolScroll, BorderLayout.CENTER)
+        activeTool.foreground = ink
+        activeTool.border = EmptyBorder(8, 10, 8, 10)
+        activeTool.preferredSize = Dimension(242, 64)
+        palette.add(activeTool, BorderLayout.SOUTH)
+        add(palette, BorderLayout.WEST)
         addTools()
         val center = JPanel(BorderLayout())
         center.background = panel
@@ -205,10 +213,18 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         tools.removeAll()
         buttons.elements.toList().forEach { buttons.remove(it) }
 
+        var grid = JPanel()
+        var count = 0
+
         fun section(title: String) {
             tools.add(Box.createVerticalStrut(14))
             tools.add(label(title))
             tools.add(Box.createVerticalStrut(6))
+            grid = JPanel(GridLayout(0, 4, 6, 6))
+            grid.isOpaque = false
+            grid.alignmentX = Component.LEFT_ALIGNMENT
+            count = 0
+            tools.add(grid)
         }
 
         fun tool(
@@ -216,20 +232,34 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
             name: String,
             cost: Int? = null,
         ) {
-            val b = JToggleButton(if (cost == null) name else "$name · $$cost")
-            b.alignmentX = Component.LEFT_ALIGNMENT
-            b.maximumSize = Dimension(220, 29)
-            b.horizontalAlignment = SwingConstants.LEFT
-            b.font = Font("Dialog", Font.PLAIN, 11)
-            b.toolTipText = b.text
+            val description = if (cost == null) name else "$name · $$cost"
+            val b = JToggleButton(ToolIcon(id))
+            b.selectedIcon = ToolIcon(id, selected = true)
+            b.name = "tool:$id"
+            b.accessibleContext.accessibleName = name
+            b.accessibleContext.accessibleDescription = description
+            b.preferredSize = Dimension(44, 44)
+            b.margin = Insets(4, 4, 4, 4)
+            b.background = Color(0x293e4b)
+            b.border = BorderFactory.createLineBorder(Color(0x597180), 2)
+            b.addItemListener {
+                b.border = BorderFactory.createLineBorder(if (b.isSelected) accent else Color(0x597180), 2)
+            }
+            b.toolTipText = description
+            if (id == selectedTool) activeTool.text = "<html>$description</html>"
             b.isSelected = id == selectedTool
             b.addActionListener {
                 selectedTool = id
                 canvas.tool = id
+                activeTool.text = "<html>$description</html>"
                 status.text = "Outil : $name — clic ou glisser sur la carte"
             }
             buttons.add(b)
-            tools.add(b)
+            grid.add(b)
+            count++
+            val gridSize = Dimension(194, ((count + 3) / 4) * 50 - 6)
+            grid.preferredSize = gridSize
+            grid.maximumSize = gridSize
         }
         section("OUTILS DU MAIRE")
         tool("inspect", "Inspection")
@@ -242,13 +272,14 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         tool("raise", "Élever (5 $ / sommet)")
         tool("lower", "Abaisser (5 $ / sommet)")
         tool("level", "Aplanir à l’altitude choisie")
+        tool("water", "Eau / cascade", 5)
+        tool("trees", "Planter des arbres", 3)
+        tools.add(Box.createVerticalStrut(6))
         tools.add(label("ALTITUDE CIBLE (0–12)"))
-        terrainAltitude.maximumSize = Dimension(210, 28)
+        terrainAltitude.maximumSize = Dimension(194, 28)
         terrainAltitude.alignmentX = Component.LEFT_ALIGNMENT
         terrainAltitude.toolTipText = "Altitude de l’outil Aplanir. Le terrassement coûte 5 $ par sommet modifié."
         tools.add(terrainAltitude)
-        tool("water", "Eau / cascade", 5)
-        tool("trees", "Planter des arbres", 3)
         section("BÂTIMENTS & SERVICES")
         definitions.sortedWith(compareBy({ it.year }, { it.name })).forEach { tool(it.id, "${it.name}${if (it.year > 1900) " (${it.year})" else ""}", it.cost) }
         tools.preferredSize = Dimension(220, tools.layout.preferredLayoutSize(tools).height)

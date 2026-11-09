@@ -16,6 +16,7 @@ private lateinit var window: CityWindow
 /** Exercises the actual JFrame, TCP connection, tool palette and authoritative budget action. */
 fun main() =
     runBlocking {
+        exportToolIcons()
         var initial = demoCity()
         repeat(18) { initial = Simulation(Catalog()).step(initial) }
         val server = CityServer(initial.copy(rules = initial.rules.copy(speed = 0)), port = 0, savePath = null)
@@ -85,7 +86,7 @@ fun main() =
             SwingUtilities.invokeAndWait { components(window).filterIsInstance<JButton>().single { it.text == "Emprunter" }.doClick() }
             awaitText("BOND")
             SwingUtilities.invokeAndWait {
-                components(window).filterIsInstance<JToggleButton>().single { it.text.startsWith("Petit parc") }.doClick()
+                components(window).filterIsInstance<JToggleButton>().single { it.name == "tool:park" }.doClick()
                 val canvas = components(window).filterIsInstance<CityCanvas>().single()
                 val x = 32
                 val y = 30
@@ -95,9 +96,9 @@ fun main() =
                 canvas.dispatchEvent(MouseEvent(canvas, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(), 0, screenX, screenY, 1, false, MouseEvent.BUTTON1))
             }
             awaitText("Validation Swing : park")
-            for ((label, tool) in listOf("Élever" to "raise", "Aplanir" to "level")) {
+            for (tool in listOf("raise", "level")) {
                 SwingUtilities.invokeAndWait {
-                    components(window).filterIsInstance<JToggleButton>().single { it.text.startsWith(label) }.doClick()
+                    components(window).filterIsInstance<JToggleButton>().single { it.name == "tool:$tool" }.doClick()
                     val canvas = components(window).filterIsInstance<CityCanvas>().single()
                     val city = requireNotNull(canvas.city)
                     val projection = CityProjection(city.width, city.height, 1.0)
@@ -111,7 +112,7 @@ fun main() =
                 awaitText("Validation Swing : $tool")
             }
             SwingUtilities.invokeAndWait {
-                check(components(window).filterIsInstance<JToggleButton>().any { it.text.contains("Centrale à charbon") })
+                check(components(window).filterIsInstance<JToggleButton>().any { it.name == "tool:coal" && it.icon != null && it.accessibleContext.accessibleName == "Centrale à charbon" })
                 val canvas = components(window).filterIsInstance<CityCanvas>().single()
                 components(window).filterIsInstance<JButton>().single { it.text == "↷ 90°" }.doClick()
                 check(canvas.rotation == 1)

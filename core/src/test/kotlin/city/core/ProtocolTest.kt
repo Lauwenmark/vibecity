@@ -48,6 +48,76 @@ class ProtocolTest {
         assertNull(next.retained)
     }
 
+    @Test fun `rapid earthworks transmit sparse maps and reconstruct every authoritative field`() {
+        var previous =
+            City(
+                width = 64,
+                height = 64,
+                tiles = List(64 * 64) { Tile() },
+                terrain = Terrain.flat(64, 64),
+                households = listOf(Household(17, listOf(Citizen(1, "Alice", 30, position = 17)))),
+                mobility = Mobility(0, emptyList(), 0, 0),
+            )
+        var received = previous
+        val commands = Commands(Catalog())
+        repeat(24) { step ->
+            val current = commands.apply(previous, Request("BUILD", tool = "level", x = 8 + step, y = 8, value = 3))
+            val full = Response("STATE", city = current, players = listOf("Alice"))
+            val compact = full.compactState(previous)
+            assertNull(compact.city)
+            val delta = assertNotNull(compact.delta)
+            assertTrue(delta.tiles.size < 32)
+            assertTrue(delta.vertices.size < 32)
+            val encoded = wireJson.encodeToString(compact)
+            assertTrue(encoded.length < wireJson.encodeToString(full).length / 20)
+            val restored = wireJson.decodeFromString<Response>(encoded).restoreState(received)
+            assertEquals(full, restored)
+            assertNull(restored.city!!.mobility)
+            received = restored.city
+            previous = current
+        }
+        // Delta metadata must also survive a simulation, empty populations and plugin changes.
+        val changed =
+            previous.copy(
+                revision = previous.revision + 1,
+                month = 2,
+                day = 60,
+                debt = 500,
+                rules = Rules(speed = 0, taxRate = 9),
+                stats = Statistics(population = 42),
+                trafficRules = TrafficRules(roadSlots = 8),
+                history = listOf(previous.stats),
+                notices = listOf("Test"),
+                pluginData = mapOf("test" to "value"),
+                households = emptyList(),
+                nextCitizenId = 42,
+                mobility = Mobility(2, emptyList(), 0, 0),
+            )
+        val response = Response("STATE", city = changed)
+        assertEquals(response, wireJson.decodeFromString<Response>(wireJson.encodeToString(response.compactState(previous))).restoreState(received))
+    }
+
+    @Test fun `map deltas reject missing or incompatible baselines and invalid patches`() {
+        val city = City(width = 16, height = 16, tiles = List(256) { Tile() }, terrain = Terrain.flat(16, 16))
+        val response = Response("STATE", city = city.copy(revision = 1)).compactState(city)
+        val delta = assertNotNull(response.delta)
+        assertFailsWith<IllegalArgumentException> { response.restoreState(null) }
+        assertFailsWith<IllegalArgumentException> { response.restoreState(city.copy(revision = 2)) }
+        assertFailsWith<IllegalArgumentException> { response.restoreState(city.copy(seed = 42)) }
+        assertFailsWith<IllegalArgumentException> { response.restoreState(city.copy(terrain = null)) }
+        assertFailsWith<IllegalArgumentException> { response.copy(city = city).restoreState(city) }
+        assertFailsWith<IllegalArgumentException> { response.copy(delta = delta.copy(tiles = mapOf(256 to Tile()))).restoreState(city) }
+        assertFailsWith<IllegalArgumentException> { response.copy(delta = delta.copy(vertices = mapOf(-1 to 2))).restoreState(city) }
+        assertFailsWith<IllegalArgumentException> { response.copy(delta = delta.copy(vertices = mapOf(0 to 13))).restoreState(city) }
+        assertFailsWith<IllegalArgumentException> { response.copy(delta = delta.copy(vertices = mapOf(0 to 6))).restoreState(city) }
+        val dense = city.copy(revision = 1, tiles = List(256) { Tile(trees = true) })
+        val full = Response("STATE", city = dense).compactState(city)
+        assertNotNull(full.city)
+        assertNull(full.delta)
+        assertEquals(dense, full.restoreState(city).city)
+        assertNull(Response("STATE", city = dense).compactState(null).delta)
+    }
+
     @Test fun `block framing preserves following frames and exact boundaries`() {
         for (size in listOf(0, 1, 8191, 8192, 8193, 16384)) {
             val text = "é".repeat(size)
