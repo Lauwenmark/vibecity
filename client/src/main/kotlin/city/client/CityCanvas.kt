@@ -445,7 +445,7 @@ class CityCanvas(
                 else -> a.water == b.water && a.zone == b.zone
             }
         if (!sameColor) return false
-        if (layer == Layer.WATER) return a.pipe == b.pipe && a.subway == b.subway
+        if (layer == Layer.WATER) return a.pipe == b.pipe && a.subway == b.subway && a.building == b.building
         if (layer == Layer.ZONES) return true
         return a.trees == b.trees && a.building == b.building && a.anchor == b.anchor &&
             a.occupants == b.occupants && a.zone == b.zone && a.powerLine == b.powerLine && a.water == b.water

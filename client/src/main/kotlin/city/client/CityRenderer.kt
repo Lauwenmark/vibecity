@@ -90,17 +90,30 @@ internal class CityRenderer(
                     g.stroke = BasicStroke(1f)
                 }
                 if (layer == Layer.WATER) {
-                    if (t.pipe || t.subway) {
-                        g.color = if (t.pipe) Color(0x63dcf2) else Color(0xc1a1df)
-                        g.stroke = BasicStroke(3 * zoom.toFloat())
+                    // Draw both networks independently; the wider tunnel remains visible under pipes.
+                    for (pipe in listOf(false, true)) {
+                        if (if (pipe) !t.pipe else !t.subway) continue
+                        g.color = if (pipe) Color(0x63dcf2) else Color(0xc1a1df)
+                        g.stroke = BasicStroke((if (pipe) 3 else 6) * zoom.toFloat())
                         for (n in city.neighbors(i)) {
-                            if (if (t.pipe) city.tiles[n].pipe || city.tiles[n].building != null else city.tiles[n].subway) {
+                            if (if (pipe) city.tiles[n].pipe || city.tiles[n].building != null else city.tiles[n].subway) {
                                 val edge = edgePoint(diamond, n % city.width - x, n / city.width - y)
                                 g.drawLine(sx, sy, edge.x, edge.y)
                             }
                         }
                         g.fillOval(sx - 2, sy - 2, 4, 4)
                         g.stroke = BasicStroke(1f)
+                    }
+                    if (t.building == "metro") {
+                        val radius = (6 * zoom).roundToInt().coerceAtLeast(4)
+                        g.color = Color(0x493362)
+                        g.fillOval(sx - radius, sy - radius, radius * 2, radius * 2)
+                        g.color = Color(0xc1a1df)
+                        g.drawOval(sx - radius, sy - radius, radius * 2, radius * 2)
+                        g.font = Font("Dialog", Font.BOLD, (9 * zoom).roundToInt().coerceAtLeast(6))
+                        g.color = Color.WHITE
+                        val metrics = g.fontMetrics
+                        g.drawString("M", sx - metrics.stringWidth("M") / 2, sy + (metrics.ascent - metrics.descent) / 2)
                     }
                 } else if (layer != Layer.ZONES) {
                     if (t.trees) tree(g, sx, sy, zoom)
