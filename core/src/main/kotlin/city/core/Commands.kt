@@ -3,6 +3,7 @@ package city.core
 /** Pure command transaction: validation failure never changes funds, terrain or revision. */
 class Commands(
     private val catalog: Catalog,
+    private val ignoreConstructionYears: Boolean = false,
 ) {
     fun apply(
         city: City,
@@ -154,7 +155,7 @@ class Commands(
 
             else -> {
                 val def = catalog[r.tool]
-                require(1900 + city.month / 12 >= def.year) { "Disponible en ${def.year}" }
+                require(ignoreConstructionYears || 1900 + city.month / 12 >= def.year) { "Disponible en ${def.year}" }
                 require(r.x + def.size <= city.width && r.y + def.size <= city.height) { "Bâtiment hors carte" }
                 val footprint = (r.y until r.y + def.size).flatMap { y -> (r.x until r.x + def.size).map { x -> city.index(x, y) } }
                 require(footprint.all { n -> city.tiles[n].let { it.building == null && it.zone == Zone.NONE && !it.road && !it.rail && !it.powerLine && (if (def.id == "hydro") it.water else !it.water) } }) { "Emplacement occupé ou terrain incompatible" }

@@ -72,6 +72,18 @@ Sur la machine qui héberge la ville :
 ./gradlew :server:run --args="--host 0.0.0.0 --port 2000 --size 64 --seed 2000 --save saves/shared.json"
 ```
 
+Pour tester les constructions de toutes les époques avec un budget initial de **1 000 000** :
+
+```sh
+./gradlew :server:run --args="--test-mode --save saves/test-city.json"
+```
+
+`--test-mode` ignore les limites d’année des constructions pour tous les joueurs, y compris
+celles des plugins. Les coûts et les autres contraintes de construction restent applicables.
+Le million est attribué uniquement à une nouvelle ville ; une sauvegarde existante conserve
+sa trésorerie. Le mode n’est pas enregistré dans la sauvegarde : fournir l’option à chaque
+lancement pour continuer à ignorer les limites d’année.
+
 Sur chaque poste joueur :
 
 ```sh

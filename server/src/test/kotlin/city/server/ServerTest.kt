@@ -52,6 +52,30 @@ class ServerTest {
         override fun close() = socket.close()
     }
 
+    @Test fun `test mode bypasses years but preserves construction costs and occupancy`() =
+        runBlocking {
+            for (testMode in listOf(false, true)) {
+                val server = CityServer(flat(), port = 0, savePath = null, testMode = testMode)
+                try {
+                    Peer(server.port).use { peer ->
+                        val initial = peer.until { it.type == "STATE" }.city!!
+                        peer.send(Request("BUILD", id = 1, tool = "wind", x = 2, y = 2))
+                        val result = peer.until { it.id == 1L && it.type in listOf("ACK", "ERROR") }
+                        assertEquals(if (testMode) "ACK" else "ERROR", result.type)
+                        if (testMode) {
+                            val built = peer.until { it.type == "STATE" && it.city!!.revision > initial.revision }.city!!
+                            assertEquals(initial.treasury - Catalog()["wind"].cost, built.treasury)
+                            assertEquals("wind", built.tiles[built.index(2, 2)].building)
+                            peer.send(Request("BUILD", id = 2, tool = "wind", x = 2, y = 2))
+                            assertEquals("ERROR", peer.until { it.id == 2L && it.type in listOf("ACK", "ERROR") }.type)
+                        }
+                    }
+                } finally {
+                    server.shutdown()
+                }
+            }
+        }
+
     @Test fun `two mayors receive same authoritative edits and conflicting build is rejected`() =
         runBlocking {
             val server = CityServer(flat(), port = 0, savePath = null)

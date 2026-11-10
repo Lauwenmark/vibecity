@@ -5,6 +5,23 @@ import java.nio.file.Files
 import kotlin.test.*
 
 class ServerStartupTest {
+    @Test fun `test mode gives only new cities one million`() {
+        val directory = Files.createTempDirectory("server-test-mode")
+        val path = directory.resolve("city.json")
+        try {
+            val normal = loadServerCity(emptyArray(), path, Catalog()) {}
+            val testing = loadServerCity(arrayOf("--test-mode"), path, Catalog()) {}
+            assertEquals(100_000L, normal.treasury)
+            assertEquals(1_000_000L, testing.treasury)
+            Persistence.save(path, testing.copy(treasury = 12345))
+            val restored = loadServerCity(arrayOf("--test-mode"), path, Catalog()) {}
+            assertEquals(12345L, restored.treasury)
+        } finally {
+            Files.deleteIfExists(path)
+            Files.delete(directory)
+        }
+    }
+
     @Test fun `size 256 generates a full sized new map with either option syntax`() {
         val directory = Files.createTempDirectory("server-startup")
         try {

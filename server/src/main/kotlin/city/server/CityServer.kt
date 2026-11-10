@@ -27,6 +27,7 @@ class CityServer(
     private val savePath: Path? = Path.of("saves/city.json"),
     private val tickMillis: Long = 1500,
     systems: List<CityRule> = emptyList(),
+    testMode: Boolean = false,
 ) : AutoCloseable {
     init {
         require(tickMillis > 0)
@@ -46,7 +47,7 @@ class CityServer(
     private val sockets = ConcurrentHashMap.newKeySet<Socket>()
     private val clientCount = AtomicInteger()
     private val events = Channel<Event>(256)
-    private val commands = Commands(catalog)
+    private val commands = Commands(catalog, ignoreConstructionYears = testMode)
     private val simulation = Simulation(catalog, rules, systems = systems)
     private val sessions = linkedSetOf<Session>() // owned by actor only
     private var city = initial.withSharedTerrain()
