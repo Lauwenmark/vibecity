@@ -8,12 +8,17 @@ import javax.imageio.ImageIO
 import kotlin.math.roundToInt
 
 /** Screen-facing artwork, decoded once and shared by all scene chunks. */
-internal object UtilitySprites {
+internal object BuildingSprites {
     val ids = setOf("coal", "oil", "gas", "nuclear", "wind", "solar", "fusion", "hydro", "microwave", "pump")
+    private val civicIds = setOf("fire", "police", "school")
+    val allIds = ids + civicIds
+
+    fun resourcePath(id: String) = "/city/client/${if (id in civicIds) "civic" else "utilities"}/$id.png"
+
     private val images by lazy {
-        ids.associateWith { id ->
-            checkNotNull(javaClass.getResourceAsStream("/city/client/utilities/$id.png")) {
-                "Missing utility sprite: $id"
+        allIds.associateWith { id ->
+            checkNotNull(javaClass.getResourceAsStream(resourcePath(id))) {
+                "Missing building sprite: $id"
             }.use { checkNotNull(ImageIO.read(it)) }
         }
     }

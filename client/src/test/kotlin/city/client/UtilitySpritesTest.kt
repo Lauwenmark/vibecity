@@ -12,11 +12,11 @@ import kotlin.test.*
 class UtilitySpritesTest {
     @Test fun `utility footprints render identically in whole and clipped scenes at every rotation`() {
         val catalog = standardBuildings().associateBy { it.id }
-        val gallery = BufferedImage(1200, 1000, BufferedImage.TYPE_INT_RGB)
+        val gallery = BufferedImage(1200, 1300, BufferedImage.TYPE_INT_RGB)
         val gg = gallery.createGraphics()
         gg.color = Color(0x18232d)
         gg.fillRect(0, 0, gallery.width, gallery.height)
-        for ((ordinal, id) in UtilitySprites.ids.withIndex()) {
+        for ((ordinal, id) in BuildingSprites.allIds.withIndex()) {
             val size = catalog.getValue(id).size
             val base = City.generate(size = 16)
             val anchor = base.index(6, 6)
@@ -32,7 +32,7 @@ class UtilitySpritesTest {
                             )
                         },
                 )
-            val resource = assertNotNull(javaClass.getResource("/city/client/utilities/$id.png"))
+            val resource = assertNotNull(javaClass.getResource(BuildingSprites.resourcePath(id)))
             val sprite = ImageIO.read(resource)
             assertTrue(sprite.colorModel.hasAlpha())
             assertEquals(0, sprite.getRGB(0, 0) ushr 24)
