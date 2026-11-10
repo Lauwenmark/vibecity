@@ -66,6 +66,39 @@ data class Mobility(
     @Required val executionVersion: Int = 1,
     val roadPeakOccupancy: Map<Int, Int> = emptyMap(),
     val roadOccupancyLimit: Int = 6,
+) {
+    /** Derived once per daily snapshot from executed transfers, never from planned routes. */
+    val metroStationPassengers: Map<Int, StationPassengers> by lazy {
+        val counts = mutableMapOf<Int, StationPassengers>()
+        for (home in homes) {
+            for (citizen in home.days) {
+                for (leg in citizen.legs) {
+                    val nodes = leg.trace.nodes
+                    for (index in 1 until nodes.size) {
+                        val from = nodes[index - 1]
+                        val to = nodes[index]
+                        val boarding = from % 4 == TravelMode.WALK.ordinal && to % 4 == TravelMode.METRO.ordinal
+                        val alighting = from % 4 == TravelMode.METRO.ordinal && to % 4 == TravelMode.WALK.ordinal
+                        if (!boarding && !alighting) continue
+                        // The walking node identifies the station, even when its tunnel is adjacent.
+                        val station = (if (boarding) from else to) / 4
+                        val previous = counts[station] ?: StationPassengers()
+                        counts[station] =
+                            StationPassengers(
+                                previous.boardings + if (boarding) 1 else 0,
+                                previous.alightings + if (alighting) 1 else 0,
+                            )
+                    }
+                }
+            }
+        }
+        counts.toMap()
+    }
+}
+
+data class StationPassengers(
+    val boardings: Int = 0,
+    val alightings: Int = 0,
 )
 
 data class Resident(

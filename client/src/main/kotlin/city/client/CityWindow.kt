@@ -387,7 +387,17 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
                 ?.let {
                     "\nSatisfaction moyenne : %.1f %% (%+.2f / jour)\nRisque de déménagement : %.2f %% / jour".format(it.satisfaction, it.people.map { p -> p.wellbeing.trend }.average(), it.moveProbability() * 100)
                 }.orEmpty()
-        if (inspector.text != text + opinion) inspector.text = text + opinion
+        val station =
+            if (t.building == "metro") {
+                c.mobility?.let { mobility ->
+                    val passengers = mobility.metroStationPassengers[i] ?: StationPassengers()
+                    "\nDernier jour simulé :\nEmbarquements : ${passengers.boardings} / jour\nDébarquements : ${passengers.alightings} / jour"
+                } ?: "\nVoyageurs : en attente de simulation"
+            } else {
+                ""
+            }
+        val details = text + opinion + station
+        if (inspector.text != details) inspector.text = details
     }
 
     fun connect(

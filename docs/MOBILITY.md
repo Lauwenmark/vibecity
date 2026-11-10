@@ -159,3 +159,15 @@ le nombre d’événements de circulation. Les snapshots restent complets et con
 carte maximale entièrement peuplée. Les files sont au niveau des cases, sans voies séparées,
 feux ni priorité physique aux intersections. Les capacités d’emplois, de patients et d’élèves ne
 limitent pas encore le choix des destinations.
+
+### Fréquentation des stations de métro
+
+L’inspecteur d’une station affiche les embarquements et débarquements du dernier
+jour simulé. Ces totaux comptent les transitions marche–métro des trajets réellement
+exécutés, aller et retour compris, à la station utilisée (même si le tunnel est sur
+une case voisine). Un voyageur traversant une station sans quitter le métro ne
+compte pas ; un trajet inachevé compte uniquement les transferts déjà effectués.
+Il s’agit de passages, et non de voyageurs uniques. Avant qu’une simulation soit
+disponible, l’inspecteur indique que les données sont en attente. Les statistiques
+sont calculées à partir des traces existantes, sans modifier le protocole ni les
+sauvegardes.
