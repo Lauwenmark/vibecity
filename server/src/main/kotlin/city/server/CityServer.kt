@@ -3,6 +3,8 @@ package city.server
 import city.core.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.selects.onTimeout
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.net.*
@@ -50,27 +52,12 @@ class CityServer(
     private var city = initial.withSharedTerrain()
 
     private var simulationJob: Job? = null
-    private var snapshotSequence = 0L
-    private var snapshotGeneration = 0L
-
-    private data class Snapshot(
-        val sequence: Long,
-        val response: Response,
-        val generation: Long,
-    )
-
-    private val snapshots = Channel<Snapshot>(Channel.CONFLATED)
 
     private sealed interface Event {
         data class Simulated(
             val revision: Long,
             val result: City?,
             val failure: Exception?,
-        ) : Event
-
-        data class Encoded(
-            val sequence: Long,
-            val frame: String,
         ) : Event
 
         data class Join(
@@ -98,12 +85,14 @@ class CityServer(
     private class Session(
         val socket: Socket,
         val name: String,
+        val compressedStates: Boolean,
     ) {
         val outgoing = OutboundFrames()
         var lastId = 0L
-        var firstSnapshot = 0L
+        val states = Channel<Response>(Channel.CONFLATED)
 
         fun close() {
+            states.cancel()
             outgoing.close()
             runCatching { socket.close() }
         }
@@ -114,8 +103,6 @@ class CityServer(
             for (event in events) {
                 when (event) {
                     is Event.Join -> {
-                        event.session.firstSnapshot = snapshotSequence + 1
-                        snapshotGeneration++
                         sessions.add(event.session)
                         send(event.session, Response("WELCOME", catalog = catalog.all()))
                         broadcast()
@@ -198,20 +185,6 @@ class CityServer(
                         broadcast()
                     }
 
-                    is Event.Encoded -> {
-                        // Encoded states form an ordered baseline chain. Newer queued work must not
-                        // discard a completed frame or continuous construction would starve updates.
-                        val iterator = sessions.iterator()
-                        while (iterator.hasNext()) {
-                            val session = iterator.next()
-                            if (event.sequence < session.firstSnapshot) continue
-                            if (!session.outgoing.trySend(event.frame, state = true)) {
-                                session.close()
-                                iterator.remove()
-                            }
-                        }
-                    }
-
                     is Event.Stop -> {
                         simulationJob?.cancel()
                         try {
@@ -227,20 +200,6 @@ class CityServer(
         }
 
     init {
-        scope.launch(Dispatchers.Default) {
-            var previous: City? = null
-            var generation = -1L
-            for (snapshot in snapshots) {
-                // A join forces a full baseline even if intermediate queued snapshots were conflated.
-                val response = snapshot.response.compactState(if (generation == snapshot.generation) previous else null)
-                val frame = wireJson.encodeToString(response)
-                events.send(Event.Encoded(snapshot.sequence, frame))
-                previous = snapshot.response.city
-                generation = snapshot.generation
-                // Coalesce drag bursts before encoding; never drop an already encoded delta.
-                delay(50)
-            }
-        }
         scope.launch {
             try {
                 while (running.get()) {
@@ -269,6 +228,7 @@ class CityServer(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private suspend fun handle(socket: Socket) {
         var session: Session? = null
         try {
@@ -282,18 +242,49 @@ class CityServer(
                 require(hello.type == "HELLO" && hello.version == PROTOCOL_VERSION) { "HELLO version $PROTOCOL_VERSION attendu" }
                 require(hello.name.matches(Regex("[\\p{L}\\p{N} _-]{1,24}"))) { "Nom invalide" }
                 require(MessageDigest.isEqual(token.toByteArray(Charsets.UTF_8), hello.token.toByteArray(Charsets.UTF_8))) { "Jeton incorrect" }
-                val connected = Session(socket, hello.name)
+                val connected = Session(socket, hello.name, hello.compressedStates)
                 session = connected
                 val writerJob =
                     launch {
                         try {
-                            for (frame in connected.outgoing.frames) {
-                                try {
-                                    writer.write(frame.text)
-                                    writer.newLine()
-                                    writer.flush()
-                                } finally {
-                                    connected.outgoing.delivered(frame)
+                            var previous: City? = null
+                            var nextStateAt = 0L
+                            while (isActive) {
+                                // Prefer control replies, then encode only the latest pending city.
+                                // Each peer's delta baseline is its last completely written state.
+                                val waitMillis = (nextStateAt - System.nanoTime()) / 1_000_000
+                                val next =
+                                    select<Any?> {
+                                        connected.outgoing.frames.onReceiveCatching { it.getOrNull() }
+                                        if (waitMillis > 0) {
+                                            onTimeout(waitMillis) { Unit }
+                                        } else {
+                                            connected.states.onReceiveCatching { it.getOrNull() }
+                                        }
+                                    } ?: break
+                                when (next) {
+                                    is OutboundFrames.Frame -> {
+                                        try {
+                                            writer.write(next.text)
+                                            writer.newLine()
+                                            writer.flush()
+                                        } finally {
+                                            connected.outgoing.delivered(next)
+                                        }
+                                    }
+
+                                    is Response -> {
+                                        val frame =
+                                            withContext(Dispatchers.Default) {
+                                                val response = next.compactState(previous)
+                                                if (connected.compressedStates) encodeCompressedFrame(response) else wireJson.encodeToString(response)
+                                            }
+                                        writer.write(frame)
+                                        writer.newLine()
+                                        writer.flush()
+                                        previous = next.city
+                                        nextStateAt = System.nanoTime() + 50_000_000
+                                    }
                                 }
                             }
                         } finally {
@@ -347,7 +338,8 @@ class CityServer(
     }
 
     private fun broadcast() {
-        snapshots.trySend(Snapshot(++snapshotSequence, Response("STATE", city = city, players = sessions.map { it.name }), snapshotGeneration))
+        val response = Response("STATE", city = city, players = sessions.map { it.name })
+        sessions.forEach { it.states.trySend(response) }
     }
 
     /** Drains commands already admitted, then saves; socket closure unblocks all blocking IO. */

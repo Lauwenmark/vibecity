@@ -1,7 +1,8 @@
-# Protocole TCP v9
+# Protocole TCP v10
 
-Chaque trame est un objet JSON UTF-8 terminé par LF (`\n`). CRLF est également accepté. Les retours
-à la ligne dans les chaînes sont échappés par JSON. Aucune sérialisation Java n’est utilisée.
+Chaque trame est terminée par LF (`\n`). CRLF est également accepté. Les requêtes et les réponses
+de contrôle sont des objets JSON UTF-8 ; les états peuvent être compressés (voir ci-dessous).
+Les retours à la ligne dans les chaînes sont échappés par JSON. Aucune sérialisation Java n’est utilisée.
 Le serveur accepte des requêtes de 8 192 caractères maximum et le client des réponses jusqu’à la limite des chaînes JVM, afin de recevoir les grandes villes. Une fin de connexion avant LF ne valide jamais une commande partielle.
 
 ## Ouverture et cycle de vie
@@ -9,7 +10,7 @@ Le serveur accepte des requêtes de 8 192 caractères maximum et le client des r
 Envoyer dans les 10 secondes :
 
 ```json
-{"type":"HELLO","version":9,"name":"Alice","token":""}
+{"type":"HELLO","version":10,"name":"Alice","token":"","compressedStates":true}
 ```
 
 Le nom contient 1 à 24 lettres, chiffres, espaces, `_` ou `-`. La version doit correspondre.
@@ -96,7 +97,7 @@ des options sont locaux à sa liste `paths`. Les chemins encodent leurs
 états par `case * 4 + mode` (marche 0, route 1, rail 2, métro 3), avec leurs minutes cumulées.
 Les charges portent une case, un mode et 24 compteurs horaires. Le client reconstruit les horaires
 individuels avec le code partagé de `core` ; il n’effectue aucune recherche d’itinéraire.
-Les clients et serveurs doivent tous utiliser la version 9.
+Les clients et serveurs doivent tous utiliser la version 10.
 
 `City.day` est l’indice du prochain jour à exécuter depuis le 01/01/1900, ou `null` dans une ancienne
 ville : sa date de reprise est alors le premier jour indiqué par `month`. `City.nextCitizenId`
@@ -124,7 +125,7 @@ Le client reconstruit **chaque** état sur le lecteur réseau avant de regrouper
 pour Swing. Une référence absente ou incompatible ferme la connexion au lieu d’appliquer un état
 incomplet. Le serveur encode les états en ordre, en comparant uniquement les références immuables ;
 il ne retransmet donc pas les carnets des habitants après une simple construction. L’arrivée d’un
-nouveau client force un état complet. Les sauvegardes restent complètes et leur format est inchangé.
+nouveau client lui réserve un premier état complet. Les sauvegardes restent complètes et leur format est inchangé.
 
 La lecture des trames procède par blocs bornés, sans consommer la trame suivante. La limite est
 contrôlée avant ajout au résultat et une fin de flux sans LF reste une erreur, même si le JSON est valide.
@@ -135,13 +136,13 @@ vide, doit être repris de `households[].paths` dans l’état reconstruit. Cela
 Le client rejette les références manquantes ou répétées et les registres non vides portant ce marqueur.
 Les sauvegardes conservent leur format complet.
 
-Les files de sortie comptent la mémoire des chaînes jusqu’à la fin de leur écriture : budget de
-64 Mio pour les états et réserve de 1 Mio pour les contrôles, avec au plus 32 messages en attente.
-Le comptage utilise deux octets par caractère, conservateur pour les chaînes compactes de la JVM.
-Une seule trame dépassant son budget est autorisée lorsque sa catégorie est vide, pour préserver
-les grandes villes et catalogues ; aucune seconde trame de cette catégorie ne peut s’accumuler.
-Un dépassement déconnecte le client lent, sans supprimer de delta au milieu d’une chaîne. Une
-reconnexion repart d’un état complet. L’état en cours d’écriture est inclus dans le comptage.
+Chaque client conserve au plus un état en cours d’encodage ou d’écriture et le dernier état
+non encodé en attente. Les états intermédiaires en attente sont remplacés sans couper le transfert
+en cours. Le delta suivant est calculé contre la dernière ville entièrement écrite pour ce client,
+jamais contre un état abandonné. Un transfert lent ne sature donc plus une file d’états JSON.
+Les réponses de contrôle restent dans une file de 32 messages avec un budget de 1 Mio,
+compté à deux octets par caractère jusqu’à la fin de l’écriture. Un catalogue dépassant ce budget
+est accepté seul. La saturation de cette file de contrôle ferme encore la session.
 
 
 ## Carte différentielle et rafales (version 9)
@@ -163,10 +164,10 @@ autres champs remplace bien l’ancienne valeur, sauf marqueur `retained` explic
 
 Le serveur compare les valeurs des cases et sommets, pas seulement l’identité des listes.
 Si plus de la moitié des cases ou des sommets changent, il transmet la carte complète. Une arrivée
-force également une nouvelle base complète pour garantir la synchronisation du nouveau client.
+fournit une base complète au nouveau client, sans réinitialiser les autres sessions.
 Les sauvegardes restent complètes et leur format ne change pas.
 
-L’encodeur attend 50 ms après chaque état encodé : les mises à jour en attente sont regroupées,
+L’écrivain de chaque client attend 50 ms après chaque état entièrement envoyé : les mises à jour en attente sont regroupées,
 avec au plus 20 états par seconde. Chaque commande reste appliquée et reçoit son propre ACK ou
 ERROR ; seul l’affichage des états intermédiaires peut être regroupé. Aucun delta déjà encodé
 n’est supprimé : il peut servir de base au suivant.
@@ -185,3 +186,37 @@ emploi, budget, métriques de trajets et pénalités numériques dans l’ordre 
 spéciaux après des départs. Les valeurs par défaut permettent de charger les anciennes sauvegardes.
 Les clients v8 ne peuvent pas décoder ces champs : redémarrer serveur et clients en v9 et
 recompiler les plugins contre le nouveau `core`. La reconstruction différentielle reste inchangée.
+
+## Compression et registres différentiels (version 10)
+
+Le client Swing demande `compressedStates: true` dans HELLO. Les réponses STATE sont alors des
+lignes `GZIP:<base64>`, où le base64 standard sans sauts de ligne contient le JSON UTF-8 compressé
+en gzip niveau 1. WELCOME, ACK, ERROR et PONG restent en JSON. Sans cette option (false par défaut),
+les états restent en JSON pour les outils de diagnostic. La sérialisation/désérialisation JSON
+compressée utilise des flux afin de ne pas conserver une seconde grande chaîne décompressée.
+Le premier état contient toujours la ville complète ; les suivants restent des deltas ordonnés.
+
+Quand les habitants changent, `householdDelta` peut remplacer `households`, transmis vide.
+Il porte la `revision` de base et la liste ordonnée complète `homes`. Chaque domicile porte sa
+`cell`, un delta du registre `paths`, et sa liste ordonnée `people`. Chaque personne porte ses
+champs complets dans `citizen` (avec `routes` vide) et un delta `routes`. Les anciens domiciles sont
+retrouvés par cellule, les personnes par identifiant : un réordonnancement ne confond pas les habitants.
+Les domiciles/personnes absents de ces listes sont supprimés. Un registre contient `size` et un
+objet `changed` associant des indices aux nouvelles valeurs ; les autres indices sont repris de
+la base. Une réduction de `size` tronque le registre. Sans base correspondante, toutes les entrées
+sont obligatoires. Les indices et les références manquantes ou incompatibles sont rejetés.
+
+Ordre de reconstruction : carte (`city` ou `delta`), `retained`, `householdDelta`, puis
+`sharedRouteHomes`. `retained.households` et `householdDelta` sont mutuellement exclusifs.
+Les différences se calculent toujours contre le dernier état entièrement envoyé au client,
+même si plusieurs journées intermédiaires ont été regroupées. Les sauvegardes ne changent pas.
+
+Mesure locale sur `shared5.json` (214 Mio), une journée avec quatre workers : ancien état JSON
+134 331 762 octets ; état différentiel des habitants environ 18 Mo ; ligne compressée avec base64
+3 484 853 octets (environ 38 fois moins que l’ancien transfert). Le premier état passe d’environ
+153 Mo à 27 Mo. Ce sont des tailles mesurées, pas une garantie de latence sur chaque réseau.
+
+Un essai local de trois placements, simulation active et JVM limitée à quatre processeurs, avec
+réception limitée à 10 Mio/s, a mesuré environ 2,42 s pour le premier placement encore derrière un
+transfert, puis 9 ms et 51 ms. Le transfert initial reste plus lourd ; ces trois mesures ne sont
+pas une garantie de latence, ni un benchmark effectué sur le serveur distant.

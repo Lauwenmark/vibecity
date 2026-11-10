@@ -25,10 +25,10 @@ class ConnectionTest {
                         listener.accept().use { socket ->
                             readFrame(socket.getInputStream().bufferedReader(), 8192)
                             val writer = socket.getOutputStream().bufferedWriter(Charsets.UTF_8)
-                            writer.write(wireJson.encodeToString(Response("STATE", city = initial).compactState(null)) + "\n")
+                            writer.write(encodeCompressedFrame(Response("STATE", city = initial).compactState(null)) + "\n")
                             writer.flush()
                             initialReceived.get(10, TimeUnit.SECONDS)
-                            writer.write(wireJson.encodeToString(Response("STATE", city = taxed).compactState(initial)) + "\n")
+                            writer.write(encodeCompressedFrame(Response("STATE", city = taxed).compactState(initial)) + "\n")
                             writer.write(wireJson.encodeToString(Response("STATE", city = funded).compactState(taxed)) + "\n")
                             writer.flush()
                             release.get(10, TimeUnit.SECONDS)
@@ -38,7 +38,7 @@ class ConnectionTest {
                     }
                 }
             Connection("127.0.0.1", listener.localPort, "Test", "", {
-                if (it.delta != null || it.retained != null || it.sharedRouteHomes.isNotEmpty()) finalState.completeExceptionally(AssertionError("Unrestored state"))
+                if (it.delta != null || it.householdDelta != null || it.retained != null || it.sharedRouteHomes.isNotEmpty()) finalState.completeExceptionally(AssertionError("Unrestored state"))
                 if (it.city?.revision == initial.revision) {
                     val restored = requireNotNull(it.city)
                     if (restored != initial || restored.households

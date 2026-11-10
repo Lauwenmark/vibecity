@@ -3,7 +3,6 @@ package city.client
 import city.core.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.net.*
 import java.util.concurrent.atomic.AtomicBoolean
@@ -34,7 +33,7 @@ class Connection(
                 socket.soTimeout = 60000
                 val writer = socket.getOutputStream().bufferedWriter(Charsets.UTF_8)
                 val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
-                writer.write(wireJson.encodeToString(Request("HELLO", name = name, token = token)))
+                writer.write(wireJson.encodeToString(Request("HELLO", name = name, token = token, compressedStates = true)))
                 writer.newLine()
                 writer.flush()
                 launch {
@@ -59,7 +58,7 @@ class Connection(
                 while (isActive) {
                     // Full city snapshots grow with persistent citizens and routes, like local saves.
                     val line = readFrame(reader, Int.MAX_VALUE) ?: break
-                    val response = wireJson.decodeFromString<Response>(line).restoreState(previousCity)
+                    val response = decodeResponseFrame(line).restoreState(previousCity)
                     require(response.version == PROTOCOL_VERSION)
                     if (response.type == "STATE") {
                         previousCity = response.city

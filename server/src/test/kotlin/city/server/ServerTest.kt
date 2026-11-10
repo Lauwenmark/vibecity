@@ -21,7 +21,7 @@ class ServerTest {
         private val writer = socket.getOutputStream().bufferedWriter(Charsets.UTF_8)
 
         init {
-            send(Request("HELLO", name = name, token = token))
+            send(Request("HELLO", name = name, token = token, compressedStates = true))
         }
 
         fun send(r: Request) {
@@ -33,7 +33,9 @@ class ServerTest {
         private var previous: City? = null
 
         fun next(): Response {
-            val response = wireJson.decodeFromString<Response>(readFrame(reader, 64 * 1024 * 1024) ?: error("EOF")).restoreState(previous)
+            val frame = readFrame(reader, 64 * 1024 * 1024) ?: error("EOF")
+            val response = decodeResponseFrame(frame).restoreState(previous)
+            if (response.type == "STATE") assertTrue(frame.startsWith("GZIP:"))
             if (response.type == "STATE") previous = response.city
             return response
         }
@@ -197,6 +199,52 @@ class ServerTest {
                         newcomer.send(Request("BUILD", id = 1, tool = "level", x = 8, y = 8, value = 3))
                         val state = newcomer.until { it.city?.revision == 1L }.city!!
                         assertEquals(state, healthy.until { it.city?.revision == 1L }.city)
+                    }
+                }
+            } finally {
+                server.shutdown()
+            }
+        }
+
+    @Test fun `slow initial transfer survives more than a queue of updates and catches up`() =
+        runBlocking {
+            val initial = flat().copy(pluginData = mapOf("test.payload" to "x".repeat(8 * 1024 * 1024)))
+            val server = CityServer(initial, port = 0, savePath = null)
+            try {
+                Peer(server.port, "Alice").use { healthy ->
+                    healthy.until { it.type == "STATE" }
+                    Socket().use { slow ->
+                        slow.receiveBufferSize = 64 * 1024
+                        slow.soTimeout = 15000
+                        slow.connect(java.net.InetSocketAddress("127.0.0.1", server.port))
+                        val writer = slow.getOutputStream().bufferedWriter(Charsets.UTF_8)
+                        val reader = slow.getInputStream().bufferedReader(Charsets.UTF_8)
+                        writer.write(wireJson.encodeToString(Request("HELLO", name = "Slow")))
+                        writer.newLine()
+                        writer.flush()
+                        assertEquals("WELCOME", wireJson.decodeFromString<Response>(readFrame(reader, 65536)!!).type)
+                        // Begin the actual baseline, then stop reading while updates accumulate.
+                        val first = reader.read()
+                        assertEquals('{'.code, first)
+                        repeat(40) { index ->
+                            healthy.send(Request("TAX", id = index + 1L, value = 5 + index % 5))
+                            healthy.until { it.city?.revision == index + 1L }
+                        }
+                        val baseline = wireJson.decodeFromString<Response>(first.toChar() + readFrame(reader, Int.MAX_VALUE)!!).restoreState(null)
+                        assertEquals(initial, baseline.city)
+                        var previous = baseline.city
+                        while (previous!!.revision < 40) {
+                            val response = wireJson.decodeFromString<Response>(readFrame(reader, Int.MAX_VALUE)!!).restoreState(previous)
+                            assertEquals("STATE", response.type)
+                            previous = response.city
+                        }
+                        assertEquals(40, previous.revision)
+                        assertEquals(9, previous.rules.taxRate)
+                        assertEquals(initial.pluginData, previous.pluginData)
+                        writer.write(wireJson.encodeToString(Request("PING", id = 1)))
+                        writer.newLine()
+                        writer.flush()
+                        assertEquals("PONG", wireJson.decodeFromString<Response>(readFrame(reader, 65536)!!).type)
                     }
                 }
             } finally {

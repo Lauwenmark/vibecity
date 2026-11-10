@@ -162,15 +162,14 @@ Les journées sont exécutées entièrement avant publication ; l’inspecteur r
 Les clients peuvent ainsi rejoindre ou se reconnecter sans historique d’opérations. Une reconnexion
 est une nouvelle session ; aucune commande n’est automatiquement rejouée.
 
-Chaque session possède une file d’écriture de 32 messages. Un client trop lent est déconnecté plutôt
-que de bloquer la simulation ou faire croître une file sans limite. Une même chaîne JSON de snapshot
-est partagée entre les files des clients. Le client ne garde qu’un état en attente d’affichage,
-pour ne pas saturer l’EDT avec des snapshots devenus obsolètes. Les réponses ACK/ERROR ne sont pas
-coalescées. Toutes les modifications des composants Swing passent par l’EDT.
+Chaque session possède une file de contrôle bornée à 32 messages et un seul état non encodé en
+attente, remplacé par le plus récent. L’écrivain encode les états à son rythme, contre sa propre
+base entièrement envoyée, sans interrompre une trame en cours. La saturation des contrôles peut
+encore fermer la session. Le client ne garde qu’un état en attente d’affichage pour ne pas saturer
+l’EDT. Les réponses ACK/ERROR ne sont pas regroupées. Toutes les modifications Swing passent par l’EDT.
 
-Les snapshots complets privilégient la simplicité de débogage. À grande échelle, la prochaine
-évolution pertinente est un protocole de deltas par révision, puis une resynchronisation complète
-sur demande. La taille maximale de carte et les files bornées ne remplacent pas un benchmark.
+Le premier état reste complet ; les suivants utilisent des deltas par révision. La compression gzip
+rapide est négociée par HELLO. La taille maximale de carte et les files bornées ne remplacent pas un benchmark.
 
 ## Rendu Swing et réactivité du pointeur
 
@@ -299,12 +298,17 @@ JSON reste complet ; les vues des tableaux primitifs rendent ce partage immuable
 
 ## Publication des états
 
-L’encodeur compare chaque état à la dernière ville réellement encodée, et regroupe les instantanés
-encore en attente avec un intervalle minimal de 50 ms. Le protocole 9 transmet les cases et sommets
+Chaque écrivain compare l’état à la dernière ville entièrement envoyée à son client, et regroupe
+les instantanés encore en attente avec une pause de 50 ms après chaque état envoyé. Le protocole 9 transmet les cases et sommets
 modifiés pour les changements localisés ; les états initiaux et les changements denses gardent une
 carte complète. Les carnets et la mobilité inchangés restent réutilisés par référence de révision.
+Le protocole 10 ajoute les différences des registres de chemins et de souvenirs des habitants,
+puis la compression gzip niveau 1 avec enveloppe base64. Les grands états de simulation ne
+retransmettent plus tous les registres inchangés. La reconstruction restitue toutes les données,
+y compris lors d’une migration, d’un changement d’ordre ou d’un élagage de registres.
 Le client reconstruit chaque état dans l’ordre avant le regroupement des notifications Swing.
-Les files par client restent bornées ; un client trop lent est déconnecté sans compromettre le serveur.
+Les états en attente restent bornés par client ; un transfert lent ne bloque pas les autres sessions.
+L’encodage est désormais propre à chaque client, ce qui augmente son coût CPU avec le nombre de clients.
 
 ## Satisfaction et déménagements
 
