@@ -119,6 +119,8 @@ internal class CityRenderer(
                     if (t.trees) tree(g, sx, sy, zoom)
                     if (t.building == "metro" && layer == Layer.SURFACE) {
                         MetroSprites.station(g, sx, sy, zoom)
+                    } else if (layer == Layer.SURFACE && t.building in UtilitySprites.ids) {
+                        UtilitySprites.draw(g, city, i, catalog[t.building]?.size ?: 1, projection)
                     } else if (t.building != null) {
                         val def = catalog[t.building]
                         val color = Color(def?.color ?: 0xaaaaaa)
