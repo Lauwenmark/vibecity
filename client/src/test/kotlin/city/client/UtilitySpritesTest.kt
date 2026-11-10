@@ -10,6 +10,23 @@ import javax.imageio.ImageIO
 import kotlin.test.*
 
 class UtilitySpritesTest {
+    @Test fun `civic foundations follow the two to one footprint edges`() {
+        for (id in listOf("fire", "police", "school")) {
+            val sprite = ImageIO.read(assertNotNull(javaClass.getResource(BuildingSprites.resourcePath(id))))
+            assertEquals(512, sprite.width)
+            // A raised building may project above its plot, never below its two front edges.
+            // Allow two source pixels of antialiasing (less than half a pixel at normal zoom).
+            for (x in 0 until sprite.width) {
+                val edge = sprite.height - 1 - kotlin.math.abs(x - (sprite.width - 1) / 2.0) / 2.0
+                for (y in 0 until sprite.height) {
+                    if ((sprite.getRGB(x, y) ushr 24) > 32) {
+                        assertTrue(y <= edge + 2, "$id spills beyond its footprint at $x,$y (edge $edge)")
+                    }
+                }
+            }
+        }
+    }
+
     @Test fun `utility footprints render identically in whole and clipped scenes at every rotation`() {
         val catalog = standardBuildings().associateBy { it.id }
         val gallery = BufferedImage(1200, 1300, BufferedImage.TYPE_INT_RGB)
