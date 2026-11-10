@@ -149,7 +149,7 @@ class CityCanvas(
         }
     var zoom = 1.0
         set(value) {
-            val bounded = value.coerceIn(.5, 4.0)
+            val bounded = value.coerceIn(.5, 16.0)
             if (field == bounded) return
             field = bounded
             sceneRenderer = null

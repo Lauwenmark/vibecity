@@ -12,7 +12,7 @@ class CameraTest {
         val city = City(width = 16, height = 24, tiles = List(384) { Tile() }, terrain = Terrain(16, 24, List(17 * 25) { 2 + it % 17 / 4 }))
         val random = Random(42)
         for (rotation in 0..3) {
-            for (zoom in listOf(.5, 1.0, 2.0, 2.5, 3.0, 3.5, 4.0)) {
+            for (zoom in listOf(.5, 1.0, 2.0, 2.5, 3.0, 3.5, 4.0, 8.0, 12.0, 16.0)) {
                 val p = CityProjection(city.width, city.height, zoom, rotation)
                 val order =
                     city.tiles.indices
@@ -38,12 +38,12 @@ class CameraTest {
             canvas.dispatchEvent(event)
             assertTrue(event.isConsumed)
             assertEquals(1.15, canvas.zoom, .001)
-            for (level in listOf(2.5, 3.0, 3.5, 4.0)) {
+            for (level in listOf(2.5, 3.0, 3.5, 4.0, 8.0, 12.0, 16.0)) {
                 canvas.zoom = level
                 assertEquals(level, canvas.zoom)
             }
-            canvas.zoom = 10.0
-            assertEquals(4.0, canvas.zoom)
+            canvas.zoom = 32.0
+            assertEquals(16.0, canvas.zoom)
             canvas.rotation = -1
             assertEquals(3, canvas.rotation)
             canvas.rotation += 1
