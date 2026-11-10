@@ -359,3 +359,15 @@ La case « Satisfaction » affiche sur le calque Surface un visage par habitatio
 ≥40 %, rouge sinon). Les scores sont agrégés à réception de l’état et dessinés en surimpression,
 sans invalider les images du décor. L’inspecteur donne moyenne, tendance et probabilité de départ ;
 l’inspecteur des habitants expose budget, emploi, trajets et causes de l’insatisfaction.
+
+## Sprites du métro
+
+`MetroSprites` charge une fois les 16 variantes de tunnel et l’entrée de station depuis les ressources du client.
+Les tunnels remplacent les traits du calque Eau / sous-sol. Le masque des quatre voisins est tourné avec la
+caméra ; chaque image est plaquée sur les deux triangles du terrain, puis les conduites d’eau et le marqueur
+M sont superposés. La station utilise son sprite en surface et conserve la représentation classique dans
+les calques de diagnostic. Les dimensions d’occlusion du trafic tiennent compte du nouveau sprite.
+
+Les sources graphiques, leur index et les instructions de régénération sont dans `assets/sprites/metro/`.
+`tools/PrepareMetroSprites.java` produit les PNG compacts et normalise la géométrie des voies et de leurs
+raccords. Aucune génération d’image ni lecture des sources haute résolution n’est effectuée en jeu.

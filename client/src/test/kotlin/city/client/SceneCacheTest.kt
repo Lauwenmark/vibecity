@@ -18,6 +18,7 @@ class SceneCacheTest {
             tiles =
                 c.tiles.mapIndexed { i, t ->
                     when {
+                        i % 43 == 0 -> t.copy(building = "metro", anchor = i, subway = true)
                         i % 41 == 0 -> t.copy(elevation = 12, building = "arcology", anchor = i)
                         i % 7 == 0 -> t.copy(zone = Zone.RESIDENTIAL_DENSE, occupants = 80, elevation = i % 13)
                         i % 11 == 0 -> t.copy(road = true, rail = true, powerLine = true)

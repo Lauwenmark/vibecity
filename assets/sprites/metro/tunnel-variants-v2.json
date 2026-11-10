@@ -1,0 +1,124 @@
+{
+  "generator": "built-in image_gen",
+  "status": "source artwork; not integrated or seam-normalized",
+  "bits": {
+    "NE": 1,
+    "SE": 2,
+    "SW": 4,
+    "NW": 8
+  },
+  "variants": [
+    {
+      "mask": 0,
+      "kind": "isolated",
+      "file": "tunnel-00-isolated-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant isolated, connection mask 0. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 0 open track connections: NONE; small sealed maintenance chamber with short track and buffers.  All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-fcd42db9-81f2-4454-8afa-5614891d436c.png"
+    },
+    {
+      "mask": 1,
+      "kind": "end",
+      "file": "tunnel-01-end-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant end, connection mask 1. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 1 open track connections: upper-right (NE). Track runs from the single specified open edge toward center and ends at a buffer; other three edges closed. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-3a6fc4d5-fff9-41c7-bc5c-ce7a7d841f3a.png"
+    },
+    {
+      "mask": 2,
+      "kind": "end",
+      "file": "tunnel-02-end-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant end, connection mask 2. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 1 open track connections: lower-right (SE). Track runs from the single specified open edge toward center and ends at a buffer; other three edges closed. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-bd060bcc-8f39-4269-a23b-5513ec2a2b9a.png"
+    },
+    {
+      "mask": 3,
+      "kind": "corner",
+      "file": "tunnel-03-corner-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant corner, connection mask 3. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 2 open track connections: upper-right (NE), lower-right (SE). Both rails visibly curve continuously through 90 degrees in ground plane joining ONLY those two adjacent specified edges. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-4c7718c8-690d-48b4-9038-b94f065f5191.png"
+    },
+    {
+      "mask": 4,
+      "kind": "end",
+      "file": "tunnel-04-end-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant end, connection mask 4. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 1 open track connections: lower-left (SW). Track runs from the single specified open edge toward center and ends at a buffer; other three edges closed. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-28b2c8e4-31a9-4fac-8ffd-e7896fe25e0d.png"
+    },
+    {
+      "mask": 5,
+      "kind": "straight",
+      "file": "tunnel-05-straight-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant straight, connection mask 5. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 2 open track connections: upper-right (NE), lower-left (SW).  All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-44b11c8d-58a9-494d-bc12-51d4c383d023.png"
+    },
+    {
+      "mask": 6,
+      "kind": "corner",
+      "file": "tunnel-06-corner-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant corner, connection mask 6. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 2 open track connections: lower-right (SE), lower-left (SW). Both rails visibly curve continuously through 90 degrees in ground plane joining ONLY those two adjacent specified edges. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-112cddf9-2b9f-4b51-9f24-c4c08eaea45f.png"
+    },
+    {
+      "mask": 7,
+      "kind": "tee",
+      "file": "tunnel-07-tee-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant tee, connection mask 7. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 3 open track connections: upper-right (NE), lower-right (SE), lower-left (SW). Three connected branches with railway switch points inside; the fourth direction must have no opening. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-78b9e2f0-7138-414a-8677-9264f9af5339.png"
+    },
+    {
+      "mask": 8,
+      "kind": "end",
+      "file": "tunnel-08-end-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant end, connection mask 8. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 1 open track connections: upper-left (NW). Track runs from the single specified open edge toward center and ends at a buffer; other three edges closed. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-0112ab4c-03dc-47f2-aed3-7425c9ed44bd.png"
+    },
+    {
+      "mask": 9,
+      "kind": "corner",
+      "file": "tunnel-09-corner-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant corner, connection mask 9. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 2 open track connections: upper-right (NE), upper-left (NW). Both rails visibly curve continuously through 90 degrees in ground plane joining ONLY those two adjacent specified edges. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-d4d9b493-3a33-441f-8cd5-af80fb7122d1.png"
+    },
+    {
+      "mask": 10,
+      "kind": "straight",
+      "file": "tunnel-10-straight-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant straight, connection mask 10. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 2 open track connections: lower-right (SE), upper-left (NW).  All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-2cee5e98-fb83-41a7-b911-04c51d60d443.png"
+    },
+    {
+      "mask": 11,
+      "kind": "tee",
+      "file": "tunnel-11-tee-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant tee, connection mask 11. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 3 open track connections: upper-right (NE), lower-right (SE), upper-left (NW). Three connected branches with railway switch points inside; the fourth direction must have no opening. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-bbdc7d32-3baf-4f7a-b257-dbe7940dd23b.png"
+    },
+    {
+      "mask": 12,
+      "kind": "corner",
+      "file": "tunnel-12-corner-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant corner, connection mask 12. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 2 open track connections: lower-left (SW), upper-left (NW). Both rails visibly curve continuously through 90 degrees in ground plane joining ONLY those two adjacent specified edges. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-36b0c7fc-467a-419a-a7cd-363dbe79ed6d.png"
+    },
+    {
+      "mask": 13,
+      "kind": "tee",
+      "file": "tunnel-13-tee-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant tee, connection mask 13. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 3 open track connections: upper-right (NE), lower-left (SW), upper-left (NW). Three connected branches with railway switch points inside; the fourth direction must have no opening. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-c00d70f8-4218-4dfa-b952-37587d61b0eb.png"
+    },
+    {
+      "mask": 14,
+      "kind": "tee",
+      "file": "tunnel-14-tee-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant tee, connection mask 14. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 3 open track connections: lower-right (SE), lower-left (SW), upper-left (NW). Three connected branches with railway switch points inside; the fourth direction must have no opening. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-9dcdf75e-54a4-41ff-bfa6-75f089c73104.png"
+    },
+    {
+      "mask": 15,
+      "kind": "cross",
+      "file": "tunnel-15-cross-v2.png",
+      "prompt": "Use case: stylized-concept. Create ONE transparent-background isometric metro tunnel game sprite, variant cross, connection mask 15. Reference image is STYLE REFERENCE ONLY: preserve gray concrete, dark teal shadows, violet conduit, steel rails on dark sleepers, crisp retro pixel-art aesthetic and upper-left lighting. Replace elongated shape with a compact SINGLE diamond tile footprint, 2:1 orthographic dimetric projection. Roof removed, low cutaway walls so track routes are clearly visible. Exactly 4 open track connections: upper-right (NE), lower-right (SE), lower-left (SW), upper-left (NW). Four open branches, rails intersect as a connected level crossing in the center. All unspecified directions CLOSED, no extra branches. Each open connection ends at midpoint of its corresponding diamond edge: NE upper-right edge, SE lower-right edge, SW lower-left edge, NW upper-left edge. Consistent track gauge at all open ends. Center the tile on square canvas with transparent margins, fully visible. No dirt block, no background, no train, no people, no labels, no watermark. Actual alpha transparency. One sprite only, not a sheet.",
+      "source": "/home/lauwenmark/.codex/generated_images/01a1c752-28f1-7143-81c0-d3e54696749d/exec-09595ad6-8443-4036-8bea-8de1baf027d0.png"
+    }
+  ]
+}

@@ -90,13 +90,13 @@ internal class CityRenderer(
                     g.stroke = BasicStroke(1f)
                 }
                 if (layer == Layer.WATER) {
-                    // Draw both networks independently; the wider tunnel remains visible under pipes.
-                    for (pipe in listOf(false, true)) {
-                        if (if (pipe) !t.pipe else !t.subway) continue
-                        g.color = if (pipe) Color(0x63dcf2) else Color(0xc1a1df)
-                        g.stroke = BasicStroke((if (pipe) 3 else 6) * zoom.toFloat())
+                    if (t.subway) MetroSprites.tunnel(g, diamond, MetroSprites.mask(city, i, rotation))
+                    // Water remains a separate overlay, including on shared metro cells.
+                    if (t.pipe) {
+                        g.color = Color(0x63dcf2)
+                        g.stroke = BasicStroke(3 * zoom.toFloat())
                         for (n in city.neighbors(i)) {
-                            if (if (pipe) city.tiles[n].pipe || city.tiles[n].building != null else city.tiles[n].subway) {
+                            if (city.tiles[n].pipe || city.tiles[n].building != null) {
                                 val edge = edgePoint(diamond, n % city.width - x, n / city.width - y)
                                 g.drawLine(sx, sy, edge.x, edge.y)
                             }
@@ -117,7 +117,9 @@ internal class CityRenderer(
                     }
                 } else if (layer != Layer.ZONES) {
                     if (t.trees) tree(g, sx, sy, zoom)
-                    if (t.building != null) {
+                    if (t.building == "metro" && layer == Layer.SURFACE) {
+                        MetroSprites.station(g, sx, sy, zoom)
+                    } else if (t.building != null) {
                         val def = catalog[t.building]
                         val color = Color(def?.color ?: 0xaaaaaa)
                         val geometry = buildingGeometry(t, def, zoom)!!
@@ -269,6 +271,7 @@ internal fun buildingGeometry(
 ): BuildingGeometry? {
     val w = (16 * zoom).roundToInt()
     val h = (8 * zoom).roundToInt()
+    if (tile.building == "metro") return BuildingGeometry(w, h, (26 * zoom).roundToInt())
     if (tile.building != null) {
         val height =
             when {

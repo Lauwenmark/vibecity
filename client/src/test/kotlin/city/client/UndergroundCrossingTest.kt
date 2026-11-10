@@ -34,7 +34,17 @@ class UndergroundCrossingTest {
                 }
                 val pixels = image.getRGB(bounds.x, bounds.y, bounds.width, bounds.height, null, 0, bounds.width)
                 assertTrue(pixels.any { it and 0xffffff == 0x63dcf2 }, "Water pipe must remain visible")
-                assertTrue(pixels.any { it and 0xffffff == 0xc1a1df }, "Subway must remain visible at crossing")
+                // The textured tunnel must remain visible outside the cyan water overlay.
+                val withoutSubway = city.copy(tiles = city.tiles.map { it.copy(subway = false) })
+                val baseline = BufferedImage(image.width, image.height, BufferedImage.TYPE_INT_RGB)
+                val reference = baseline.createGraphics()
+                try {
+                    CityRenderer(withoutSubway, emptyMap(), Layer.WATER, 2.0, rotation = rotation).render(reference, Rectangle(0, 0, image.width, image.height))
+                } finally {
+                    reference.dispose()
+                }
+                val before = baseline.getRGB(bounds.x, bounds.y, bounds.width, bounds.height, null, 0, bounds.width)
+                assertTrue(pixels.indices.count { pixels[it] != before[it] && pixels[it] and 0xffffff != 0x63dcf2 } > 20, "Subway must remain visible at crossing")
             }
         }
     }
