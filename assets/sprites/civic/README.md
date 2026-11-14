@@ -60,3 +60,9 @@ Les quatre fichiers fournis et approuvés par l’utilisateur sont conservés sa
 Ces sources remplacent les reconstructions géométriques expérimentales. La préparation ne charge aucun rendu `*-geometry-v1.png` pour ces quatre bâtiments. L’hôtel de ville conserve son inspiration de Charleroi. La gare utilise la ressource approuvée séparément, préparée par `PrepareStationSprite.java`.
 
 Les tests du client couvrent la transparence, les emprises et le rendu complet/découpé aux quatre rotations. La galerie `client/build/previews/utility-sprites.png` inclut les quatre bâtiments municipaux.
+
+## Musée
+
+`museum-v2.png` est une retouche avec `image_gen` du portique et des marches pour rapprocher leur orientation du bord avant gauche de la case. Le prompt final est dans `museum-v2.prompt.txt`. La source v1 est conservée. Le parallélisme est amélioré visuellement mais reste approximatif ; les tests d’emprise ne mesurent pas les corniches ou marches.
+
+Le musée occupe 3 × 3 cases, avec son entrée vers le bas gauche. `PrepareCivicSprites.java` prépare `city/client/civic/museum.png` par recadrage alpha, réduction uniforme à 512 pixels et ajustement de la marge inférieure à l’emprise 2:1. `BuildingSprites` charge cette ressource ; les tests client vérifient sa transparence, son emprise et son rendu découpé aux quatre rotations.

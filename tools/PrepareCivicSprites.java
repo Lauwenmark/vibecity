@@ -12,7 +12,7 @@ class PrepareCivicSprites {
         try (var files = Files.list(source)) {
             for (Path path : files.filter(p -> java.util.Set.of("fire-v5.png", "school-v5.png", "police-v2.png", "stadium-v1.png",
                     "mayor-approved-v1.png", "cityhall-approved-v1.png", "hospital-approved-v1.png", "prison-approved-v1.png",
-                    "treatment-v1.png").contains(p.getFileName().toString())).sorted().toList()) {
+                    "treatment-v1.png", "museum-v2.png").contains(p.getFileName().toString())).sorted().toList()) {
                 BufferedImage input = ImageIO.read(path.toFile());
                 int left = input.getWidth(), top = input.getHeight(), right = -1, bottom = -1;
                 for (int y = 0; y < input.getHeight(); y++) for (int x = 0; x < input.getWidth(); x++) {
@@ -23,7 +23,7 @@ class PrepareCivicSprites {
                 }
                 if (right < left) throw new IllegalStateException("Empty sprite: " + path);
                 if (path.getFileName().toString().contains("-approved-") ||
-                        java.util.Set.of("treatment-v1.png").contains(path.getFileName().toString())) {
+                        java.util.Set.of("treatment-v1.png", "museum-v2.png").contains(path.getFileName().toString())) {
                     // Preserve the approved artwork: uniform scaling only, no shear or repainting.
                     // Transparent space below the picture accommodates its actual contour inside
                     // the renderer's 2:1 footprint, including irregular ground outlines.
@@ -39,7 +39,7 @@ class PrepareCivicSprites {
                     g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
                     g.drawImage(input, new java.awt.geom.AffineTransform(scale, 0, 0, scale, -left * scale, -top * scale), null);
                     g.dispose();
-                    ImageIO.write(compact, "png", output.resolve(path.getFileName().toString().replace("-approved-v1", "").replace("-v1", "")).toFile());
+                    ImageIO.write(compact, "png", output.resolve(path.getFileName().toString().replace("-approved-v1", "").replaceAll("-v[0-9]+", "")).toFile());
                     continue;
                 }
                 int width = right - left + 1, height = bottom - top + 1;
