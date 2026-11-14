@@ -10,7 +10,8 @@ import kotlin.math.roundToInt
 /** Screen-facing artwork, decoded once and shared by all scene chunks. */
 internal object BuildingSprites {
     val ids = setOf("coal", "oil", "gas", "nuclear", "wind", "solar", "fusion", "hydro", "microwave", "pump")
-    private val civicIds = setOf("fire", "police", "school", "cityhall", "mayor", "hospital", "prison", "station", "stadium", "airport")
+    private val civicIds =
+        setOf("fire", "police", "school", "cityhall", "mayor", "hospital", "prison", "station", "stadium", "airport", "treatment")
     val allIds = ids + civicIds
 
     fun resourcePath(id: String) = "/city/client/${if (id in civicIds) "civic" else "utilities"}/$id.png"

@@ -1,5 +1,11 @@
 # Sprites des services publics
 
+## Station d’épuration
+
+`treatment-v1.png` représente la station d’épuration (2 × 2 cases), générée avec l’outil intégré `image_gen`. Le prompt est conservé dans `treatment-v1.prompt.txt`. L’entrée regarde vers le bas gauche.
+
+`PrepareCivicSprites.java` produit `client/src/main/resources/city/client/civic/treatment.png` par recadrage alpha et réduction uniforme à 512 pixels, avec une marge transparente inférieure adaptée à l’emprise 2:1. `BuildingSprites` charge la ressource ; les tests client couvrent la transparence, les débordements et le rendu découpé aux quatre rotations. Les détails architecturaux restent une approximation artistique de la projection.
+
 ## Stade
 
 Le stade (`stadium`, 4 × 4 cases) utilise `stadium-v1.png`, créé avec l’outil intégré `image_gen`. Le prompt complet est conservé dans `stadium-v1.prompt.txt`. `PrepareCivicSprites.java` recadre le canal alpha et calibre les coins latéraux du terrain (y = 501 dans la source) pour produire `client/src/main/resources/city/client/civic/stadium.png`, en 512 × 295 pixels transparents. Relancer cette préparation reproduit la ressource utilisée par `BuildingSprites`.
