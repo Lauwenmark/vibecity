@@ -21,6 +21,8 @@ class TerrainRenderTest {
         val image = BufferedImage(canvas.width, canvas.height, BufferedImage.TYPE_INT_RGB)
         val g = image.createGraphics()
         try {
+            // Compare static scenery independently of blinking overlays.
+            canvas.utilityAlertsVisible = false
             canvas.paint(g)
         } finally {
             g.dispose()

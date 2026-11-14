@@ -48,6 +48,8 @@ class SceneCacheTest {
         try {
             g.translate(-region.x, -region.y)
             g.clip = region
+            // Compare static scenery independently of blinking overlays.
+            canvas.utilityAlertsVisible = false
             canvas.paint(g)
         } finally {
             g.dispose()

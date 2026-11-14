@@ -25,6 +25,14 @@ class CityCanvas(
     private val inspectResident: (Int) -> Unit = {},
 ) : JPanel() {
     private val cache = SceneCache()
+    private var utilityAlerts = emptyList<UtilityAlert>()
+    internal var utilityAlertsVisible = true
+    private val utilityAlertTimer =
+        Timer(500) {
+            utilityAlertsVisible = !utilityAlertsVisible
+            repaint(visibleRect)
+        }
+
     private var satisfactionScores: List<Pair<Int, Double>> = emptyList()
     var showSatisfaction = true
         set(value) {
@@ -59,6 +67,14 @@ class CityCanvas(
     }
 
     private fun syncAnimationTimer() {
+        val alertsActive = isShowing && layer == Layer.SURFACE && utilityAlerts.isNotEmpty()
+        if (alertsActive) {
+            if (!utilityAlertTimer.isRunning) utilityAlertTimer.start()
+        } else {
+            utilityAlertTimer.stop()
+            utilityAlertsVisible = true
+        }
+
         val active =
             isShowing && animatedTraffic && city != null && city!!.rules.speed > 0 &&
                 (layer == Layer.SURFACE || layer == Layer.TRAFFIC) && !roadTraffic.isEmpty
@@ -85,6 +101,7 @@ class CityCanvas(
 
     override fun removeNotify() {
         animationTimer.stop()
+        utilityAlertTimer.stop()
         previousFrame = 0L
         super.removeNotify()
     }
@@ -94,6 +111,11 @@ class CityCanvas(
             val previous = field
             if (previous === value) return
             field = value
+            val alerts = value?.let(::collectUtilityAlerts).orEmpty()
+            if (alerts != utilityAlerts) {
+                utilityAlerts = alerts
+                repaint()
+            }
             if (previous?.households !== value?.households) {
                 satisfactionScores =
                     value
@@ -337,6 +359,9 @@ class CityCanvas(
             cache.paint(g, clip, background, renderer)
             if (animatedTraffic && (layer == Layer.SURFACE || layer == Layer.TRAFFIC)) roadTraffic.paint(g, clip, animationSeconds)
             if (showSatisfaction && layer == Layer.SURFACE) paintSatisfaction(g, c, clip)
+            if (layer == Layer.SURFACE && utilityAlertsVisible) {
+                paintUtilityAlerts(g, c, catalog, projection!!, utilityAlerts, clip)
+            }
             paintItinerary(g, c)
             if (selected in c.tiles.indices) {
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
