@@ -1,0 +1,8 @@
+{
+  "tool": "built-in image_gen",
+  "use": "Material swatches only; topology and 2:1 projection are built deterministically by tools/PrepareTransportSprites.java.",
+  "prompts": {
+    "asphalt": "Use case: stylized-concept. Asset type: seamless albedo MATERIAL TEXTURE for a miniature city-building game's road sprites. A completely flat square swatch of fine charcoal-grey asphalt, viewed from directly overhead, uniformly lit, no perspective. Subtle restrained painted game-art detail: fine aggregate, tiny worn speckles, occasional extremely faint wear; moderate dark neutral cool grey, keep the texture subtle and low contrast so white road markings remain readable on it. Fill entire image edge-to-edge with asphalt only. No road segment, no edges, no markings, no stripes, no pavement, no plants, no objects, no shadows, no gradients, no vignetting, no text, no watermark. Opaque background. Tileable texture, evenly distributed details at all edges.",
+    "ballast": "Use case: stylized-concept. Asset type: seamless albedo MATERIAL TEXTURE for a miniature city-building game's railway sprites. A completely flat square swatch of small angular railway ballast stones in muted warm grey and brown, viewed from directly overhead, uniformly lit, no perspective. Crisp restrained hand-painted game-art detail, small stones rather than boulders, subtle local shading and readable granular surface, no global direction of light or gradient. Fill the entire image edge-to-edge with ballast stones only. No rails, no sleepers, no tracks, no train, no ground border, no plants, no objects, no shadows, no text, no watermark. Opaque background. Tileable texture, evenly distributed details at all edges."
+  }
+}

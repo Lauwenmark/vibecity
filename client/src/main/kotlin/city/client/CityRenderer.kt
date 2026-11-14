@@ -78,16 +78,20 @@ internal class CityRenderer(
                     g.drawLine(sx - w / 2, sy, sx, sy + h / 3)
                 }
                 if (t.road || t.rail) {
-                    g.color = if (t.road) Color(0x47535a) else Color(0x938d80)
-                    g.stroke = BasicStroke((if (t.road) 9 else 3) * zoom.toFloat())
-                    for (n in city.neighbors(i)) {
-                        if ((if (t.road) city.tiles[n].road else city.tiles[n].rail) && city.transportConnects(i, n)) {
-                            val edge = edgePoint(diamond, n % city.width - x, n / city.width - y)
-                            g.drawLine(sx, sy, edge.x, edge.y)
+                    if (layer == Layer.SURFACE) {
+                        TransportSprites.draw(g, diamond, city, i, rotation)
+                    } else {
+                        g.color = if (t.road) Color(0x47535a) else Color(0x938d80)
+                        g.stroke = BasicStroke((if (t.road) 9 else 3) * zoom.toFloat())
+                        for (n in city.neighbors(i)) {
+                            if ((if (t.road) city.tiles[n].road else city.tiles[n].rail) && city.transportConnects(i, n)) {
+                                val edge = edgePoint(diamond, n % city.width - x, n / city.width - y)
+                                g.drawLine(sx, sy, edge.x, edge.y)
+                            }
                         }
+                        if (t.road) g.fillOval(sx - 4, sy - 3, 8, 6) else g.fillOval(sx - 3, sy - 2, 6, 4)
+                        g.stroke = BasicStroke(1f)
                     }
-                    if (t.road) g.fillOval(sx - 4, sy - 3, 8, 6) else g.fillOval(sx - 3, sy - 2, 6, 4)
-                    g.stroke = BasicStroke(1f)
                 }
                 if (layer == Layer.WATER) {
                     if (t.subway) MetroSprites.tunnel(g, diamond, MetroSprites.mask(city, i, rotation))
