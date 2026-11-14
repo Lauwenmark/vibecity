@@ -1,5 +1,9 @@
 # Metro sprite proposals
 
+## Surface entrance proposal v2
+
+`station-v2.png` is a new transparent proposal: open descending stairwell, pale stone paving, dark metal railings and a white M on an azure-blue sign inspired by Belgian metro entrances. `station-v2-preview.png` shows it composited on a green background for alpha inspection. Exact generation and cleanup prompts are in [station-v2-prompts.json](station-v2-prompts.json), using the civic geometry guide as the camera reference. The target is the map's orthographic 2:1 projection, with ground-aligned edges at slopes ±0.5; the artwork remains an artistic approximation. Before runtime replacement, calibrate its ground footprint and anchor rather than forcing it into the old station's aspect ratio. This proposal does not change the packaged station or tunnels.
+
 The complete set of 16 tunnel connection variants is available in [VARIANTS.md](VARIANTS.md), with exact generation prompts and connection masks in [tunnel-variants-v2.json](tunnel-variants-v2.json). The originals are retained as source artwork. Normalized derivatives are now integrated into CityRenderer; see the runtime section below.
 
 Initial artwork generated with the built-in image_gen tool. Original PNGs retain transparency.
