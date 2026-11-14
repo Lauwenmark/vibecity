@@ -10,6 +10,35 @@ import javax.imageio.ImageIO
 import kotlin.test.*
 
 class MetroSpritesTest {
+    @Test fun `surface station stays inside its front footprint edges`() {
+        val sprite = ImageIO.read(assertNotNull(javaClass.getResource("/city/client/metro/station.png")))
+        assertEquals(256, sprite.width)
+        assertTrue(sprite.colorModel.hasAlpha())
+        assertEquals(0, sprite.getRGB(0, 0) ushr 24)
+        for (x in 0 until sprite.width) {
+            val edge = sprite.height - 1 - kotlin.math.abs(x - (sprite.width - 1) / 2.0) / 2.0
+            for (y in 0 until sprite.height) {
+                if ((sprite.getRGB(x, y) ushr 24) > 32) {
+                    assertTrue(y <= edge + 2, "Station spills beyond its footprint at $x,$y (edge $edge)")
+                }
+            }
+        }
+        // Rendering must preserve the calibrated image ratio rather than the old 26-unit height.
+        val rendered = BufferedImage(256, 256, BufferedImage.TYPE_INT_ARGB)
+        val g = rendered.createGraphics()
+        try {
+            MetroSprites.station(g, 128, 192, 8.0)
+        } finally {
+            g.dispose()
+        }
+        val top = 256 - sprite.height
+        for (y in 0 until sprite.height) {
+            for (x in 0 until sprite.width) {
+                assertEquals(sprite.getRGB(x, y) ushr 24, rendered.getRGB(x, top + y) ushr 24, "Station alpha at $x,$y")
+            }
+        }
+    }
+
     private fun fixture(mask: Int): City {
         val city = City.generate(size = 16)
         val i = city.index(8, 8)

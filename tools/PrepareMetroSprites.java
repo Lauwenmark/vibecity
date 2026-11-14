@@ -76,11 +76,22 @@ class PrepareMetroSprites {
             g.dispose();
             ImageIO.write(tile, "png", OUTPUT.resolve(String.format("tunnel-%02d.png",mask)).toFile());
         }
-        BufferedImage station = crop(ImageIO.read(SOURCE.resolve("station-v1.png").toFile()));
-        BufferedImage compact = new BufferedImage(256, 208, BufferedImage.TYPE_INT_ARGB);
+        BufferedImage station = crop(ImageIO.read(SOURCE.resolve("station-v2.png").toFile()));
+        // The source front tip is x=754, slightly left of the artwork's center.
+        // Add transparent space on the left to center that ground anchor, not the sign.
+        BufferedImage centered = new BufferedImage(station.getWidth() + 34, station.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D center = centered.createGraphics();
+        center.drawImage(station, 34, 0, null);
+        center.dispose();
+        // Source ground: front tip y=956; the lower lateral corner y=653.
+        // At 256 pixels wide, the front half of a 2:1 plot is 64 pixels deep.
+        // Use the lower corner so both generated front edges fit inside the tile.
+        double verticalScale = 64.0 / (956 - 653);
+        int stationHeight = (int)Math.round(station.getHeight() * verticalScale);
+        BufferedImage compact = new BufferedImage(256, stationHeight, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = compact.createGraphics();
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
-        g.drawImage(station, 0, 0, 256, 208, null);
+        g.drawImage(centered, 0, 0, 256, stationHeight, null);
         g.dispose();
         ImageIO.write(compact, "png", OUTPUT.resolve("station.png").toFile());
     }

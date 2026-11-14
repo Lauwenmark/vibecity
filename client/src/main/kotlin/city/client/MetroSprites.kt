@@ -79,7 +79,7 @@ internal object MetroSprites {
         zoom: Double,
     ) {
         val width = (32 * zoom).roundToInt()
-        val height = (26 * zoom).roundToInt()
+        val height = (width.toDouble() * station.height / station.width).roundToInt()
         val copy = g.create() as Graphics2D
         try {
             copy.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
