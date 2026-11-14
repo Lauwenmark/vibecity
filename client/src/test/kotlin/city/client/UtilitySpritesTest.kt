@@ -29,7 +29,7 @@ class UtilitySpritesTest {
 
     @Test fun `utility footprints render identically in whole and clipped scenes at every rotation`() {
         val catalog = standardBuildings().associateBy { it.id }
-        val gallery = BufferedImage(1200, 1300, BufferedImage.TYPE_INT_RGB)
+        val gallery = BufferedImage(1200, ((BuildingSprites.allIds.size + 3) / 4) * 320, BufferedImage.TYPE_INT_RGB)
         val gg = gallery.createGraphics()
         gg.color = Color(0x18232d)
         gg.fillRect(0, 0, gallery.width, gallery.height)

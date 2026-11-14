@@ -12,7 +12,7 @@ La caserne et l’école ont été redessinées à partir de [geometry-guide.png
 
 Depuis la racine du dépôt, lancer `java -Djava.awt.headless=true tools/PrepareCivicSprites.java` pour reproduire les ressources dans `client/src/main/resources/city/client/civic/`. Cette préparation recadre les marges transparentes et réduit la largeur à 512 pixels en conservant le canal alpha. La hauteur est calibrée à partir des coins latéraux mesurés dans chaque original : la distance verticale entre ces coins et la pointe avant vaut exactement un quart de la largeur, conformément à la projection 2:1. Cette normalisation concerne toute l’image et ne découpe pas la cour ou le bâtiment. Les coordonnées de calibration sont enregistrées dans le script.
 
-`BuildingSprites` partage le chargement et le placement avec les installations électriques et hydrauliques. La façade principale et ses portes regardent vers le sud-ouest (bas à gauche du sprite). Les bases sont des losanges réguliers et les aménagements restent dans leur emprise. Chaque bâtiment est dessiné une seule fois sur son emprise de 3 × 3 cases, en surface. Comme les autres sprites, son illustration reste orientée vers l’écran lors des rotations ; les calques analytiques conservent leur rendu symbolique.
+`BuildingSprites` partage le chargement et le placement avec les installations électriques et hydrauliques. La façade principale et ses portes regardent vers le sud-ouest (bas à gauche du sprite). Les bases sont des losanges réguliers et les aménagements restent dans leur emprise. Chaque bâtiment est dessiné une seule fois sur son emprise du catalogue, en surface. Comme les autres sprites, son illustration reste orientée vers l’écran lors des rotations ; les calques analytiques conservent leur rendu symbolique.
 
 `./gradlew :client:test` vérifie notamment que les pixels opaques restent au-dessus des deux bords avant de l’emprise (tolérance de deux pixels source pour l’anticrénelage), la transparence et le rendu complet ou découpé pour les quatre rotations. La galerie est produite dans `client/build/previews/utility-sprites.png` et inclut les trois services publics.
 
@@ -37,3 +37,20 @@ java -Djava.awt.headless=true -cp /tmp/sc2000-airport BuildAirportSprite
 ```
 
 Le sprite est enregistré dans `BuildingSprites`, donc les tests existants de transparence, d’emprise et d’égalité des rendus complets/découpés aux quatre rotations le couvrent. Comme les autres bâtiments illustrés, il conserve son orientation à l’écran lorsque la carte tourne.
+
+## Bâtiments municipaux retenus
+
+Les quatre fichiers fournis et approuvés par l’utilisateur sont conservés sans modification :
+
+| Bâtiment | Source approuvée | Ressource du client | Emprise |
+| --- | --- | --- | --- |
+| Maison du maire | `mayor-approved-v1.png` | `city/client/civic/mayor.png` | 2 × 2 |
+| Hôtel de ville | `cityhall-approved-v1.png` | `city/client/civic/cityhall.png` | 3 × 3 |
+| Hôpital | `hospital-approved-v1.png` | `city/client/civic/hospital.png` | 3 × 3 |
+| Prison | `prison-approved-v1.png` | `city/client/civic/prison.png` | 4 × 4 |
+
+`java -Djava.awt.headless=true tools/PrepareCivicSprites.java` reproduit ces ressources en PNG RGBA de 512 pixels de large. La préparation recadre les marges transparentes et applique une réduction **uniforme** aux deux axes. Elle ajoute au besoin une marge transparente inférieure pour contenir le contour réel de l’illustration dans l’emprise 2:1 du moteur. Elle ne retouche ni les bâtiments ni leurs terrains et n’applique aucun étirement vertical aux quatre images approuvées. Leurs entrées restent tournées vers le bas gauche.
+
+Ces sources remplacent les reconstructions géométriques expérimentales. La préparation ne charge aucun rendu `*-geometry-v1.png` pour ces quatre bâtiments. L’hôtel de ville conserve son inspiration de Charleroi. La gare utilise la ressource approuvée séparément, préparée par `PrepareStationSprite.java`.
+
+Les tests du client couvrent la transparence, les emprises et le rendu complet/découpé aux quatre rotations. La galerie `client/build/previews/utility-sprites.png` inclut les quatre bâtiments municipaux.
