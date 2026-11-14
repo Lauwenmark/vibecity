@@ -10,8 +10,8 @@ import javax.imageio.ImageIO
 import kotlin.test.*
 
 class UtilitySpritesTest {
-    @Test fun `civic foundations follow the two to one footprint edges`() {
-        for (id in listOf("fire", "police", "school")) {
+    @Test fun `civic and power foundations follow the two to one footprint edges`() {
+        for (id in BuildingSprites.allIds - "pump") {
             val sprite = ImageIO.read(assertNotNull(javaClass.getResource(BuildingSprites.resourcePath(id))))
             assertEquals(512, sprite.width)
             // A raised building may project above its plot, never below its two front edges.
