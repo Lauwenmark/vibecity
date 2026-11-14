@@ -73,6 +73,13 @@ internal class CityRenderer(
                 }
                 g.color = Color(255, 255, 255, 17)
                 g.drawPolygon(diamond)
+                if (layer == Layer.WATER && (t.building != null || t.occupants > 0)) {
+                    // Preserve the water-supply color and draw networks above the footprint.
+                    g.color = Color(0xffad52)
+                    g.stroke = BasicStroke((1.25 * zoom).toFloat().coerceAtLeast(1f))
+                    g.drawPolygon(diamond)
+                    g.stroke = BasicStroke(1f)
+                }
                 if (t.water && layer == Layer.SURFACE) {
                     g.color = Color(0x71a8b8)
                     g.drawLine(sx - w / 2, sy, sx, sy + h / 3)
