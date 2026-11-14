@@ -1,5 +1,11 @@
 # Sprites des services publics
 
+## Stade
+
+Le stade (`stadium`, 4 × 4 cases) utilise `stadium-v1.png`, créé avec l’outil intégré `image_gen`. Le prompt complet est conservé dans `stadium-v1.prompt.txt`. `PrepareCivicSprites.java` recadre le canal alpha et calibre les coins latéraux du terrain (y = 501 dans la source) pour produire `client/src/main/resources/city/client/civic/stadium.png`, en 512 × 295 pixels transparents. Relancer cette préparation reproduit la ressource utilisée par `BuildingSprites`.
+
+L’emprise suit la projection 2:1 du jeu ; les tests `UtilitySpritesTest` vérifient les débordements et le rendu découpé aux quatre rotations. Les détails de cette illustration restent approximatifs : deux arêtes de toiture mesurées ont des pentes de −0,480 et −0,508, et un bandeau avant de +0,460, contre ±0,5 pour la grille. La calibration du terrain ne garantit pas l’alignement exact de tous les détails architecturaux.
+
 Trois sprites transparents créés avec l’outil intégré `image_gen` : caserne de pompiers (`fire`), commissariat (`police`) et école (`school`). Les versions utilisées sont `fire-v5.png`, `school-v5.png` et `police-v2.png`. Les versions précédentes sont conservées pour historique. Les prompts sont conservés dans `prompts-v2.json`, `prompts-v3.json` et `prompts-v4.json`.
 
 La caserne et l’école ont été redessinées à partir de [geometry-guide.png](geometry-guide.png), un gabarit dont les pieds des murs sont parallèles aux bords du terrain. Le gabarit se reproduit avec `java -Djava.awt.headless=true tools/CivicGuide.java`. Les variantes v3 utilisent ce gabarit ; les variantes v4 appliquent une retouche ciblée des façades. Les toits plats facilitent la lecture de leurs axes. Le dessin généré reste une approximation artistique du gabarit : le test du contour du terrain ne constitue pas une mesure du parallélisme des murs.

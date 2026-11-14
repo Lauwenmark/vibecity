@@ -10,7 +10,7 @@ class PrepareCivicSprites {
         Path output = Path.of("client/src/main/resources/city/client/civic");
         Files.createDirectories(output);
         try (var files = Files.list(source)) {
-            for (Path path : files.filter(p -> java.util.Set.of("fire-v5.png", "school-v5.png", "police-v2.png").contains(p.getFileName().toString())).sorted().toList()) {
+            for (Path path : files.filter(p -> java.util.Set.of("fire-v5.png", "school-v5.png", "police-v2.png", "stadium-v1.png").contains(p.getFileName().toString())).sorted().toList()) {
                 BufferedImage input = ImageIO.read(path.toFile());
                 int left = input.getWidth(), top = input.getHeight(), right = -1, bottom = -1;
                 for (int y = 0; y < input.getHeight(); y++) for (int x = 0; x < input.getWidth(); x++) {
@@ -27,6 +27,7 @@ class PrepareCivicSprites {
                     case "fire-v5.png" -> 787;
                     case "police-v2.png" -> 870;
                     case "school-v5.png" -> 790;
+                    case "stadium-v1.png" -> 501;
                     default -> throw new IllegalArgumentException("Uncalibrated sprite: " + path);
                 };
                 double verticalScale = 128.0 / (bottom - sideY);
