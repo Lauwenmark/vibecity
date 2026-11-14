@@ -21,3 +21,19 @@ Depuis la racine du dépôt, lancer `java -Djava.awt.headless=true tools/Prepare
 Après les retouches générées, `python3 tools/CorrectCivicFacades.py` (Pillow et NumPy) corrige les détails des façades gauches à partir des sources v4. Les traverses de fenêtres sont mesurées dans les pixels et redressées vers la pente du soubassement (environ 0,465 dans ces sources). Les raccords préservent la maçonnerie environnante. Les bandeaux exposés de l’école et ses marches sont reconstruits avec des arêtes parallèles ; les contremarches restent verticales. Exécuter ensuite `java -Djava.awt.headless=true tools/PrepareCivicSprites.java`.
 
 `python3 tools/CheckCivicFacades.py` mesure les traverses dans les images corrigées et vérifie la conservation du canal alpha et de la façade droite. Ce contrôle complète le test d’emprise du client ; il ne prétend pas vérifier automatiquement tous les détails architecturaux.
+
+## Aéroport
+
+`airport` (6 × 6 cases) utilise `airport-geometry-v1.png`, réduit uniformément en `client/src/main/resources/city/client/civic/airport.png` (512 × 256, RGBA). La texture `textures/airport-front-v1.png` a été créée avec l’outil intégré `image_gen` ; son prompt complet est dans `airport-v1.prompt.txt`.
+
+`BuildAirportSprite.java` contient un rasteriseur autonome issu de `BuildMunicipalSprites.java` : `x = 256 + u - v`, `y = 220 + (u + v) / 2 - z`. Piste, taxiway, marquages, terminal, hangar, tour et avions sont construits dans les mêmes coordonnées. Les arêtes parallèles aux axes du terrain ont exactement des pentes de ±0,5 avant rastérisation ; les verticales restent verticales. La texture de façade est une illustration orthographique appliquée sur ces volumes. Les ailes en flèche des avions ont leurs propres directions dans ce même espace.
+
+Reproduction depuis la racine :
+
+```sh
+javac -d /tmp/sc2000-airport tools/BuildAirportSprite.java
+java -Djava.awt.headless=true -cp /tmp/sc2000-airport BuildAirportSprite
+./gradlew :client:test :client:ktlintCheck --offline
+```
+
+Le sprite est enregistré dans `BuildingSprites`, donc les tests existants de transparence, d’emprise et d’égalité des rendus complets/découpés aux quatre rotations le couvrent. Comme les autres bâtiments illustrés, il conserve son orientation à l’écran lorsque la carte tourne.

@@ -45,7 +45,9 @@ internal class CityProjection(
     // Include maximum elevation, roofs, labels, strokes and ground side faces.
     val above = ceil(192 * zoom + 8).toInt()
     val below = ceil(32 * zoom + 8).toInt()
-    val side = ceil(4 * tw + 4).toInt()
+
+    // The airport sprite spans six tiles and is drawn once from its frontmost cell.
+    val side = ceil(6 * tw + 4).toInt()
 
     fun screenX(
         x: Int,

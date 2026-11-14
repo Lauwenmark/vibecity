@@ -143,7 +143,8 @@ sauvegarde et arrête le serveur autonome ; l’arrêt forcé du processus ne le
   les combattent. Les catastrophes sont désactivées par défaut.
 
 Les calques disponibles sont Surface, Zonage, Électricité, Eau/sous-sol, Pollution, Criminalité,
-Valeur foncière et Trafic. La molette (avec ou sans `Ctrl`) et les boutons `−`/`+` règlent le zoom de ×0,5 à ×16.
+Valeur foncière et Trafic. Maintenir le bouton droit et glisser déplace la carte.
+La molette (avec ou sans `Ctrl`) et les boutons `−`/`+` règlent le zoom de ×0,5 à ×16.
 Les boutons `↶ 90°`/`↷ 90°` tournent la carte par quarts de tour ; les barres de
 défilement déplacent la vue. Les erreurs de placement s’affichent dans la barre d’état.
 

@@ -2,12 +2,52 @@ package city.client
 
 import city.core.*
 import java.awt.Point
+import java.awt.event.MouseEvent
 import java.awt.event.MouseWheelEvent
+import javax.swing.JViewport
 import javax.swing.SwingUtilities
 import kotlin.random.Random
 import kotlin.test.*
 
 class CameraTest {
+    @Test fun `right drag pans continuously clamps to edges and does not activate tools`() =
+        SwingUtilities.invokeAndWait {
+            val canvas = CityCanvas({ fail("Panning must not inspect") }, { fail("Panning must not build") })
+            canvas.city = City.generate(size = 16)
+            canvas.tool = "road"
+            canvas.setSize(canvas.preferredSize)
+            val viewport = JViewport()
+            viewport.setSize(300, 200)
+            viewport.view = canvas
+            viewport.viewPosition = Point(200, 150)
+
+            fun mouse(
+                id: Int,
+                x: Int,
+                y: Int,
+                button: Int = MouseEvent.NOBUTTON,
+            ) {
+                val point = SwingUtilities.convertPoint(viewport, Point(x, y), canvas)
+                canvas.dispatchEvent(MouseEvent(canvas, id, 0L, MouseEvent.BUTTON3_DOWN_MASK, point.x, point.y, 1, false, button))
+            }
+
+            mouse(MouseEvent.MOUSE_PRESSED, 100, 100, MouseEvent.BUTTON3)
+            mouse(MouseEvent.MOUSE_DRAGGED, 130, 120)
+            assertEquals(Point(170, 130), viewport.viewPosition)
+            mouse(MouseEvent.MOUSE_DRAGGED, 140, 125)
+            assertEquals(Point(160, 125), viewport.viewPosition)
+            mouse(MouseEvent.MOUSE_DRAGGED, 2000, 2000)
+            assertEquals(Point(0, 0), viewport.viewPosition)
+            mouse(MouseEvent.MOUSE_DRAGGED, -2000, -2000)
+            assertEquals(Point(canvas.width - viewport.width, canvas.height - viewport.height), viewport.viewPosition)
+            mouse(MouseEvent.MOUSE_RELEASED, 100, 100, MouseEvent.BUTTON3)
+            viewport.viewPosition = Point(200, 150)
+            mouse(MouseEvent.MOUSE_PRESSED, 100, 100, MouseEvent.BUTTON3)
+            mouse(MouseEvent.MOUSE_DRAGGED, 110, 110)
+            assertEquals(Point(190, 140), viewport.viewPosition)
+            mouse(MouseEvent.MOUSE_RELEASED, 110, 110, MouseEvent.BUTTON3)
+        }
+
     @Test fun `rotated rectangular terrain picking matches reverse drawing order at every zoom`() {
         val city = City(width = 16, height = 24, tiles = List(384) { Tile() }, terrain = Terrain(16, 24, List(17 * 25) { 2 + it % 17 / 4 }))
         val random = Random(42)

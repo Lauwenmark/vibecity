@@ -236,17 +236,45 @@ class CityCanvas(
         addHierarchyListener { if (it.changeFlags and HierarchyEvent.SHOWING_CHANGED.toLong() != 0L) syncAnimationTimer() }
         val mouse =
             object : MouseAdapter() {
+                private var panPoint: Point? = null
+
                 override fun mousePressed(e: MouseEvent) {
                     lastPaint = -1
+                    if (SwingUtilities.isRightMouseButton(e)) {
+                        val viewport = parent as? JViewport ?: return
+                        panPoint = SwingUtilities.convertPoint(this@CityCanvas, e.point, viewport)
+                        selected = -1
+                        e.consume()
+                        return
+                    }
+                    if (panPoint != null) return
                     act(e)
                 }
 
                 override fun mouseDragged(e: MouseEvent) {
+                    val previous = panPoint
+                    if (previous != null) {
+                        val viewport = parent as? JViewport ?: return
+                        val point = SwingUtilities.convertPoint(this@CityCanvas, e.point, viewport)
+                        val position = viewport.viewPosition
+                        viewport.viewPosition =
+                            Point(
+                                (position.x + previous.x - point.x).coerceIn(0, (width - viewport.width).coerceAtLeast(0)),
+                                (position.y + previous.y - point.y).coerceIn(0, (height - viewport.height).coerceAtLeast(0)),
+                            )
+                        panPoint = point
+                        e.consume()
+                        return
+                    }
                     act(e)
                 }
 
                 override fun mouseReleased(e: MouseEvent) {
                     lastPaint = -1
+                    if (SwingUtilities.isRightMouseButton(e)) {
+                        panPoint = null
+                        e.consume()
+                    }
                 }
 
                 override fun mouseMoved(e: MouseEvent) {
