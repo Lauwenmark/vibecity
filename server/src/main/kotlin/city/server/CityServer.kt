@@ -181,7 +181,17 @@ class CityServer(
                             city = city.copy(rules = city.rules.copy(speed = 0), notices = listOf("Simulation arrêtée : ${event.failure.message}"))
                         } else {
                             city = checkNotNull(event.result)
-                            if (city.month / 12 > previousYear && savePath != null) withContext(Dispatchers.IO) { Persistence.save(savePath, city) }
+                            if (city.month / 12 > previousYear && savePath != null) {
+                                try {
+                                    withContext(Dispatchers.IO) { Persistence.save(savePath, city) }
+                                } catch (e: Exception) {
+                                    if (e is CancellationException) throw e
+                                    System.err.println("Autosave failed: ${e.message}")
+                                    // Keep the actor responsive so the operator can repair the
+                                    // destination, save manually and shut down without hanging.
+                                    city = city.copy(rules = city.rules.copy(speed = 0), notices = city.notices + "Échec de la sauvegarde automatique : ${e.message}")
+                                }
+                            }
                         }
                         broadcast()
                     }

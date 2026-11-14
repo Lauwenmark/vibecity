@@ -399,6 +399,48 @@ class ServerTest {
             }
         }
 
+    @Test fun `autosave failure pauses simulation and leaves commands and shutdown usable`() =
+        runBlocking {
+            val directory = Files.createTempDirectory("city-autosave-failure")
+            val blocked = directory.resolve("blocked")
+            Files.writeString(blocked, "not a directory")
+            val path = blocked.resolve("city.json")
+            val server = CityServer(flat().copy(month = 11, day = 364), port = 0, savePath = path, tickMillis = 40)
+            try {
+                Peer(server.port).use { peer ->
+                    peer.until { it.type == "STATE" }
+                    peer.send(Request("SPEED", id = 1, value = 3))
+                    val paused = peer.until { it.city?.notices?.any { notice -> notice.startsWith("Échec de la sauvegarde automatique") } == true }.city!!
+                    assertEquals(0, paused.rules.speed)
+                    assertTrue(paused.month >= 12)
+                    peer.send(Request("BUILD", id = 2, tool = "park", x = 2, y = 2))
+                    assertEquals("ACK", peer.until { it.id == 2L }.type)
+                    val built =
+                        peer
+                            .until {
+                                it.city
+                                    ?.tiles
+                                    ?.get(34)
+                                    ?.building == "park"
+                            }.city!!
+                    assertEquals(paused.revision + 1, built.revision)
+                    // Repair the destination: a manual save and orderly shutdown must still work.
+                    Files.delete(blocked)
+                    Files.createDirectory(blocked)
+                    peer.send(Request("SAVE", id = 3))
+                    assertEquals("ACK", peer.until { it.id == 3L }.type)
+                    assertEquals("park", Persistence.load(path, Catalog()).tiles[34].building)
+                }
+                withTimeout(5000) { server.shutdown() }
+                assertEquals("park", Persistence.load(path, Catalog()).tiles[34].building)
+            } finally {
+                server.close()
+                if (Files.isDirectory(blocked)) Files.deleteIfExists(path)
+                Files.deleteIfExists(blocked)
+                Files.delete(directory)
+            }
+        }
+
     @Test fun `plugin failure pauses simulation without killing server`() =
         runBlocking {
             val failing =
