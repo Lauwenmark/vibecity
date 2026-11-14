@@ -6,6 +6,12 @@
 
 `PrepareCivicSprites.java` produit `client/src/main/resources/city/client/civic/treatment.png` par recadrage alpha et réduction uniforme à 512 pixels, avec une marge transparente inférieure adaptée à l’emprise 2:1. `BuildingSprites` charge la ressource ; les tests client couvrent la transparence, les débordements et le rendu découpé aux quatre rotations. Les détails architecturaux restent une approximation artistique de la projection.
 
+## Université
+
+La source fournie et approuvée par l’utilisateur est conservée sans modification dans `college-approved-v1.png` (1254 × 1254, RGBA). `java -Djava.awt.headless=true tools/PrepareCivicSprites.java` prépare `city/client/civic/college.png` : recadrage des marges transparentes, réduction uniforme à 512 pixels et marge inférieure calculée pour contenir le contour dans l’emprise 2:1 de 4 × 4 cases. Aucun redessin, cisaillement ou étirement du bâtiment n’est appliqué. Les détails architecturaux restent ceux de la source approuvée.
+
+Les tests client couvrent la transparence, les limites avant de l’emprise et le rendu complet/découpé aux quatre rotations.
+
 ## Stade
 
 Le stade (`stadium`, 4 × 4 cases) utilise `stadium-v1.png`, créé avec l’outil intégré `image_gen`. Le prompt complet est conservé dans `stadium-v1.prompt.txt`. `PrepareCivicSprites.java` recadre le canal alpha et calibre les coins latéraux du terrain (y = 501 dans la source) pour produire `client/src/main/resources/city/client/civic/stadium.png`, en 512 × 295 pixels transparents. Relancer cette préparation reproduit la ressource utilisée par `BuildingSprites`.

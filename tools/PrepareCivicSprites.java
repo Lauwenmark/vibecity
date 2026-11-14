@@ -12,7 +12,7 @@ class PrepareCivicSprites {
         try (var files = Files.list(source)) {
             for (Path path : files.filter(p -> java.util.Set.of("fire-v5.png", "school-v5.png", "police-v2.png", "stadium-v1.png",
                     "mayor-approved-v1.png", "cityhall-approved-v1.png", "hospital-approved-v1.png", "prison-approved-v1.png",
-                    "treatment-v1.png", "museum-v2.png").contains(p.getFileName().toString())).sorted().toList()) {
+                    "college-approved-v1.png", "treatment-v1.png", "museum-v2.png").contains(p.getFileName().toString())).sorted().toList()) {
                 BufferedImage input = ImageIO.read(path.toFile());
                 int left = input.getWidth(), top = input.getHeight(), right = -1, bottom = -1;
                 for (int y = 0; y < input.getHeight(); y++) for (int x = 0; x < input.getWidth(); x++) {
