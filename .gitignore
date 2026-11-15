@@ -5,3 +5,5 @@
 *.iml
 saves/
 plugins/*.jar
+/.codex-attachments/
+__pycache__/
