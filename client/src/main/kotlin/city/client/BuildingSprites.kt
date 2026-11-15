@@ -7,8 +7,8 @@ import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.Shape
 import java.awt.geom.AffineTransform
+import java.awt.geom.Area
 import java.awt.geom.Path2D
-import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
 import kotlin.math.roundToInt
 
@@ -48,10 +48,8 @@ internal object BuildingSprites {
         }
     }
 
-    private val silhouettes =
-        object : LinkedHashMap<Triple<String, Int, Int>, Shape>(64, .75f, true) {
-            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<Triple<String, Int, Int>, Shape>): Boolean = size > 64
-        }
+    // Trace source alpha once: the mask cost and detail do not depend on camera zoom.
+    private val silhouettes = mutableMapOf<String, Shape>()
 
     private fun placement(
         city: City,
@@ -88,32 +86,32 @@ internal object BuildingSprites {
     ): Shape? {
         val bounds = placement(city, index, size, projection) ?: return null
         val id = city.tiles[index].building!!
+        val image = images.getValue(id)
         val silhouette =
-            silhouettes.getOrPut(Triple(id, bounds.width, bounds.height)) {
-                val scaled = BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_INT_ARGB)
-                val g = scaled.createGraphics()
-                try {
-                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
-                    g.drawImage(images.getValue(id), 0, 0, bounds.width, bounds.height, null)
-                } finally {
-                    g.dispose()
-                }
-                Path2D.Double().apply {
-                    for (y in 0 until scaled.height) {
-                        var x = 0
-                        while (x < scaled.width) {
-                            if ((scaled.getRGB(x, y) ushr 24) == 0) {
-                                x++
-                                continue
+            silhouettes.getOrPut(id) {
+                Area(
+                    Path2D.Double().apply {
+                        for (y in 0 until image.height) {
+                            var x = 0
+                            while (x < image.width) {
+                                if ((image.getRGB(x, y) ushr 24) == 0) {
+                                    x++
+                                    continue
+                                }
+                                val start = x++
+                                while (x < image.width && (image.getRGB(x, y) ushr 24) != 0) x++
+                                // Include the bilinear interpolation fringe around source pixels.
+                                append(Rectangle(start - 1, y - 1, x - start + 2, 3), false)
                             }
-                            val start = x++
-                            while (x < scaled.width && (scaled.getRGB(x, y) ushr 24) != 0) x++
-                            append(Rectangle(start, y, x - start, 1), false)
                         }
-                    }
-                }
+                    },
+                )
             }
-        return AffineTransform.getTranslateInstance(bounds.x.toDouble(), bounds.y.toDouble()).createTransformedShape(silhouette)
+        return AffineTransform
+            .getTranslateInstance(bounds.x.toDouble(), bounds.y.toDouble())
+            .apply {
+                scale(bounds.width.toDouble() / image.width, bounds.height.toDouble() / image.height)
+            }.createTransformedShape(silhouette)
     }
 
     /** Paint once at the frontmost footprint cell, after all its ground tiles. */

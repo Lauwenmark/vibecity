@@ -74,6 +74,30 @@ class RoadTrafficAnimationTest {
         assertNotSame(initial.first().visibleRoad, view.segments.first().visibleRoad)
     }
 
+    @Test fun `zoom reuses traffic geometry and transforms painting around the map origin`() {
+        val city = fixture()
+        val view = RoadTrafficAnimation()
+        view.update(city, 8, 1.0)
+        val initial = view.segments.toList()
+        assertTrue(initial.isNotEmpty())
+        for (zoom in listOf(.5, 1.15, 2.0, 8.0, 16.0)) {
+            view.update(city, 8, zoom)
+            assertEquals(initial.size, view.segments.size)
+            initial.zip(view.segments).forEach { (old, next) -> assertSame(old, next) }
+            // Render a small viewport centered on traffic, even at maximum zoom.
+            val segment = initial.first()
+            val offsetX = (segment.ax * zoom + 70 * (1 - zoom)).toInt() - 100
+            val offsetY = (segment.ay * zoom + 85 * (1 - zoom) + kotlin.math.max(0.0, zoom - 2) * 128).toInt() - 100
+            val image = BufferedImage(200, 200, BufferedImage.TYPE_INT_ARGB)
+            val g = image.createGraphics()
+            g.translate(-offsetX, -offsetY)
+            g.clip = Rectangle(offsetX, offsetY, 200, 200)
+            view.paint(g, Rectangle(offsetX, offsetY, 200, 200), .5)
+            g.dispose()
+            assertTrue(image.getRGB(0, 0, 200, 200, null, 0, 200).any { it != 0 }, "Missing cars at zoom $zoom")
+        }
+    }
+
     @Test fun `cached geometry matches fresh geometry after scenery and camera changes`() {
         val source = fixture()
         val view = RoadTrafficAnimation()
@@ -214,10 +238,13 @@ class RoadTrafficAnimationTest {
         val city = source.copy(tiles = source.tiles.mapIndexed { i, t -> if (i == building) t.copy(building = "tower", anchor = building) else t })
         var coveredCars = 0
         for (rotation in 0..3) {
-            for (zoom in listOf(1.0, 2.0)) {
+            for (zoom in listOf(.5, 1.15, 2.0, 8.0, 16.0)) {
                 val projection = CityProjection(16, 16, zoom, rotation)
+                val offsetX = projection.screenX(9, 7) - 700
+                val offsetY = projection.centerY(9, 7, city.surface(building)) - 800
                 val sprite = BufferedImage(1400, 1000, BufferedImage.TYPE_INT_ARGB)
                 sprite.createGraphics().let { g ->
+                    g.translate(-offsetX, -offsetY)
                     BuildingSprites.draw(g, city, building, 1, projection)
                     g.dispose()
                 }
@@ -227,7 +254,8 @@ class RoadTrafficAnimationTest {
                     view.update(c, 8, zoom, rotation = rotation)
                     return BufferedImage(1400, 1000, BufferedImage.TYPE_INT_ARGB).also { image ->
                         val g = image.createGraphics()
-                        repeat(12) { view.paint(g, Rectangle(0, 0, image.width, image.height), it * .3) }
+                        g.translate(-offsetX, -offsetY)
+                        repeat(12) { view.paint(g, Rectangle(offsetX, offsetY, image.width, image.height), it * .3) }
                         g.dispose()
                     }
                 }

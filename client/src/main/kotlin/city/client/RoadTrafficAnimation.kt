@@ -51,7 +51,7 @@ internal class RoadTrafficAnimation {
         layer: Layer = Layer.SURFACE,
     ) {
         val previous = source
-        if (city == null || previous == null || !sameScenery(previous, city) || this.zoom != zoom ||
+        if (city == null || previous == null || !sameScenery(previous, city) ||
             geometryRotation != rotation || geometryLayer != layer || geometryCatalog != catalog
         ) {
             geometry.clear()
@@ -84,9 +84,11 @@ internal class RoadTrafficAnimation {
             segments = emptyList()
             return
         }
-        val projection = CityProjection(city.width, city.height, zoom, rotation)
+        // Geometry stays in logical pixels so zoom never rebuilds masks or spatial buckets.
+        val geometryZoom = 1.0
+        val projection = CityProjection(city.width, city.height, geometryZoom, rotation)
         val buildings by lazy {
-            buildingIndex ?: indexBuildings(city, catalog, projection, zoom, layer).also { buildingIndex = it }
+            buildingIndex ?: indexBuildings(city, catalog, projection, geometryZoom, layer).also { buildingIndex = it }
         }
         segments =
             buildList {
@@ -105,7 +107,7 @@ internal class RoadTrafficAnimation {
                             val ay = projection.centerY(i % city.width, i / city.width, city.surface(i)).toDouble()
                             val bx = projection.screenX(n % city.width, n / city.width).toDouble()
                             val by = projection.centerY(n % city.width, n / city.width, city.surface(n)).toDouble()
-                            val bounds = Rectangle(floor(min(ax, bx)).toInt(), floor(min(ay, by)).toInt(), ceil(abs(bx - ax)).toInt() + 1, ceil(abs(by - ay)).toInt() + 1).apply { grow(ceil(6 * zoom).toInt(), ceil(6 * zoom).toInt()) }
+                            val bounds = Rectangle(floor(min(ax, bx)).toInt(), floor(min(ay, by)).toInt(), ceil(abs(bx - ax)).toInt() + 1, ceil(abs(by - ay)).toInt() + 1).apply { grow(6, 6) }
                             val visible = Area(bounds)
                             val occluders = mutableSetOf<Shape>()
                             for (y in Math.floorDiv(bounds.y, 64)..Math.floorDiv(bounds.y + bounds.height, 64)) {
@@ -161,9 +163,11 @@ internal class RoadTrafficAnimation {
                     val (w, h, z) = geometry
                     Polygon(intArrayOf(sx - w, sx, sx + w, sx + w, sx, sx - w), intArrayOf(sy - h - z, sy - 2 * h - z, sy - h - z, sy - h, sy, sy - h), 6)
                 }
-            val bounds = shape.bounds
+            // Cover pixel rounding differences between logical masks and zoomed scenery.
+            val mask = Area(shape).apply { add(Area(BasicStroke(2f).createStrokedShape(shape))) }
+            val bounds = mask.bounds
             for (y in Math.floorDiv(bounds.y, 64)..Math.floorDiv(bounds.y + bounds.height, 64)) {
-                for (x in Math.floorDiv(bounds.x, 64)..Math.floorDiv(bounds.x + bounds.width, 64)) buildings.getOrPut(x to y) { mutableListOf() }.add(shape)
+                for (x in Math.floorDiv(bounds.x, 64)..Math.floorDiv(bounds.x + bounds.width, 64)) buildings.getOrPut(x to y) { mutableListOf() }.add(mask)
             }
         }
         return buildings
@@ -175,12 +179,26 @@ internal class RoadTrafficAnimation {
         seconds: Double,
     ) {
         val oldTransform = g.transform
+        val camera =
+            AffineTransform(oldTransform).apply {
+                translate(70 * (1 - zoom), 85 * (1 - zoom) + max(0.0, zoom - 2.0) * 128)
+                scale(zoom, zoom)
+            }
+        val logicalClip =
+            AffineTransform()
+                .apply {
+                    translate(70 * (1 - zoom), 85 * (1 - zoom) + max(0.0, zoom - 2.0) * 128)
+                    scale(zoom, zoom)
+                }.createInverse()
+                .createTransformedShape(clip)
+                .bounds
         val oldClip = g.clip
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         for (segment in segments) {
-            if (!segment.bounds.intersects(clip)) continue
+            if (!segment.bounds.intersects(logicalClip)) continue
             g.transform = oldTransform
             g.clip = oldClip
+            g.transform = camera
             g.clip(segment.visibleRoad)
             val dx = segment.bx - segment.ax
             val dy = segment.by - segment.ay
@@ -192,12 +210,11 @@ internal class RoadTrafficAnimation {
                 val direction = if (reverse) -1 else 1
                 val phase = ((seconds * segment.speed + car.toDouble() / segment.count + (segment.from % 17) / 17.0) % 1.0)
                 val progress = if (reverse) 1 - phase else phase
-                val x = segment.ax + dx * progress + nx * 1.65 * zoom * direction
-                val y = segment.ay + dy * progress + ny * 1.65 * zoom * direction
+                val x = segment.ax + dx * progress + nx * 1.65 * direction
+                val y = segment.ay + dy * progress + ny * 1.65 * direction
                 g.transform =
-                    AffineTransform(oldTransform).apply {
+                    AffineTransform(camera).apply {
                         translate(x, y)
-                        scale(zoom, zoom)
                     }
                 segment.cars[car].paint(g)
             }
