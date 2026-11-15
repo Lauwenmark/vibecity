@@ -23,7 +23,7 @@ internal class ReferenceMobilityRouter(
                     when (need) {
                         Need.WORK -> (t.zone.commercial || t.zone.industrial) && t.occupants > 0 && t.powered
                         Need.FOOD -> t.zone.commercial && t.occupants > 0 && t.powered
-                        Need.EDUCATION -> def?.service == "education" && t.powered && city.rules.serviceFunding > 0
+                        Need.EDUCATION -> (def?.service == "education" || def?.id == "museum") && t.powered && city.rules.serviceFunding > 0
                         Need.LEISURE -> def?.service == "park" && t.powered && city.rules.serviceFunding > 0
                         Need.HEALTH -> def?.service == "health" && t.powered && city.rules.serviceFunding > 0
                         Need.REST -> false

@@ -31,31 +31,33 @@ Le serveur exécute la journée complète minute par minute, puis publie le rés
 permet de rejouer cette journée ; il ne change pas le temps partagé entre joueurs. Il ne s’agit
 pas d’une publication réseau après chaque minute.
 
-Chaque résident des zones et arcologies alimentées est représenté, sans échantillonnage. Il reçoit
+Chaque résident des zones et arcologies est représenté, sans échantillonnage. Il reçoit
 un identifiant monotone non réutilisé, un prénom, un nom et un âge initial de 6 à 85 ans. Le nom
 inclut l’identifiant pour distinguer les homonymes. Les identités et carnets sont sauvegardés.
-Une diminution de population retire les derniers habitants du domicile ; une croissance ultérieure
-crée de nouveaux identifiants. Le vieillissement, les familles et les déménagements nominatifs ne
-sont pas encore simulés.
+Les nouvelles arrivées économiques et les naissances créent de nouveaux identifiants.
+Le vieillissement, les décès, les familles, les déménagements et les études sont décrits dans
+[Cycle de vie et instruction](LIFE_CYCLE.md). Les naissances commencent à zéro an ; les valeurs
+initiales de 6 à 85 ans concernent uniquement les arrivants économiques.
 
 ## Programme et planification du matin
 
 | Besoin | Programme | Départ souhaité | Temps sur place |
 | --- | --- | --- | --- |
-| Travail | 18–66 ans, lundi à vendredi ; commerce ou industrie occupés et alimentés | 7 h à 8 h 29 | 8 h |
-| Éducation | Moins de 18 ans, lundi à vendredi ; service `education` | 8 h à 8 h 29 | 6 h |
+| Travail | Travailleurs de 18 à 64 ans, lundi à vendredi ; commerce ou industrie occupés et alimentés | 7 h à 8 h 29 | 8 h |
+| Éducation | Élèves de 3 à 17 ans à l’école, étudiants au campus inscrit, lundi à vendredi | 8 h à 8 h 29 | 6 h |
+| Éducation culturelle | Adultes hors études, un jour par semaine ; bibliothèque, musée, école ou université | 10 h à 10 h 29 | 1 h |
 | Soins | Une fois par semaine, jour dépendant de l’habitant ; service `health` | 10 h à 15 h 59 | 30 min |
 | Courses | Tous les jours ; commerce occupé et alimenté | 17 h à 18 h 29 ; 11 h à 12 h 29 le week-end | 30 min |
 | Loisirs | Tous les jours ; service `park` | 19 h à 19 h 59 ; 15 h à 15 h 59 le week-end | 45 min |
 | Repos | Tous les jours, au domicile | À partir de 22 h | — |
 
-Les services doivent être alimentés, financés et non incendiés. L’âge, l’identité et la graine
+Avant trois ans, seul le repos est programmé. Les services doivent être alimentés, financés et non incendiés. L’âge, l’identité et la graine
 fixent les préférences horaires ; les activités sont traitées dans l’ordre du tableau. L’habitant
 attend son retour réel au domicile avant de partir pour l’activité suivante. Une sortie non encore
 commencée à 22 h est annulée ; les déplacements déjà en cours peuvent continuer jusqu’à minuit.
 Un besoin est satisfait si l’arrivée et le séjour ont pu se terminer avant minuit. Le retour peut
-être retardé sans annuler un besoin déjà satisfait. Les besoins non satisfaits n’affectent pas
-encore la santé ou la croissance.
+être retardé sans annuler un besoin déjà satisfait. Les besoins non satisfaits affectent la satisfaction ; les absences scolaires affectent
+également les acquis et les résultats annuels. Ils ne modifient pas directement la mortalité.
 
 À la création, le carnet est initialisé pour les sept jours, avec les trajets applicables et
 accessibles. Chaque entrée distingue jour de semaine, besoin et sens aller/retour. Le matin,

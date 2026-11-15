@@ -53,7 +53,10 @@ object Persistence {
         require(city.rules.taxRate in 0..20 && city.rules.speed in 0..3 && city.rules.serviceFunding in 0..100)
         city.tiles.forEachIndexed { i, t ->
             require(t.elevation in 0..12 && t.occupants >= 0)
-            t.residentialOccupancy?.let { count -> require(count >= 0 && count <= catalog[requireNotNull(t.building)].residents) }
+            t.residentialOccupancy?.let { count ->
+                // Births may temporarily exceed housing capacity.
+                require(count >= 0 && catalog[requireNotNull(t.building)].residents > 0)
+            }
             require(t.elevation == city.surface(i).minimum) { "Altitude incompatible avec les sommets" }
             if (t.building != null) {
                 val def = catalog[requireNotNull(t.building)]

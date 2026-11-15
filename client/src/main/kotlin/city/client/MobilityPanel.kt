@@ -11,6 +11,8 @@ internal class MobilityPanel(
 ) : JPanel(BorderLayout(8, 8)) {
     private var city: City? = null
     private var homes = emptyList<MobilityHome>()
+    private var cohortHomes: List<Household>? = null
+    private var cohorts = emptyMap<String, Pair<Int, Double>>()
     private var refreshing = false
     private val home = JComboBox<String>()
     private val resident = JSpinner(SpinnerNumberModel(1, 1, 1, 1))
@@ -186,9 +188,21 @@ internal class MobilityPanel(
                 else -> if (returning.isSelected) activity?.returnRoute?.let { h.paths[it] } else activity?.route?.let { h.paths[it] }
             }
         val position = day.positionAt(minute) / 4
+        if (cohortHomes !== c.households) {
+            cohortHomes = c.households
+            cohorts = c.educationByAge()
+        }
         heading.text = "${person?.name ?: day.citizenId} · ${person?.age ?: "?"} ans · ${dayName(mobility.day)} ${epoch.plusDays(mobility.day.toLong())} · ${time(minute)}"
         detail.text =
             buildString {
+                person?.life?.let { life ->
+                    append("${life.stage.label} · NI %.1f / 150 · CA %.2f · naissance ${epoch.plusDays(life.birthDay.toLong())}\n".format(life.knowledge, life.learningAbility))
+                    append("Diplôme : ${life.diploma?.label ?: "aucun"} · revenu individuel : %.1f $ / jour\n".format(person.dailyIncome))
+                    life.study?.let { study -> append("${study.course.label} : année ${study.year}/${study.course.years}, %.1f / %.0f points, ${study.attendedDays}/${study.scheduledDays} présences, ${if (study.repeated) "redoublement" else "première inscription"}.\n".format(study.points, LifeRules.ANNUAL_PASS_POINTS)) }
+                    if (life.lastExam.isNotEmpty()) append("${life.lastExam}\n")
+                    append("Partenaire : ${life.partner?.let { "#$it" } ?: "aucun"} · parents : ${life.parents.joinToString { "#$it" }.ifEmpty { "non renseignés" }}\n")
+                    life.pregnancyDue?.let { append("Naissance prévue : ${epoch.plusDays(it.toLong())}\n") }
+                }
                 person?.wellbeing?.let { w ->
                     append("Satisfaction : %.1f %% (%+.2f / jour), %d jours d’insatisfaction, ancienneté %d jours.\n".format(w.satisfaction, w.trend, w.unhappyDays, w.residenceDays))
                     append("Emploi : ${w.workplace?.let { "${it % c.width}, ${it / c.width}" } ?: "aucun"} ; revenus et dépenses du foyer par personne : %.1f / %.1f $ par jour.\n".format(w.income, w.costs))
@@ -209,6 +223,7 @@ internal class MobilityPanel(
                     append(activity?.reason ?: "Sélectionnez un besoin.")
                 }
                 append("\nCarnet : choisissez un jour et un itinéraire pour consulter son score et son tracé, aller ou retour.\n")
+                append("Instruction par âge (effectif, NI moyen) : " + cohorts.entries.joinToString(" ; ") { (age, values) -> "$age ans : ${values.first}, %.1f".format(values.second) } + "\n")
                 append("Ville : ${mobility.completedNeeds} besoins satisfaits, ${mobility.unmetNeeds} non satisfaits. Les voitures illustrent les passages effectivement admis.")
             }
         show(path, position, minute / 60)

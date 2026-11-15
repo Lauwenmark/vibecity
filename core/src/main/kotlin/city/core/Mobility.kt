@@ -143,8 +143,8 @@ fun Mobility.itinerary(
     return listOf(Need.WORK, Need.EDUCATION, Need.HEALTH, Need.FOOD, Need.LEISURE, Need.REST).map { need ->
         val relevant =
             when (need) {
-                Need.WORK -> resident.age in 18..66
-                Need.EDUCATION -> resident.age < 18
+                Need.WORK -> resident.age in 18..64
+                Need.EDUCATION -> resident.age in 3..17
                 else -> true
             }
         val scheduled = relevant && (need != Need.HEALTH || (variation.toLong() + month) % 7 == 0L)
@@ -265,7 +265,7 @@ internal class MobilityRouter(
                     when (need) {
                         Need.WORK -> (t.zone.commercial || t.zone.industrial) && t.occupants > 0 && t.powered
                         Need.FOOD -> t.zone.commercial && t.occupants > 0 && t.powered
-                        Need.EDUCATION -> def?.service == "education" && t.powered && city.rules.serviceFunding > 0
+                        Need.EDUCATION -> (def?.service == "education" || def?.id == "museum") && t.powered && city.rules.serviceFunding > 0
                         Need.LEISURE -> def?.service == "park" && t.powered && city.rules.serviceFunding > 0
                         Need.HEALTH -> def?.service == "health" && t.powered && city.rules.serviceFunding > 0
                         Need.REST -> false
@@ -508,19 +508,29 @@ internal class MobilityRouter(
             reconstruct(goal, workspace.distance, workspace.parent)
         }
 
-    suspend fun from(home: Int): Map<Need, List<TravelPath>> =
+    data class DestinationChoices(
+        val needs: Map<Need, List<TravelPath>>,
+        val education: Map<String, List<TravelPath>>,
+    )
+
+    /** One graph search supplies both ordinary needs and the distinct educational categories. */
+    suspend fun destinationsFrom(home: Int): DestinationChoices =
         withWorkspace { workspace ->
             search(workspace, home * 4)
-            val distance = workspace.distance
-            val parent = workspace.parent
-            destinations.filterKeys { it != Need.REST }.mapValues { (_, targets) ->
+
+            fun nearest(targets: List<Int>): List<TravelPath> =
                 targets
-                    .filter { distance[it * 4] < Int.MAX_VALUE }
-                    .sortedWith(compareBy<Int> { distance[it * 4] }.thenBy { it })
+                    .filter { workspace.distance[it * 4] < Int.MAX_VALUE }
+                    .sortedWith(compareBy<Int> { workspace.distance[it * 4] }.thenBy { it })
                     .take(2)
-                    .mapNotNull { reconstruct(it * 4, distance, parent) }
-            }
+                    .mapNotNull { reconstruct(it * 4, workspace.distance, workspace.parent) }
+            DestinationChoices(
+                destinations.filterKeys { it != Need.REST }.mapValues { (_, targets) -> nearest(targets) },
+                destinations.getValue(Need.EDUCATION).groupBy { city.tiles[it].building!! }.mapValues { (_, targets) -> nearest(targets) },
+            )
         }
+
+    suspend fun from(home: Int): Map<Need, List<TravelPath>> = destinationsFrom(home).needs
 }
 
 /** Validate serialized derived data before exposing it to the inspector or the next simulation. */

@@ -371,3 +371,24 @@ les calques de diagnostic. Les dimensions d’occlusion du trafic tiennent compt
 Les sources graphiques, leur index et les instructions de régénération sont dans `assets/sprites/metro/`.
 `tools/PrepareMetroSprites.java` produit les PNG compacts et normalise la géométrie des voies et de leurs
 raccords. Aucune génération d’image ni lecture des sources haute résolution n’est effectuée en jeu.
+
+
+## Cycle de vie, famille et instruction
+
+Le modèle sérialisable est dans `LifeModel.kt`. `LifeCycle.kt` réconcilie les habitants avec
+les logements, initialise les anciennes données et exécute mortalité/vieillissement.
+`FamilyLife.kt` gère naissances et décisions mensuelles ; `Education.kt` gère orientation,
+progression quotidienne, examens et agrégats d’âge. Voir [les règles](LIFE_CYCLE.md).
+
+L’ordre quotidien est : réconciliation, mortalité et âges, naissances, décisions familiales
+(le premier du mois), économie/réseaux, réconciliation des arrivées/sinistres, migration,
+planification/exécution des déplacements, instruction et examens, bien-être.
+Les mutations démographiques précèdent la construction des registres de trajets. Les nouveaux
+occupants mettent à jour immédiatement les compteurs résidentiels, y compris dans les arcologies.
+Une naissance peut dépasser temporairement la capacité résidentielle ; un emménagement ne le peut pas.
+La décroissance économique ne tronque plus arbitrairement les habitants d’une zone résidentielle.
+
+Les tirages utilisent exclusivement graine, identifiant, jour et sel d’événement. Les décisions
+familiales se font dans l’ordre des identifiants ; chaque couple ne décide qu’une fois par mois.
+La planification parallèle est indépendante de ces mutations et reste déterministe.
+Les moyennes de NI sont dérivées des citoyens et mises en cache par instantané dans l’inspecteur.

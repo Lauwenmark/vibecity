@@ -67,28 +67,9 @@ class MobilitySimulation(
         withContext(Dispatchers.Default) {
             val day = city.nextDay()
             val router = MobilityRouter(city, catalog, previous)
-            val old = city.households.associateBy { it.cell }
-            var nextId = city.nextCitizenId
-            val households =
-                city.tiles.mapIndexedNotNull { i, tile ->
-                    val count =
-                        if (tile.zone.residential) {
-                            tile.occupants
-                        } else if (tile.anchor == i && tile.building != null) {
-                            tile.residentialOccupancy ?: catalog[tile.building].residents
-                        } else {
-                            0
-                        }
-                    if (count <= 0) return@mapIndexedNotNull null
-                    val retained = old[i]?.people.orEmpty().take(count)
-                    val newcomers =
-                        List(count - retained.size) {
-                            val id = nextId++
-                            val n = noise(city.seed xor id, i, 0)
-                            Citizen(id, "${FIRST[n % FIRST.size]} ${LAST[(n / FIRST.size) % LAST.size]} #$id", 6 + n % 80, position = i * 4)
-                        }
-                    Household(i, retained + newcomers, old[i]?.paths.orEmpty())
-                }
+            val populated = reconcileCitizens(city, catalog)
+            val nextId = populated.nextCitizenId
+            val households = populated.households
             val prepared = arrayOfNulls<PreparedHome>(households.size)
             val byCell = households.withIndex().associate { it.value.cell to it.index }
             // Workers write disjoint slots; no mutable path registry or citizen is shared between homes.
@@ -96,7 +77,10 @@ class MobilitySimulation(
                 val index = byCell.getValue(home.cell)
                 val household = households[index]
                 val registry = HomeRoutes(household.paths)
-                val choices = router.from(home.cell)
+                val destinations = router.destinationsFrom(home.cell)
+                val choices = destinations.needs
+                val educationPaths = destinations.education
+                val educationOptions = educationPaths.mapValues { (_, paths) -> paths.map(registry::intern) }
                 val options = choices.map { (need, paths) -> NeedOptions(need, paths.map(registry::intern)) }
                 val validPaths = registry.paths.map(router::valid)
                 val prune = epoch.plusDays(day.toLong()).dayOfMonth == 1
@@ -104,25 +88,46 @@ class MobilitySimulation(
                 for (job in household.people.mapNotNull { it.wellbeing.workplace }.distinct()) {
                     if (router.serves(Need.WORK, job)) workPaths[job] = router.route(home.cell * 4, job * 4)?.let(registry::intern)
                 }
+                val campusPaths = mutableMapOf<Int, Int?>()
+                for (campus in household.people.mapNotNull { it.life?.study?.campus }.distinct()) {
+                    campusPaths[campus] = if (router.serves(Need.EDUCATION, campus) && city.tiles[campus].building == "college") router.route(home.cell * 4, campus * 4)?.let(registry::intern) else null
+                }
                 val routeIndexes = ArrayList<RouteMemoryIndex>(household.people.size)
                 val people =
                     household.people.map { resident ->
-                        var person = if (prune) resident.prune(city.trafficRules) else resident
+                        var person = selectStudies(if (prune) resident.prune(city.trafficRules) else resident, city, educationPaths["college"].orEmpty().firstOrNull()?.destination)
+                        val learningPaths =
+                            person.life?.study?.campus?.let { campus ->
+                                if (campus in campusPaths) listOfNotNull(campusPaths[campus]) else educationOptions["college"].orEmpty().filter { registry.paths[it].destination == campus }
+                            } ?: educationOptions.filterKeys { person.acceptsEducation(it) }.values.flatten()
                         val employer = person.wellbeing.workplace?.takeIf { router.serves(Need.WORK, it) }
                         val personalOptions =
                             options.map { option ->
-                                if (option.need == Need.WORK && employer != null) option.copy(paths = listOfNotNull(workPaths[employer])) else option
+                                when {
+                                    option.need == Need.EDUCATION -> option.copy(paths = learningPaths)
+                                    option.need == Need.WORK && employer != null -> option.copy(paths = listOfNotNull(workPaths[employer]))
+                                    else -> option
+                                }
                             }
                         val valid =
                             person.routes.filter { memory ->
-                                val path = registry.paths.getOrNull(memory.path)
-                                path != null && (memory.need != Need.WORK || employer == null || (if (memory.returning) path.nodes.first() / 4 else path.destination) == employer) && validPaths.getOrElse(memory.path) { router.valid(path) } && if (memory.returning) router.serves(memory.need, path.nodes.first() / 4) else router.serves(memory.need, path.destination)
+                                val path = registry.paths.getOrNull(memory.path) ?: return@filter false
+                                if (!validPaths.getOrElse(memory.path) { router.valid(path) }) return@filter false
+                                val destination = if (memory.returning) path.nodes.first() / 4 else path.destination
+                                val campus = person.life?.study?.campus
+                                val suitable =
+                                    when (memory.need) {
+                                        Need.EDUCATION -> person.acceptsEducation(city.tiles[destination].building) && (campus == null || destination == campus)
+                                        Need.WORK -> employer == null || destination == employer
+                                        else -> true
+                                    }
+                                suitable && router.serves(memory.need, destination)
                             }
                         val memories = RouteMemoryIndex(valid)
                         routeIndexes.add(memories)
                         for (weekday in 0..6) {
                             for (option in personalOptions) {
-                                if (!applicable(person.age, option.need, weekday) || option.paths.isEmpty()) continue
+                                if (!applicable(person, option.need, weekday) || option.paths.isEmpty()) continue
                                 if (memories.get(weekday, option.need, false).isEmpty()) {
                                     val path = option.paths[noise(city.seed xor person.id, option.need.ordinal, weekday) % option.paths.size]
                                     memories.add(LearnedRoute(weekday, option.need, false, path, city.trafficRules.initialScore))
@@ -144,12 +149,12 @@ class MobilitySimulation(
                         val variation = noise(city.seed xor person.id, home.cell, 0)
                         val list =
                             listOf(Need.WORK, Need.EDUCATION, Need.HEALTH, Need.FOOD, Need.LEISURE, Need.REST).map { need ->
-                                val scheduled = applicable(person.age, need, day % 7) && (need != Need.HEALTH || (person.id + day) % 7 == 0L)
+                                val scheduled = applicable(person, need, day % 7) && (need != Need.HEALTH || (person.id + day) % 7 == 0L)
                                 val selected = chooseRoute(memories.get(day % 7, need, false), city.seed xor person.id xor (day.toLong() shl 24) xor need.ordinal.toLong())
                                 val departure =
                                     when (need) {
                                         Need.WORK -> 7 * 60 + variation % 90
-                                        Need.EDUCATION -> 8 * 60 + variation % 30
+                                        Need.EDUCATION -> (if (person.isStudent) 8 else 10) * 60 + variation % 30
                                         Need.HEALTH -> 10 * 60 + variation % 360
                                         Need.FOOD -> (if (day % 7 >= 5) 11 else 17) * 60 + variation % 90
                                         Need.LEISURE -> (if (day % 7 >= 5) 15 else 19) * 60 + variation % 60
@@ -158,7 +163,7 @@ class MobilitySimulation(
                                 val stay =
                                     when (need) {
                                         Need.WORK -> 480
-                                        Need.EDUCATION -> 360
+                                        Need.EDUCATION -> if (person.isStudent) 360 else 60
                                         Need.FOOD, Need.HEALTH -> 30
                                         Need.LEISURE -> 45
                                         Need.REST -> 0
@@ -198,22 +203,18 @@ class MobilitySimulation(
             for (load in mobility.aggregateLoads()) peak[load.cell] = max(peak[load.cell], (load.hours.max().toLong() * 100 / load.hourlyCapacity(city)).coerceAtMost(100).toInt())
             city.copy(mobility = mobility, households = executor.households(), nextCitizenId = nextId, tiles = city.tiles.mapIndexed { i, tile -> tile.copy(traffic = peak[i]) })
         }
-
-    companion object {
-        private val FIRST = listOf("Camille", "Alex", "Louise", "Nora", "Émile", "Sami", "Léa", "Arthur", "Inès", "Hugo", "Maya", "Noé")
-        private val LAST = listOf("Martin", "Dubois", "Lambert", "Peeters", "Laurent", "Simon", "Diallo", "Moreau", "Nguyen", "Janssens")
-    }
 }
 
 internal fun applicable(
-    age: Int,
+    person: Citizen,
     need: Need,
     weekday: Int,
 ): Boolean =
     when (need) {
-        Need.WORK -> age in 18..66 && weekday < 5
-        Need.EDUCATION -> age < 18 && weekday < 5
-        else -> true
+        Need.WORK -> person.isWorker && weekday < 5
+        Need.EDUCATION -> if (person.isStudent) weekday < 5 else person.age >= 18 && weekday == (person.id % 7).toInt()
+        Need.FOOD, Need.LEISURE, Need.HEALTH -> person.age >= 3
+        Need.REST -> true
     }
 
 /** One authoritative event queue owns every road reservation. Waiting agents retain their upstream slot. */

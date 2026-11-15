@@ -85,7 +85,7 @@ fun updateWellbeing(
     for (home in city.households) {
         for (person in home.people) {
             val job = person.wellbeing.workplace
-            if (person.age in 18..66 && job != null && slots.getOrElse(job) { 0 } > 0) {
+            if (person.isWorker && job != null && slots.getOrElse(job) { 0 } > 0) {
                 jobs[person.id] = job
                 slots[job]--
             }
@@ -94,7 +94,7 @@ fun updateWellbeing(
     for (home in city.households) {
         val days = executions[home.cell]?.days.orEmpty()
         for ((index, person) in home.people.withIndex()) {
-            if (person.age !in 18..66 || person.id in jobs) continue
+            if (!person.isWorker || person.id in jobs) continue
             val job =
                 days
                     .getOrNull(index)
@@ -117,18 +117,7 @@ fun updateWellbeing(
             val capacity = if (tile.zone.residential) tile.zone.capacity else tile.building?.let { catalog[it].residents } ?: 0
             val crowding = (home.people.size.toDouble() / max(1, capacity) - .85).coerceAtLeast(0.0) / .15
             val rent = 5.0 + tile.landValue * .10 + if (tile.zone == Zone.RESIDENTIAL_LIGHT) 2 else 0
-            val householdIncome =
-                home.people.sumOf { p ->
-                    if (p.id in jobs) {
-                        50.0
-                    } else if (p.age >= 67) {
-                        28.0
-                    } else if (p.age >= 18) {
-                        12.0
-                    } else {
-                        0.0
-                    }
-                }
+            val householdIncome = home.people.sumOf { it.dailyIncome } + if (home.people.none { it.age >= 18 }) home.people.size * 30.0 else 0.0
             val householdCosts = home.people.sumOf { p -> rent + (if (p.age < 18) 6 else 10) } + householdIncome * city.rules.taxRate / 100
             val budgetPenalty = ((householdCosts - householdIncome) / max(1.0, householdCosts)).coerceIn(0.0, 1.0) * 25
             val localNoise =
@@ -194,7 +183,7 @@ fun updateWellbeing(
                             } else {
                                 0
                             }
-                        val unemployed = if (person.age in 18..66 && job == null) old.unemployedDays + 1 else 0
+                        val unemployed = 0 // Income is guaranteed until a labor market is introduced.
                         val penalties =
                             listOf(
                                 needsPenalty.coerceAtMost(55.0),
@@ -212,7 +201,7 @@ fun updateWellbeing(
                                 },
                                 budgetPenalty,
                                 crowding.coerceAtMost(2.0) * 5 + (40 - tile.landValue).coerceAtLeast(0) * .10,
-                                (30 - service("health")).coerceAtLeast(0) * (if (person.age >= 65) .25 else .10) + (if (person.age < 18) (40 - service("education")).coerceAtLeast(0) * .2 else 0.0),
+                                (30 - service("health")).coerceAtLeast(0) * (if (person.age >= 65) .25 else .10) + (if (person.age in 3..17) (40 - service("education")).coerceAtLeast(0) * .2 else 0.0),
                                 (localNoise - 25).coerceAtLeast(0) * .12 + (25 - service("park") - if (tile.trees) 25 else 0).coerceAtLeast(0) * .12,
                             )
                         val pressure = old.pressure * .8 + penalties.sum().coerceAtMost(100.0) * .2

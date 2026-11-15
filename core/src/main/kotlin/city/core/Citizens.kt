@@ -50,6 +50,7 @@ data class Citizen(
     val routes: List<LearnedRoute> = emptyList(),
     val position: Int,
     val wellbeing: Wellbeing = Wellbeing(),
+    val life: CitizenLife? = null,
 )
 
 @Serializable
@@ -146,6 +147,7 @@ fun City.validateCitizens() {
         for (person in household.people) {
             require(person.id in 1 until nextCitizenId && ids.add(person.id))
             require(person.name.length in 1..120 && person.age in 0..120 && person.position in 0 until tiles.size * 4)
+            person.life?.validate(person, this)
             val opinion = person.wellbeing
             require(opinion.satisfaction.isFinite() && opinion.satisfaction in 0.0..100.0)
             require(opinion.pressure.isFinite() && opinion.pressure in 0.0..100.0 && opinion.trend.isFinite())

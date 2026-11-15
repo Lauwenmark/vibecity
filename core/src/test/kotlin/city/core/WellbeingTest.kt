@@ -78,7 +78,7 @@ class WellbeingTest {
         assertEquals(18.0, opinion.factors[OpinionFactor.NEEDS.ordinal])
     }
 
-    @Test fun `finite jobs preserve existing contracts and share household budget`() {
+    @Test fun `work destinations preserve contracts but income does not require a job`() {
         val city = fixture()
         val people = listOf(Citizen(1, "A", 30, position = 68), Citizen(2, "B", 40, position = 68, wellbeing = Wellbeing(workplace = 18, employedDays = 30)))
         val path = TravelPath(listOf(68, 72), listOf(0, 5))
@@ -93,7 +93,8 @@ class WellbeingTest {
         assertEquals(18, opinions[1].workplace)
         assertEquals(31, opinions[1].employedDays)
         assertEquals(opinions[0].income, opinions[1].income)
-        assertTrue(opinions[0].factors[OpinionFactor.EMPLOYMENT.ordinal] > 0)
+        assertEquals(0.0, opinions[0].factors[OpinionFactor.EMPLOYMENT.ordinal])
+        assertEquals(50.0, opinions[0].income)
     }
 
     private fun readyToMove(): City {

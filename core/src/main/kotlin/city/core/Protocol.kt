@@ -5,7 +5,7 @@ import kotlinx.serialization.json.Json
 import java.io.BufferedReader
 import java.io.EOFException
 
-const val PROTOCOL_VERSION = 10
+const val PROTOCOL_VERSION = 11
 val wireJson =
     Json {
         encodeDefaults = true

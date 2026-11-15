@@ -37,7 +37,7 @@ finances et données des plugins sont conservés. Les secteurs développés sont
 planes ; leur altitude et le relief voisin peuvent être relevés pour réconcilier les anciennes cases.
 Les anciens barrages sont conservés, même s’ils étaient construits sur de l’eau plate.
 
-Le protocole passe en **version 10** : redémarrer **le serveur et tous les clients** avec cette version.
+Le protocole passe en **version 11** : redémarrer **le serveur et tous les clients** avec cette version.
 Les états réseau sont compressés et les registres des habitants transmis par différences pour limiter
 la latence sur réseau distant. Recompiler les plugins contre le nouveau `core` avant de les redéployer, car le modèle `City` a changé.
 
@@ -63,6 +63,19 @@ l’habitant sélectionné.
 
 Les [règles de mobilité](docs/MOBILITY.md) détaillent horaires, profils, capacités et limites :
 calendrier quotidien, files par case, choix probabilistes et élagage mensuel des itinéraires.
+
+## Éducation et cycle de vie
+
+Les habitants vieillissent, fondent des couples, déménagent et ont des enfants. Ils fréquentent
+l’école de 3 à 17 ans, peuvent poursuivre un cursus supérieur et prennent leur retraite à 65 ans.
+Le NI (niveau d’instruction) et la CA (capacité d’apprentissage) sont individuels ; les résultats
+universitaires dépendent des présences réellement exécutées, avec un redoublement possible par année.
+Bibliothèques, musées et visites des établissements entretiennent les connaissances à l’âge adulte.
+
+L’inspecteur **Habitants / trajets…** affiche NI, CA, cursus, résultats, diplôme, revenu,
+liens familiaux, grossesse et instruction moyenne par tranche d’âge.
+Les anciennes sauvegardes restent lisibles : ces données sont initialisées au premier jour simulé.
+Les [règles du cycle de vie](docs/LIFE_CYCLE.md) détaillent les paramètres initiaux et leurs limites.
 
 ## Jouer à plusieurs
 
@@ -179,6 +192,7 @@ la palette des clients, **sans installer le plugin sur leurs postes**. Voir le
 ## Architecture et validation
 
 - [Architecture et modèle de simulation](docs/ARCHITECTURE.md)
+- [Document de travail sur le modèle social et économique](docs/SOCIAL_SIMULATION_WORKING_PLAN.md)
 - [Protocole TCP, commandes et erreurs](docs/PROTOCOL.md)
 - [Règles et fidélité à SimCity 2000](docs/FIDELITY.md)
 - [Plugins et personnalisation](docs/PLUGINS.md)

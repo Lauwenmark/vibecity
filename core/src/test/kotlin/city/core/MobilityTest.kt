@@ -39,14 +39,14 @@ class MobilityTest {
                     city.households
                         .single()
                         .people[person.slot]
-                        .age in 18..66,
+                        .age in 18..64,
                     trips.single { it.need == Need.WORK }.scheduled,
                 )
                 assertEquals(
                     city.households
                         .single()
                         .people[person.slot]
-                        .age < 18,
+                        .let { it.age in 3..17 || (it.age >= 18 && it.id % 7 == 0L) },
                     trips.single { it.need == Need.EDUCATION }.scheduled,
                 )
                 val legs = h.days[person.slot].legs

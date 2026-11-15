@@ -23,9 +23,10 @@ class Simulation(
     /** One server step executes one civil day; economic growth and accounting run on its first day. */
     suspend fun step(city: City): City {
         val day = city.nextDay()
+        val previousTraffic = city.mobility // Demographic changes invalidate plans, but retain yesterday’s congestion estimate.
         val date = epoch.plusDays(day.toLong())
         val month = (date.year - 1900) * 12 + date.monthValue - 1
-        var current = city.copy(month = month)
+        var current = beginLifeDay(city.copy(month = month, day = day), catalog)
         current =
             if (date.dayOfMonth == 1) {
                 economicStep(current)
@@ -34,8 +35,8 @@ class Simulation(
                 val water = network(current, true, power.supplied)
                 current.copy(tiles = current.tiles.mapIndexed { i, tile -> tile.copy(powered = power.supplied[i], watered = water.supplied[i]) }, revision = city.revision + 1)
             }
-        current = migrateUnhappyHouseholds(current.copy(day = day), catalog)
-        val result = updateWellbeing(MobilitySimulation(catalog, workers).simulate(current, current.mobility), catalog)
+        current = migrateUnhappyHouseholds(reconcileCitizens(current.copy(day = day), catalog), catalog)
+        val result = updateWellbeing(finishEducationDay(MobilitySimulation(catalog, workers).simulate(repairPartners(current), previousTraffic)), catalog)
         return result.copy(day = day + 1, stats = result.stats.copy(population = result.households.sumOf { it.people.size }))
     }
 
@@ -59,6 +60,7 @@ class Simulation(
             val rDemand = (45 + jobs / 4 - population / 8 - (city.rules.taxRate - 7) * 8).coerceIn(-100, 100)
             val cDemand = (25 + population / 10 - city.tiles.filter { it.zone.commercial }.sumOf { it.occupants } / 3 - (city.rules.taxRate - 7) * 6).coerceIn(-100, 100)
             val iDemand = (45 + population / 6 - city.tiles.filter { it.zone.industrial }.sumOf { it.occupants } / 4 - (city.rules.taxRate - 7) * 6).coerceIn(-100, 100)
+            val residentCounts = city.households.associate { it.cell to it.people.size }
             val batch = max(64, (city.tiles.size + workers.coerceAtLeast(1) - 1) / workers.coerceAtLeast(1))
             val evolved =
                 city.tiles.indices
@@ -101,7 +103,7 @@ class Simulation(
                                             } else if (fire > 0) {
                                                 max(0, t.occupants / 2)
                                             } else {
-                                                (t.occupants + growth).coerceIn(0, capacity)
+                                                if (t.zone.residential) max(residentCounts[i] ?: 0, (t.occupants + growth).coerceIn(0, capacity)) else (t.occupants + growth).coerceIn(0, capacity)
                                             },
                                         fire = fire,
                                     )

@@ -10,7 +10,7 @@ Le serveur accepte des requêtes de 8 192 caractères maximum et le client des r
 Envoyer dans les 10 secondes :
 
 ```json
-{"type":"HELLO","version":10,"name":"Alice","token":"","compressedStates":true}
+{"type":"HELLO","version":11,"name":"Alice","token":"","compressedStates":true}
 ```
 
 Le nom contient 1 à 24 lettres, chiffres, espaces, `_` ou `-`. La version doit correspondre.
@@ -97,7 +97,7 @@ des options sont locaux à sa liste `paths`. Les chemins encodent leurs
 états par `case * 4 + mode` (marche 0, route 1, rail 2, métro 3), avec leurs minutes cumulées.
 Les charges portent une case, un mode et 24 compteurs horaires. Le client reconstruit les horaires
 individuels avec le code partagé de `core` ; il n’effectue aucune recherche d’itinéraire.
-Les clients et serveurs doivent tous utiliser la version 10.
+Les clients et serveurs doivent tous utiliser la version 11.
 
 `City.day` est l’indice du prochain jour à exécuter depuis le 01/01/1900, ou `null` dans une ancienne
 ville : sa date de reprise est alors le premier jour indiqué par `month`. `City.nextCitizenId`
@@ -220,3 +220,26 @@ Un essai local de trois placements, simulation active et JVM limitée à quatre 
 réception limitée à 10 Mio/s, a mesuré environ 2,42 s pour le premier placement encore derrière un
 transfert, puis 9 ms et 51 ms. Le transfert initial reste plus lourd ; ces trois mesures ne sont
 pas une garantie de latence, ni un benchmark effectué sur le serveur distant.
+
+
+## Cycle de vie et études (version 11)
+
+`Citizen.life`, nullable pour les anciennes sauvegardes, contient `birthDay` (jours depuis
+le 01/01/1900, négatif pour les naissances antérieures), `sex`, `knowledge`, `learningAbility`,
+`stage`, `study`, `diploma`, `lastSalary`, `pension`, `parents`, `ancestors`, `partner`,
+`pregnancyDue`, `pregnancyFather`, `pregnancyAncestors`, `children` et `lastExam`.
+Les dates d’âge restent celles de la dernière journée exécutée, tandis que `City.day` indique
+la prochaine journée. L’initialisation des champs manquants est déterministe et conserve les identités.
+
+`Study` conserve filière, campus, année, début d’année, points, jours de cours/présence,
+séries de présence/absence, retard pédagogique et indicateur de redoublement.
+Les registres différentiels transportent ces champs avec le citoyen, sans nouveau registre global.
+Les références parentales peuvent désigner des personnes décédées ou parties ; les identifiants
+ne sont jamais recyclés. Le partenaire actif est réciproque et nettoyé après les départs/décès.
+
+`Need.EDUCATION` représente les cours pour les élèves/étudiants et une visite culturelle
+hebdomadaire pour les adultes. Le musée reste également une destination `LEISURE`.
+Les options communes du domicile restent indicatives : le plan individuel impose l’école ou
+le campus d’inscription. Les autres établissements ne peuvent pas valider la présence à un cursus.
+
+Serveur, clients et plugins doivent être reconstruits ensemble (protocole 11).
