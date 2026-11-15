@@ -106,6 +106,36 @@ internal fun reconcileCitizens(
 internal val FIRST_NAMES = listOf("Camille", "Alex", "Louise", "Nora", "Émile", "Sami", "Léa", "Arthur", "Inès", "Hugo", "Maya", "Noé")
 private val LAST_NAMES = listOf("Martin", "Dubois", "Lambert", "Peeters", "Laurent", "Simon", "Diallo", "Moreau", "Nguyen", "Janssens")
 
+/** Demolition evicts residents immediately, even while paused; genealogy retains departed IDs. */
+internal fun evictHouseholds(
+    city: City,
+    cells: Set<Int>,
+): City {
+    val removed = city.households.filter { it.cell in cells }
+    if (removed.isEmpty()) return city
+    val departed = removed.flatMap { it.people }.map { it.id }.toSet()
+    val households =
+        city.households.filter { it.cell !in cells }.map { home ->
+            val people =
+                home.people.map { person ->
+                    val life = person.life
+                    if (life != null && (life.partner in departed || life.studentRelationship?.partner in departed)) {
+                        person.copy(
+                            life =
+                                life.copy(
+                                    partner = life.partner?.takeUnless { it in departed },
+                                    studentRelationship = life.studentRelationship?.takeUnless { it.partner in departed },
+                                ),
+                        )
+                    } else {
+                        person
+                    }
+                }
+            if (people == home.people) home else home.copy(people = people)
+        }
+    return city.copy(households = households, stats = city.stats.copy(population = households.sumOf { it.people.size }))
+}
+
 /** Deaths precede birthdays/transitions, births and monthly household decisions; mobility is rebuilt afterwards. */
 internal fun beginLifeDay(
     input: City,

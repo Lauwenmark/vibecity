@@ -6,6 +6,48 @@ import java.nio.file.Files
 import kotlin.test.*
 
 class LifePersistenceTest {
+    @Test fun `paused demolition of zone or residential footprint stays evicted after reload and simulation`() =
+        runBlocking {
+            val catalog = Catalog(listOf(BuildingDef("home", "Home", 1, 0, size = 2, residents = 1)))
+            for (building in listOf(false, true)) {
+                val tiles = MutableList(256) { Tile() }
+                if (building) {
+                    for (cell in listOf(17, 18, 33, 34)) tiles[cell] = Tile(building = "home", anchor = 17)
+                } else {
+                    tiles[17] = Tile(zone = Zone.RESIDENTIAL_LIGHT, occupants = 1)
+                }
+                val initial =
+                    City(
+                        width = 16,
+                        height = 16,
+                        tiles = tiles,
+                        terrain = Terrain.flat(16, 16),
+                        day = 1,
+                        rules = Rules(speed = 0),
+                        stats = Statistics(population = 1),
+                        households = listOf(Household(17, listOf(Citizen(1, "Alice", 30, position = 17 * TRAVEL_MODE_COUNT)))),
+                        nextCitizenId = 2,
+                    )
+                // Select a non-anchor tile when demolishing a multi-cell building.
+                val result = Commands(catalog).apply(initial, Request("BUILD", tool = "bulldoze", x = if (building) 2 else 1, y = if (building) 2 else 1))
+                assertTrue(result.households.isEmpty())
+                assertEquals(0, result.stats.population)
+                assertTrue(result.tiles.all { it.building == null && it.residentialOccupancy == null })
+                val file = Files.createTempFile("demolished-home", ".json")
+                try {
+                    Persistence.save(file, result)
+                    val loaded = Persistence.load(file, catalog)
+                    assertEquals(result, loaded)
+                    val resumed = Simulation(catalog, workers = 1).step(loaded)
+                    assertTrue(resumed.households.isEmpty())
+                    assertEquals(0, resumed.stats.population)
+                    assertEquals(2, resumed.nextCitizenId)
+                } finally {
+                    Files.deleteIfExists(file)
+                }
+            }
+        }
+
     @Test fun `birth in full residential building survives save reload and next simulation day`() =
         runBlocking {
             val catalog = Catalog(listOf(BuildingDef("home", "Home", 1, 0, residents = 1)))

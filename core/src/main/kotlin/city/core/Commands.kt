@@ -63,11 +63,13 @@ class Commands(
         val i = city.index(r.x, r.y)
         val tile = city.tiles[i]
         val tiles = city.tiles.toMutableList()
+        var demolished = emptySet<Int>()
         var cost = 0
         when {
             r.tool == "bulldoze" -> {
                 val anchor = if (tile.anchor >= 0) tile.anchor else i
                 val targets = if (tile.building != null) city.tiles.indices.filter { it == anchor || city.tiles[it].anchor == anchor } else listOf(i)
+                demolished = targets.toSet()
                 cost = 2 * targets.size
                 targets.forEach { n ->
                     tiles[n] =
@@ -170,6 +172,7 @@ class Commands(
             }
         }
         require(city.treasury >= cost) { "Trésorerie insuffisante" }
-        return city.copy(tiles = tiles, treasury = city.treasury - cost)
+        val updated = city.copy(tiles = tiles, treasury = city.treasury - cost)
+        return if (demolished.isEmpty()) updated else evictHouseholds(updated, demolished)
     }
 }
