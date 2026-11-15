@@ -140,7 +140,8 @@ fun City.validateCitizens() {
     require(travelModeCount == TRAVEL_MODE_COUNT)
     require(day == null || day >= 0)
     require(nextCitizenId > 0)
-    require(households.map { it.cell }.distinct().size == households.size)
+    val householdsByCell = households.associateBy { it.cell }
+    require(householdsByCell.size == households.size)
     val ids = mutableSetOf<Long>()
     for (household in households) {
         require(household.cell in tiles.indices)
@@ -193,7 +194,7 @@ fun City.validateCitizens() {
         require(traffic.day >= 0 && traffic.roadOccupancyLimit in 1..1000)
         require(traffic.roadPeakOccupancy.all { (cell, count) -> cell in tiles.indices && count in 0..traffic.roadOccupancyLimit })
         for (home in traffic.homes) {
-            val household = requireNotNull(households.firstOrNull { it.cell == home.cell }) { "Domicile absent" }
+            val household = requireNotNull(householdsByCell[home.cell]) { "Domicile absent" }
             require(home.paths == household.paths && home.residents == household.people.size)
             require(home.days.map { it.citizenId } == household.people.map { it.id })
             for (personDay in home.days) {
