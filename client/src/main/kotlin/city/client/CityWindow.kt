@@ -41,6 +41,16 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
     private val canvas = CityCanvas(::inspect, ::build, ::inspectResidents)
     private val scroll = JScrollPane(canvas)
     private val buttons = ButtonGroup()
+    private val speedGroup = ButtonGroup()
+    private val speedButtons =
+        listOf("Ⅱ", "▶", "▶▶", "▶▶▶").mapIndexed { speed, label ->
+            JToggleButton(label).apply {
+                isFocusPainted = false
+                isEnabled = false
+                addActionListener { send(Request("SPEED", value = speed)) }
+                speedGroup.add(this)
+            }
+        }
     private var mobilityDialog: JDialog? = null
     private var mobilityPanel: MobilityPanel? = null
     private var inspectedCell: Int? = null
@@ -118,7 +128,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         viewBar.add(button("↶ 90°") { canvas.rotation -= 1 })
         viewBar.add(button("↷ 90°") { canvas.rotation += 1 })
         viewBar.add(JLabel("   TEMPS").apply { foreground = accent })
-        listOf("Ⅱ", "▶", "▶▶", "▶▶▶").forEachIndexed { i, label -> viewBar.add(button(label) { send(Request("SPEED", value = i)) }) }
+        speedButtons.forEach { viewBar.add(it) }
         center.add(viewBar, BorderLayout.NORTH)
         scroll.border = null
         scroll.viewport.background = canvas.background
@@ -409,6 +419,8 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
     ) {
         connection?.close()
         current = null
+        speedGroup.clearSelection()
+        speedButtons.forEach { it.isEnabled = false }
         canvas.city = null
         mobilityPanel?.updateSnapshot(null)
         status.text = "Connexion à $host:$port…"
@@ -432,6 +444,10 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
                             chart.city = city
                             minimap.city = city
                             disasters.isSelected = city.rules.disasters
+                            speedButtons.forEachIndexed { speed, button ->
+                                button.isEnabled = true
+                                if (speed == city.rules.speed) button.isSelected = true
+                            }
                             val s = city.stats
                             metrics.text = "${epoch.plusDays((city.mobility?.day ?: city.nextDay()).toLong())}   |   ${s.population} HAB.   |   ${city.treasury} $   |   R ${s.residentialDemand}  C ${s.commercialDemand}  I ${s.industrialDemand}"
                             heading.text = "SHARED CITY / ${if (city.rules.speed == 0) "PAUSE" else "2000"}"
@@ -443,6 +459,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
                     }
 
                     "ERROR" -> {
+                        current?.rules?.speed?.let { speedButtons.getOrNull(it)?.isSelected = true }
                         status.text = "Refus : ${response.message}"
                         Toolkit.getDefaultToolkit().beep()
                     }
