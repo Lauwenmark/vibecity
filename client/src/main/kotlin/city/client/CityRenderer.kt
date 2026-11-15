@@ -167,7 +167,9 @@ internal class CityRenderer(
                             },
                         )
                     }
-                    if (t.powerLine) {
+                    if (t.powerLine && layer == Layer.SURFACE) {
+                        PowerLineSprites.draw(g, city, i, projection)
+                    } else if (t.powerLine) {
                         g.color = Color(0xe3d785)
                         g.drawLine(sx, sy, sx, sy - (15 * zoom).toInt())
                         g.drawLine(sx - (4 * zoom).toInt(), sy - (12 * zoom).toInt(), sx + (4 * zoom).toInt(), sy - (12 * zoom).toInt())
