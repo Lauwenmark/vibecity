@@ -8,7 +8,7 @@ ce projet sont des paramètres de gameplay explicitement choisis et modifiables.
 | Domaine | Réalisé | Différences / reste à développer |
 | --- | --- | --- |
 | Terrain | Sommets partagés, pentes par case, rivière, arbres, élévation/abaissement avec raccords, aplanissement à altitude choisie, ponts | 13 altitudes (0–12), pas de lacs/océan configurables, d’érosion ni de nivellement par rectangle dans l’interface |
-| Vue | Isométrie, altitude, bâtiments procéduraux, zoom, inspection, mini-carte | Voitures animées illustrant la densité ; pas de rotation, de sprites originaux ou de sons |
+| Vue | Isométrie, altitude, bâtiments procéduraux et sprites, zoom, rotation par quarts de tour, inspection, mini-carte | Voitures animées illustrant la densité ; pas de sons |
 | Zonage | R/C/I léger et dense, croissance/déclin, demande, desserte, fiscalité | Développement par case ; pas de regroupement des lots en immeubles multi-cases ni de styles par époque |
 | Électricité | 9 familles : charbon, fioul, gaz, nucléaire, éolien, solaire, hydro, micro-ondes, fusion | Barrages neufs sur rampe couverte d’eau, sans modèle de débit ; capacités abstraites ; pas de durée de vie, de renouvellement des centrales, de saisonnalité ni d’accident nucléaire |
 | Eau | Pompes alimentées, conduites, château d’eau, dessalement, épuration | Château d’eau traité comme une source fixe, sans réservoir dynamique ; pas de sécheresse ni de salinité |
@@ -18,7 +18,7 @@ ce projet sont des paramètres de gameplay explicitement choisis et modifiables.
 | Économie | Impôts, entretien, financement global, dette/intérêts/remboursement | Pas d’ordonnances, de financement par service ni de commerce régional détaillé |
 | Ports et aéroports | Emprises fixes, bonus de demande à proximité ; port sur une rive | Pas de zones spécialisées à développement progressif ni de connexions interurbaines |
 | Récompenses | Maison du maire et hôtel de ville constructibles | Pas de déblocage par paliers, de statue ou de base militaire |
-| Arcologies | Quatre types, disponibilité en 2050, population et entretien | Population fixe si alimentées ; pas de départ des Launch ni de modèle interne d’emplois/services |
+| Arcologies | Quatre types, disponibilité en 2050, habitants individuels, naissances, décès, déménagements et entretien | Population initialisée à la capacité du catalogue ; pas de départ des Launch ni de modèle interne d’emplois/services |
 | Catastrophes | Incendies, propagation, protection des pompiers, destruction cohérente des emprises | Pas de séisme, inondation, tornade, crash, émeute ou monstre |
 | Multijoueur | Ville partagée en temps réel, autorité serveur, refus des conflits, reconnexion manuelle | Pas de territoires, comptes, rôles, messagerie ou historique d’annulation |
 | Sauvegarde | JSON, reprise, autosauvegarde annuelle, sauvegarde manuelle et à l’arrêt | Pas d’import/export SC2, de scénarios historiques ni de format binaire original |
@@ -58,5 +58,5 @@ La satisfaction individuelle tient désormais compte des besoins, déplacements,
 emploi et budget. Elle agit sur les déménagements collectifs par case. Le « foyer » reste tout
 l’immeuble, pas une famille démographique ; salaires, allocations, pensions, loyers, qualité du
 logement et bruit sont des modèles simplifiés documentés dans ARCHITECTURE.md. L’attachement
-repose sur l’ancienneté, sans graphe de relations sociales. Un contrat ne garantit pas la présence
+repose sur l’ancienneté ; les liens familiaux et relations étudiantes sont simulés séparément. Un contrat ne garantit pas la présence
 au travail et un accès physique à un service ne modélise pas sa file d’attente ni sa capacité.

@@ -82,7 +82,7 @@ d’un quartier déjà bâti. Les barrages existants bénéficient de la conserv
 Le chargement sauvegarde les octets originaux sous `.pre-slopes.json` avant de rendre la ville
 convertie au serveur ; un nom numéroté évite d’écraser une sauvegarde de secours différente.
 
-Les nouveaux états TCP (protocole 9) et les villes créées par le générateur possèdent toujours la
+Les états TCP actuels et les villes créées par le générateur possèdent toujours la
 grille partagée. Le serveur normalise aussi les villes anciennes fournies directement à son
 constructeur. La sélection et le cache utilisent les quatre sommets : une modification d’un coin
 invalide les portions concernées même si le minimum de la case n’a pas changé.
@@ -107,8 +107,9 @@ invalide les portions concernées même si le minimum de la case n’a pas chang
    `Dispatchers.Default`. Un ordonnanceur temporel déterministe exécute les mouvements et arbitre
    les réservations routières partagées. Les autres jours, les réseaux sont actualisés et la mobilité
    est exécutée sans répéter la croissance ni les prélèvements mensuels.
-6. L’acteur publie la nouvelle ville, puis accepte la prochaine transaction. Le ticker attend la fin
-   du tick avant de planifier le suivant : aucun empilement de ticks en cas de calcul lent.
+6. L’acteur continue de traiter les commandes pendant le calcul et publie son résultat si la révision
+   de départ est encore courante. Le ticker attend la fin du calcul, puis un délai de 1,5 seconde
+   par défaut avant le suivant : aucun empilement de ticks en cas de calcul lent.
 
 L’aléatoire est une fonction de la graine, de l’indice et du mois. La simulation donne donc le même
 résultat à un ou plusieurs workers, sous réserve de plugins eux-mêmes déterministes. Un test compare
@@ -150,13 +151,14 @@ financement et intérêts des emprunts. Les formules sont visibles dans `Simulat
 
 L’acteur traite les commandes sans attendre les calculs de trafic. La simulation travaille sur
 un instantané immuable dans une coroutine `Default` ; l’acteur reste l’unique propriétaire de la
-ville. Toute transaction acceptée annule le calcul en cours. Un résultat (ou une erreur) portant
+ville. Toute transaction modifiant la ville annule le calcul en cours ; une commande sans effet
+conserve ce calcul et sa révision. Un résultat (ou une erreur) portant
 une ancienne révision est ignoré : il ne peut écraser ni une construction ni une pause. Le prochain
 tick reprend le calcul depuis la ville modifiée. Une séquence continue de constructions peut donc
 retarder l’avancement du calendrier ; les journées ne sont jamais fusionnées avec des commandes
 après coup. Il n’y a qu’un calcul de simulation à la fois, et aucun tick accumulé.
 
-Le serveur demande un instantané complet après chaque transaction et tick, avec sa révision.
+Le serveur propose un instantané après chaque modification et résultat de simulation accepté, avec sa révision.
 La sérialisation JSON se fait hors de l’acteur, avec une seule demande en attente (la plus récente).
 Les états intermédiaires remplacés ne sont pas publiés ; les ACK/ERROR restent individuels.
 Les journées sont exécutées entièrement avant publication ; l’inspecteur rejoue la dernière journée.

@@ -35,7 +35,8 @@ class MyPlugin : CityPlugin {
    validation d’emprise la refusera. Les services intégrés reconnus sont `park`, `police`, `fire`,
    `health`, `education`, `environment`, `transport`, `commerce` et `industry`. Un nom inédit peut
    être interprété par votre propre règle.
-2. **Règle de case** : `TileRule.apply(context, proposed)` reçoit le snapshot **avant** le mois et le
+2. **Règle de case** : `TileRule.apply(context, proposed)` reçoit le snapshot au début du traitement
+   économique du premier jour du mois, après les événements démographiques du début de journée, et le
    résultat proposé pour la case **après** les règles de base, puis les règles précédentes. Elle
    retourne la case finale. Cela permet de remplacer une formule de croissance ou de simuler des
    comportements d’habitants agrégés. L’exemple augmente l’attrait et le développement près d’un jardin.
@@ -72,7 +73,9 @@ protections et coûts que les joueurs, passer par les commandes de terrassement.
 reste responsable de ne pas déformer des emprises occupées et de préserver les statistiques.
 
 Le changement du modèle `City` nécessite de **recompiler les JAR de plugins** contre cette version
-de `core`. Le protocole réseau 7 et l’API de plugins 1 sont deux numérotations distinctes ; comme
+de `core`. Le protocole réseau courant est **13**, défini par
+[`PROTOCOL_VERSION`](../core/src/main/kotlin/city/core/Protocol.kt). L’API de plugins reste **1** :
+ce sont deux numérotations distinctes. Comme
 annoncé, cette API ne garantit pas une compatibilité binaire des modèles entre versions du jeu.
 
 ## Compatibilité et distribution

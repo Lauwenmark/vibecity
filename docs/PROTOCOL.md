@@ -1,5 +1,9 @@
 # Protocole TCP v13
 
+La version courante est définie par [`PROTOCOL_VERSION`](../core/src/main/kotlin/city/core/Protocol.kt).
+Les mentions « version N » dans les sections ci-dessous indiquent l’introduction d’une évolution,
+pas une version alternative acceptée par le serveur actuel.
+
 Chaque trame est terminée par LF (`\n`). CRLF est également accepté. Les requêtes et les réponses
 de contrôle sont des objets JSON UTF-8 ; les états peuvent être compressés (voir ci-dessous).
 Les retours à la ligne dans les chaînes sont échappés par JSON. Aucune sérialisation Java n’est utilisée.
@@ -37,7 +41,7 @@ coroutine par socket, ce qui empêche l’entrelacement de deux lignes.
 | `BUILD` | `id`, `tool`, `x`, `y` | Construction, zonage, démolition ou relief |
 | `TAX` | `id`, `value` 0..20 | Taux d’impôt commun |
 | `FUNDING` | `id`, `value` 0..100 | Financement global des services |
-| `SPEED` | `id`, `value` 0..3 | Pause ou 1/2/3 mois par cycle |
+| `SPEED` | `id`, `value` 0..3 | Pause ou 1/2/3 jours civils par cycle |
 | `DISASTERS` | `id`, `value` 0 ou 1 | Désactiver/activer les incendies aléatoires |
 | `BOND` | `id` | Emprunter 10 000 $ |
 | `REPAY` | `id` | Rembourser 10 000 $ |
@@ -250,7 +254,8 @@ hebdomadaire pour les adultes. Le musée reste également une destination `LEISU
 Les options communes du domicile restent indicatives : le plan individuel impose l’école ou
 le campus d’inscription. Les autres établissements ne peuvent pas valider la présence à un cursus.
 
-Serveur, clients et plugins doivent être reconstruits ensemble (protocole 11).
+Serveur, clients et plugins doivent être reconstruits ensemble contre le même modèle `core` ;
+la version réseau courante est celle indiquée en tête de ce document.
 
 
 ## Relations étudiantes et rendez-vous (version 12)

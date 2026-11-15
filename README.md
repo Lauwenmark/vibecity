@@ -44,14 +44,15 @@ la latence sur réseau distant. Recompiler les plugins contre le nouveau `core` 
 ## Habitants et trafic
 
 Chaque tick exécute une ou plusieurs journées civiles de déplacements individuels : travail ou éducation, courses,
-loisirs, soins et repos. Routes, marche, trains et métro participent à la recherche d’itinéraires ;
+loisirs, soins et repos. Routes, marche, trains, métro et vélos participent à la recherche d’itinéraires ;
 la fréquentation horaire détermine la charge des voies et influence la planification suivante.
 Les domiciles sont traités en parallèle par des coroutines ; chacun conserve ses chemins et ses
 compteurs de trafic. L’exécution coordonne ensuite les capacités routières : attentes, bouchons,
 détours et apprentissage individuel. Chaque habitant possède un nom et un carnet par jour de semaine.
 
-Cliquer **Habitants / trajets…** ou double-cliquer un domicile avec l’outil Inspection. Choisir
-un habitant et un besoin pour tracer son plan, son parcours réalisé ou ses itinéraires mémorisés
+Sélectionner une case habitée avec l’outil Inspection puis cliquer **Habitants / trajets…**, ou
+double-cliquer le domicile. Cliquer un habitant dans la liste, ou le sélectionner et appuyer sur
+Entrée, pour ouvrir sa fiche. Dans l’onglet **Déplacements**, choisir un besoin pour tracer son plan, son parcours réalisé ou ses itinéraires mémorisés
 avec leurs scores ; déplacer le curseur horaire pour voir sa
 position. Le calque **Trafic** montre la charge de cette heure, ou la pointe quotidienne quand
 l’inspecteur est fermé. Après une construction, laisser passer un jour pour recalculer les plans.
@@ -150,8 +151,10 @@ sauvegarde et arrête le serveur autonome ; l’arrêt forcé du processus ne le
   La pollution industrielle, le crime et la valeur foncière influencent la croissance.
 - Surveiller la demande R/C/I, les recettes et dépenses mensuelles. Un emprunt apporte 10 000 $,
   avec 10 % d’intérêts annuels et un plafond de dette de 100 000 $. Le remboursement se fait par 10 000 $.
-- Les boutons temps sélectionnent pause ou 1/2/3 mois par cycle de 1,5 seconde. Les années commencent
-  en 1900 ; les technologies apparaissent à leur date d’introduction dans le catalogue.
+- Les boutons temps sélectionnent pause ou 1/2/3 jours civils par cycle. Le serveur attend par défaut
+  1,5 seconde entre les calculs ; leur durée s’ajoute à cette attente. L’économie est calculée le
+  premier jour de chaque mois. Les années commencent en 1900 ; les technologies apparaissent à
+  leur date d’introduction dans le catalogue.
 - Les incendies aléatoires et leur propagation sont activables. Les casernes alimentées et financées
   les combattent. Les catastrophes sont désactivées par défaut.
 
