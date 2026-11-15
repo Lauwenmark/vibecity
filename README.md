@@ -205,11 +205,16 @@ style Kotlin (ktlint), simulation, transactions, multijoueur sur vrais sockets T
 Les tests du cache vérifient aussi la sélection, les raccords graphiques et l’absence de reconstruction
 de la scène au survol. Le test de rendu crée `client/build/previews/city.png` sans écran.
 
-Pour vérifier une vraie fenêtre Swing avec connexion TCP et action de budget :
+Pour vérifier une vraie fenêtre Swing avec connexion TCP, action de budget, navigation des
+habitants et reprise après retrait d’un plugin invalide :
 
 ```sh
-xvfb-run -a ./gradlew :client:uiSmoke
+xvfb-run -a ./gradlew build :client:uiCheck
 ```
+
+Le workflow GitHub Actions `Validation` exécute cette commande à chaque push et pull request.
+Il conserve les rapports de tests et les captures, même en cas d’échec. `uiCheck` regroupe
+`uiSmoke` et `uiStartupSmoke` ; `build` seul reste utilisable sans affichage.
 
 Un affichage X11 réel peut remplacer Xvfb. Le test produit `client/build/previews/application.png`.
 Il ne touche pas aux sauvegardes utilisateur. Les tests automatiques ne constituent pas une mesure

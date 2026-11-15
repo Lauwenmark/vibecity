@@ -28,3 +28,11 @@ tasks.register<JavaExec>("uiStartupSmoke") {
         workingDir = Files.createTempDirectory("city-startup-smoke").toFile()
     }
 }
+
+// Kept separate from headless check/build for developers without a display.
+tasks.register("uiCheck") {
+    group = "verification"
+    description = "Runs both Swing integration checks (requires a display or xvfb-run)."
+    dependsOn("uiSmoke", "uiStartupSmoke")
+}
+tasks.named("uiStartupSmoke") { mustRunAfter("uiSmoke") }
