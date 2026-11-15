@@ -34,6 +34,7 @@ internal class RoadTrafficAnimation {
         zoom: Double,
         catalog: Map<String, BuildingDef> = emptyMap(),
         rotation: Int = 0,
+        layer: Layer = Layer.SURFACE,
     ) {
         this.zoom = zoom
         val previous = source
@@ -64,11 +65,16 @@ internal class RoadTrafficAnimation {
         // Spatially indexed building silhouettes prevent cars being painted over foreground roofs.
         val buildings = mutableMapOf<Pair<Int, Int>, MutableList<Shape>>()
         city.tiles.forEachIndexed { i, tile ->
-            val sx = projection.screenX(i % city.width, i / city.width)
-            val geometry = buildingGeometry(tile, catalog[tile.building], zoom) ?: return@forEachIndexed
-            val sy = projection.centerY(i % city.width, i / city.width, city.surface(i)) + geometry.depth
-            val (w, h, z) = geometry
-            val shape = Polygon(intArrayOf(sx - w, sx, sx + w, sx + w, sx, sx - w), intArrayOf(sy - h - z, sy - 2 * h - z, sy - h - z, sy - h, sy, sy - h), 6)
+            val shape =
+                if (layer == Layer.SURFACE && tile.building in BuildingSprites.allIds) {
+                    BuildingSprites.silhouette(city, i, catalog[tile.building]?.size ?: 1, projection) ?: return@forEachIndexed
+                } else {
+                    val sx = projection.screenX(i % city.width, i / city.width)
+                    val geometry = buildingGeometry(tile, catalog[tile.building], zoom) ?: return@forEachIndexed
+                    val sy = projection.centerY(i % city.width, i / city.width, city.surface(i)) + geometry.depth
+                    val (w, h, z) = geometry
+                    Polygon(intArrayOf(sx - w, sx, sx + w, sx + w, sx, sx - w), intArrayOf(sy - h - z, sy - 2 * h - z, sy - h - z, sy - h, sy, sy - h), 6)
+                }
             val bounds = shape.bounds
             for (y in Math.floorDiv(bounds.y, 64)..Math.floorDiv(bounds.y + bounds.height, 64)) {
                 for (x in Math.floorDiv(bounds.x, 64)..Math.floorDiv(bounds.x + bounds.width, 64)) buildings.getOrPut(x to y) { mutableListOf() }.add(shape)

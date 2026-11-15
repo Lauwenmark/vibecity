@@ -127,6 +127,48 @@ class RoadTrafficAnimationTest {
         }
     }
 
+    @Test fun `sprite pixels hide traffic at every camera rotation and zoom`() {
+        val loads = (0 until 256).map { TrafficLoad(it, TravelMode.ROAD, List(24) { 120 }) }
+        val source =
+            fixture().copy(
+                tiles = List(256) { Tile(road = it != 7 * 16 + 9) },
+                mobility = Mobility(0, listOf(MobilityHome(17, 1, emptyList(), loads = loads)), 0, 0),
+            )
+        val building = 7 * 16 + 9
+        val city = source.copy(tiles = source.tiles.mapIndexed { i, t -> if (i == building) t.copy(building = "tower", anchor = building) else t })
+        var coveredCars = 0
+        for (rotation in 0..3) {
+            for (zoom in listOf(1.0, 2.0)) {
+                val projection = CityProjection(16, 16, zoom, rotation)
+                val sprite = BufferedImage(1400, 1000, BufferedImage.TYPE_INT_ARGB)
+                sprite.createGraphics().let { g ->
+                    BuildingSprites.draw(g, city, building, 1, projection)
+                    g.dispose()
+                }
+
+                fun cars(c: City): BufferedImage {
+                    val view = RoadTrafficAnimation()
+                    view.update(c, 8, zoom, rotation = rotation)
+                    return BufferedImage(1400, 1000, BufferedImage.TYPE_INT_ARGB).also { image ->
+                        val g = image.createGraphics()
+                        repeat(12) { view.paint(g, Rectangle(0, 0, image.width, image.height), it * .3) }
+                        g.dispose()
+                    }
+                }
+                val unmasked = cars(source)
+                val masked = cars(city)
+                for (y in 0 until sprite.height) {
+                    for (x in 0 until sprite.width) {
+                        if ((sprite.getRGB(x, y) ushr 24) < 128) continue
+                        if ((unmasked.getRGB(x, y) ushr 24) != 0) coveredCars++
+                        assertEquals(0, masked.getRGB(x, y), "Car over sprite at $x,$y rotation=$rotation zoom=$zoom")
+                    }
+                }
+            }
+        }
+        assertTrue(coveredCars > 0, "The sprite must overlap actual car pixels")
+    }
+
     @Test fun `building silhouettes occlude traffic instead of letting cars float over roofs`() {
         val source = fixture()
         val building = 7 * 16 + 9

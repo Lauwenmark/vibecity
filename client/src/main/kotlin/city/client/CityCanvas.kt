@@ -62,7 +62,7 @@ class CityCanvas(
         }
 
     private fun refreshTraffic() {
-        roadTraffic.update(city, trafficHour, zoom, catalog, rotation)
+        roadTraffic.update(city, trafficHour, zoom, catalog, rotation, layer)
         syncAnimationTimer()
     }
 
@@ -165,7 +165,7 @@ class CityCanvas(
             if (field == value) return
             field = value
             sceneRenderer = null
-            syncAnimationTimer()
+            refreshTraffic()
             cache.clear()
             repaint()
         }
