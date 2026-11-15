@@ -46,6 +46,10 @@ data class Tile(
     val fire: Int = 0,
     /** Actual residential building population; null initializes legacy arcologies at capacity. */
     val residentialOccupancy: Int? = null,
+    /** Completed zoned housing capacity; null migrates legacy occupied tiles. */
+    val housingCapacity: Int? = null,
+    val construction: HousingConstruction? = null,
+    val constructionBlocked: Boolean = false,
 )
 
 @Serializable

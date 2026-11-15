@@ -1,4 +1,4 @@
-# Protocole TCP v13
+# Protocole TCP v14
 
 La version courante est définie par [`PROTOCOL_VERSION`](../core/src/main/kotlin/city/core/Protocol.kt).
 Les mentions « version N » dans les sections ci-dessous indiquent l’introduction d’une évolution,
@@ -14,7 +14,7 @@ Le serveur accepte des requêtes de 8 192 caractères maximum et le client des r
 Envoyer dans les 10 secondes :
 
 ```json
-{"type":"HELLO","version":13,"name":"Alice","token":"","compressedStates":true}
+{"type":"HELLO","version":14,"name":"Alice","token":"","compressedStates":true}
 ```
 
 Le nom contient 1 à 24 lettres, chiffres, espaces, `_` ou `-`. La version doit correspondre.
@@ -109,7 +109,7 @@ des options sont locaux à sa liste `paths`. Les chemins encodent leurs
 états par `case * TRAVEL_MODE_COUNT + mode` (marche 0, route 1, rail 2, métro 3, vélo 4 ; `TRAVEL_MODE_COUNT = 5`), avec leurs minutes cumulées.
 Les charges portent une case, un mode et 24 compteurs horaires. Le client reconstruit les horaires
 individuels avec le code partagé de `core` ; il n’effectue aucune recherche d’itinéraire.
-Les clients et serveurs doivent tous utiliser la version 13.
+Les clients et serveurs doivent tous utiliser la version 14.
 
 `City.day` est l’indice du prochain jour à exécuter depuis le 01/01/1900, ou `null` dans une ancienne
 ville : sa date de reprise est alors le premier jour indiqué par `month`. `City.nextCitizenId`
@@ -275,7 +275,7 @@ propres à chaque domicile, y compris lorsque les deux participants partagent un
 `happiness` (contribution individuelle au bonheur) et `strengthChange` (bilan commun du couple).
 Ces champs sont inclus dans les états complets et les différences de domiciles. Les anciennes
 sauvegardes restent lisibles grâce aux valeurs absentes par défaut ; serveur et clients doivent
-tous être recompilés en version 13 avant une partie en réseau.
+tous être recompilés en version 14 avant une partie en réseau.
 
 
 ## Vélos et stationnement (version 13)
@@ -291,3 +291,13 @@ maintenant cinq modes ; client et serveur doivent être mis à jour ensemble. Le
 local d’une ancienne sauvegarde sans marqueur convertit les positions, chemins, traces
 et décisions de quatre à cinq modes, sans supprimer les habitants ni leurs souvenirs.
 La migration laisse le fichier original intact jusqu’à une sauvegarde explicite.
+
+
+## Chantiers résidentiels (version 14)
+
+Les cases résidentielles transmettent `housingCapacity` (capacité construite),
+`construction` (capacité finale, jour de début et jour de fin) et
+`constructionBlocked` (relogement impossible). Ces champs sont également sauvegardés.
+Une capacité absente dans une ancienne sauvegarde est déduite de l'occupation au
+premier jour simulé ; une case vide sans capacité explicite est un terrain non bâti.
+Les deltas de carte transportent ces champs avec la case complète.

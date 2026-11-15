@@ -383,14 +383,22 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
             } else {
                 "pente composée"
             }
-        val text = "Case ${i % c.width}, ${i / c.width} · altitude ${surface.minimum}–${surface.maximum} ($slope)\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\n${if (t.zone.commercial || t.zone.industrial) "Emplois" else "Habitants"} : ${if (t.zone.residential || t.building == null) {
-            t.occupants
-        } else {
-            c.households
-                .firstOrNull { it.cell == i }
-                ?.people
-                ?.size ?: 0
-        }}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nParking vélo : ${definitions.find { it.id == t.building }?.bicycleParking ?: 0} places\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Charge de pointe ${t.traffic} %"
+        val site = t.construction
+        val constructionInfo =
+            when {
+                site != null -> "\nChantier : capacité future ${site.capacity} habitants · ${(site.completionDay - c.nextDay()).coerceAtLeast(0)} jours restants"
+                t.zone.residential -> "\nCapacité construite : ${t.habitableHousingCapacity} habitants"
+                else -> ""
+            } + if (t.constructionBlocked) "\nAgrandissement impossible : relogement indisponible ou occupants absents." else ""
+        val text =
+            constructionInfo + "\nCase ${i % c.width}, ${i / c.width} · altitude ${surface.minimum}–${surface.maximum} ($slope)\n${definitions.find { it.id == t.building }?.name ?: t.zone.name}\n${if (t.zone.commercial || t.zone.industrial) "Emplois" else "Habitants"} : ${if (t.zone.residential || t.building == null) {
+                t.occupants
+            } else {
+                c.households
+                    .firstOrNull { it.cell == i }
+                    ?.people
+                    ?.size ?: 0
+            }}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nParking vélo : ${definitions.find { it.id == t.building }?.bicycleParking ?: 0} places\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Charge de pointe ${t.traffic} %"
         val household = c.households.firstOrNull { it.cell == i }
         val opinion =
             household

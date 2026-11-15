@@ -37,7 +37,7 @@ finances et données des plugins sont conservés. Les secteurs développés sont
 planes ; leur altitude et le relief voisin peuvent être relevés pour réconcilier les anciennes cases.
 Les anciens barrages sont conservés, même s’ils étaient construits sur de l’eau plate.
 
-Le protocole passe en **version 13** : redémarrer **le serveur et tous les clients** avec cette version.
+Le protocole passe en **version 14** : redémarrer **le serveur et tous les clients** avec cette version.
 Les états réseau sont compressés et les registres des habitants transmis par différences pour limiter
 la latence sur réseau distant. Recompiler les plugins contre le nouveau `core` avant de les redéployer, car le modèle `City` a changé.
 
@@ -228,3 +228,30 @@ Kotlin 2.4.21 est la dernière version **stable** vérifiée le 7 novembre 2026 
 par ce plugin Kotlin. Les versions sont fixées dans le build, sans dépendance dynamique.
 
 Formater le code : `./gradlew ktlintFormat`. Les conventions sont dans `.editorconfig`.
+
+
+### Construction des logements
+
+L'immigration mensuelle utilise les places libres des logements achevés. Un manque
+local de capacité déclenche un chantier, sans créer de citoyens en attente. Les
+places déjà en chantier sont déduites du besoin pour éviter les constructions
+répétées. À l'achèvement, l'accueil dépend à nouveau de la demande mensuelle et de
+l'accès routier extérieur.
+
+Les logements de zone occupent une case et progressent par capacités de 12, 24,
+40, 60 et 80 habitants, dans la limite du zonage (12 en faible densité). La capacité
+représente le volume bâti : les travaux prennent trois jours par place du bâtiment
+final (36 à 240 jours), y compris une reconstruction. La progression utilise les
+jours de simulation, donc reste arrêtée avec la pause et survit aux sauvegardes.
+
+Avant de reconstruire un bâtiment plein, toutes les destinations sont réservées
+ensemble dans des logements achevés, alimentés, accessibles et sans incendie.
+Les partenaires et leurs enfants mineurs restent ensemble ; les habitants doivent
+être rentrés chez eux. Si le relogement échoue, le bâtiment et ses habitants restent
+intacts et l'inspecteur explique le blocage. Les places nécessaires au relogement
+sont réservées avant l'immigration. Un chantier n'héberge personne ; les logements
+achevés restent visibles même vides. Le chantier est représenté par ses fondations
+et son échafaudage, avec la durée restante dans l'inspecteur.
+
+Ce cycle concerne les logements des zones résidentielles. Les équipements placés
+manuellement et les emplois commerciaux/industriels conservent leur fonctionnement.

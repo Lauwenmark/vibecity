@@ -332,7 +332,7 @@ class LifeCycleTest {
         val child = person(id = 5, age = 1, stage = LifeStage.CHILD).let { it.copy(life = it.life!!.copy(parents = listOf(1, 2))) }
         val initial =
             city(a, b, person(id = 3, age = 50), person(id = 4, age = 50), child).let { c ->
-                c.copy(tiles = c.tiles.mapIndexed { i, t -> if (i == 20) t.copy(zone = Zone.RESIDENTIAL_LIGHT) else t })
+                c.copy(tiles = c.tiles.mapIndexed { i, t -> if (i == 20) t.copy(zone = Zone.RESIDENTIAL_LIGHT, housingCapacity = 12) else t })
             }
         val seed = (0L..100000).first { draw(initial.copy(seed = it), 1, 707) < LifeRules.COUPLE_MOVE_CHANCE }
         val moved = monthlyFamilies(initial.copy(seed = seed), catalog)

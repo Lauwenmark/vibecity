@@ -125,7 +125,7 @@ class WellbeingTest {
                     city.tiles.mapIndexed { i, t ->
                         when (i) {
                             17 -> t.copy(pollution = 100)
-                            20 -> t.copy(zone = Zone.RESIDENTIAL_LIGHT)
+                            20 -> t.copy(zone = Zone.RESIDENTIAL_LIGHT, housingCapacity = 12)
                             21 -> t.copy(road = true)
                             else -> t
                         }

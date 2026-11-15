@@ -24,10 +24,14 @@ class ImmigrationTest {
             assertTrue(rejected.households.isEmpty())
             assertEquals(fixture(false).nextCitizenId, rejected.nextCitizenId)
             val accepted = simulation.step(fixture(true))
-            assertTrue(accepted.tiles[18].occupants > 0)
+            assertEquals(0, accepted.tiles[18].occupants)
+            val site = assertNotNull(accepted.tiles[18].construction)
+            val finished = advanceHousingConstruction(accepted.copy(day = site.completionDay))
+            val inhabited = simulation.step(finished.copy(day = dateDay(epoch.plusDays(site.completionDay.toLong()).withDayOfMonth(1).plusMonths(1))))
+            assertTrue(inhabited.tiles[18].occupants > 0)
             assertEquals(
-                accepted.tiles[18].occupants,
-                accepted.households
+                inhabited.tiles[18].occupants,
+                inhabited.households
                     .single()
                     .people.size,
             )
@@ -35,7 +39,8 @@ class ImmigrationTest {
             val ordinaryDay = simulation.step(connected)
             assertTrue(ordinaryDay.households.isEmpty())
             val nextMonth = simulation.step(connected.copy(day = fixture(true).nextDay() + 31))
-            assertEquals(accepted.tiles[18].occupants, nextMonth.tiles[18].occupants)
+            assertEquals(0, nextMonth.tiles[18].occupants)
+            assertNotNull(nextMonth.tiles[18].construction)
         }
 
     @Test fun `all four road borders allow entry but interior roads and border rails do not`() {

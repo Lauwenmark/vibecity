@@ -21,6 +21,11 @@ class PluginTest {
                     city = Commands(catalog).apply(city, Request("BUILD", tool = "coal", x = 1, y = 2))
                     city = Commands(catalog).apply(city, Request("BUILD", tool = "zone:RESIDENTIAL_LIGHT", x = 5, y = 6))
                     for (x in 0..5) city = Commands(catalog).apply(city, Request("BUILD", tool = "road", x = x, y = 7))
+                    val chantier = Simulation(catalog, plugins.rules).step(city)
+                    assertEquals(0, chantier.tiles[101].occupants)
+                    assertNotNull(chantier.tiles[101].construction)
+                    // The development bonus admits residents only into an already completed home.
+                    city = city.copy(tiles = city.tiles.mapIndexed { i, t -> if (i == 101) t.copy(housingCapacity = 12) else t })
                     val standard = Simulation(catalog).step(city)
                     val extended = Simulation(catalog, plugins.rules).step(city)
                     assertEquals(standard.tiles[101].occupants + 1, extended.tiles[101].occupants)

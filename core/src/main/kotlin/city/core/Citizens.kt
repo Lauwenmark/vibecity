@@ -140,6 +140,13 @@ fun City.validateCitizens() {
     require(travelModeCount == TRAVEL_MODE_COUNT)
     require(day == null || day >= 0)
     require(nextCitizenId > 0)
+    for (tile in tiles) {
+        require(tile.housingCapacity == null || tile.housingCapacity in 0..tile.zone.capacity)
+        tile.construction?.let { site ->
+            require(tile.zone.residential && tile.occupants == 0 && tile.completedHousingCapacity == 0)
+            require(site.capacity <= tile.zone.capacity)
+        }
+    }
     val householdsByCell = households.associateBy { it.cell }
     require(householdsByCell.size == households.size)
     val ids = mutableSetOf<Long>()

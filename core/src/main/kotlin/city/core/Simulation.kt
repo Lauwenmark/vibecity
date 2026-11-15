@@ -26,7 +26,7 @@ class Simulation(
         val previousTraffic = city.mobility // Demographic changes invalidate plans, but retain yesterday’s congestion estimate.
         val date = epoch.plusDays(day.toLong())
         val month = (date.year - 1900) * 12 + date.monthValue - 1
-        var current = beginLifeDay(city.copy(month = month, day = day), catalog)
+        var current = beginLifeDay(advanceHousingConstruction(city.copy(month = month, day = day)), catalog)
         current =
             if (date.dayOfMonth == 1) {
                 economicStep(current)
@@ -121,19 +121,9 @@ class Simulation(
                     .filter { it.value.fire > 6 }
                     .map { if (it.value.anchor >= 0) it.value.anchor else it.index }
                     .toSet()
-            val proposedTiles = evolved.mapIndexed { i, t -> if (i in burnt || t.anchor in burnt) t.copy(building = null, residentialOccupancy = null, anchor = -1, occupants = 0, fire = 0, trees = false) else t }
-            // Growth proposes immigration; failed assignments leave no residents or pending backlog.
-            // Evaluate the resulting network, including fires started during this economic step.
-            val hasArrivals = proposedTiles.indices.any { i -> proposedTiles[i].zone.residential && proposedTiles[i].occupants > city.tiles[i].occupants }
-            val exteriorAccess = if (hasArrivals) MobilityRouter(city.copy(tiles = proposedTiles), catalog, null).exteriorRoadAccess() else null
-            val tiles =
-                proposedTiles.mapIndexed { i, tile ->
-                    if (tile.zone.residential && tile.occupants > city.tiles[i].occupants && exteriorAccess?.get(i) != true) {
-                        tile.copy(occupants = city.tiles[i].occupants)
-                    } else {
-                        tile
-                    }
-                }
+            val proposedTiles = evolved.mapIndexed { i, t -> if (i in burnt || t.anchor in burnt) t.copy(building = null, residentialOccupancy = null, housingCapacity = 0, construction = null, constructionBlocked = false, anchor = -1, occupants = 0, fire = 0, trees = false) else t }
+            val housing = developHousing(city, proposedTiles, catalog)
+            val tiles = housing.tiles
             val residents =
                 tiles.filter { it.zone.residential }.sumOf { it.occupants } +
                     tiles
@@ -162,11 +152,14 @@ class Simulation(
                     if (city.treasury + income - expenses < 0) add("Déficit : adaptez les impôts, les dépenses ou émettez un emprunt.")
                     if (tiles.any { it.zone != Zone.NONE && !it.powered }) add("Des zones ne sont pas alimentées en électricité.")
                     if (tiles.any { it.fire > 0 }) add("Incendie ! Construisez et financez des casernes.")
+                    if (tiles.any { it.constructionBlocked }) add("Agrandissement impossible : logements de relogement insuffisants ou occupants absents.")
                     if (residents > 0 && employment < residents / 3) add("Le chômage freine la ville : développez des emplois.")
                 }
             var result =
                 city.copy(
                     tiles = tiles,
+                    households = housing.households,
+                    mobility = housing.mobility,
                     month = city.month,
                     revision = city.revision + 1,
                     treasury = city.treasury + income - expenses,
@@ -189,7 +182,7 @@ class Simulation(
         val supplied = BooleanArray(city.tiles.size)
         var total = 0
 
-        fun conducts(t: Tile) = if (water) t.pipe || t.building != null || (t.zone != Zone.NONE && t.occupants > 0) else t.powerLine || t.building != null || t.zone != Zone.NONE
+        fun conducts(t: Tile) = if (water) t.pipe || t.building != null || (t.zone != Zone.NONE && (t.occupants > 0 || t.completedHousingCapacity > 0 || t.construction != null)) else t.powerLine || t.building != null || t.zone != Zone.NONE
         for (start in city.tiles.indices) {
             if (visited[start] || !conducts(city.tiles[start])) continue
             val component = ArrayList<Int>()

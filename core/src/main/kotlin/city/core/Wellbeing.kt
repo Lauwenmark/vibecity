@@ -114,7 +114,7 @@ fun updateWellbeing(
             val execution = executions[home.cell]
 
             fun service(key: String) = services[key]?.get(home.cell) ?: 0
-            val capacity = if (tile.zone.residential) tile.zone.capacity else tile.building?.let { catalog[it].residents } ?: 0
+            val capacity = if (tile.zone.residential) tile.habitableHousingCapacity else tile.building?.let { catalog[it].residents } ?: 0
             val crowding = (home.people.size.toDouble() / max(1, capacity) - .85).coerceAtLeast(0.0) / .15
             val rent = 5.0 + tile.landValue * .10 + if (tile.zone == Zone.RESIDENTIAL_LIGHT) 2 else 0
             val householdIncome = home.people.sumOf { it.dailyIncome } + if (home.people.none { it.age >= 18 }) home.people.size * 30.0 else 0.0
@@ -261,7 +261,7 @@ fun migrateUnhappyHouseholds(
             tiles.indices.firstOrNull { i ->
                 val t = tiles[i]
                 i != home.cell && t.zone.residential && t.occupants == 0 && homes[i]?.people.isNullOrEmpty() &&
-                    t.zone.capacity >= home.people.size && t.powered && t.watered && t.fire == 0 && city.surface(i).flat &&
+                    t.habitableHousingCapacity >= home.people.size && t.powered && t.watered && t.fire == 0 && city.surface(i).flat &&
                     quality(i) >= quality(home.cell) + 8 && city.neighbors(i).any { tiles[it].road || tiles[it].rail || tiles[it].subway }
             }
         val source = tiles[home.cell]

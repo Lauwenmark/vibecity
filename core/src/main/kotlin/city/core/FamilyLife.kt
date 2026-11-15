@@ -88,7 +88,7 @@ internal fun monthlyFamilies(
     fun capacity(cell: Int): Int =
         city.tiles[cell].let {
             if (it.zone.residential) {
-                it.zone.capacity
+                it.habitableHousingCapacity
             } else if (it.anchor == cell) {
                 it.building?.let { b -> catalog[b].residents } ?: 0
             } else {

@@ -181,7 +181,27 @@ internal class CityRenderer(
                                 }
                             g.drawString(label, sx - 3, sy + geometry.depth - geometry.height)
                         }
-                    } else if (t.occupants > 0) {
+                    } else if (t.construction != null) {
+                        val geometry = buildingGeometry(t, null, zoom)!!
+                        // Visible foundations and an open scaffold, drawn in the native isometric toolkit.
+                        block(g, sx, sy + geometry.depth, geometry.width, geometry.depth, (3 * zoom).toInt(), Color(0x9c8c70))
+                        g.color = Color(0xe2b84b)
+                        val corners =
+                            listOf(
+                                Point(sx - geometry.width, sy),
+                                Point(sx, sy - geometry.depth),
+                                Point(sx + geometry.width, sy),
+                                Point(sx, sy + geometry.depth),
+                            )
+                        for (corner in corners) g.drawLine(corner.x, corner.y, corner.x, corner.y - geometry.height)
+                        for (level in 0..3) {
+                            val elevation = geometry.height * level / 3
+                            g.drawPolygon(corners.map { it.x }.toIntArray(), corners.map { it.y - elevation }.toIntArray(), 4)
+                        }
+                        for (side in listOf(0, 2)) {
+                            g.drawLine(corners[side].x, corners[side].y, sx, sy + geometry.depth - geometry.height)
+                        }
+                    } else if (t.occupants > 0 || t.completedHousingCapacity > 0) {
                         val geometry = buildingGeometry(t, null, zoom)!!
                         block(
                             g,
@@ -356,8 +376,9 @@ internal fun buildingGeometry(
             }
         return BuildingGeometry(w - 2, h - 1, (height * zoom).toInt())
     }
-    if (tile.occupants <= 0) return null
-    val density = (tile.occupants.toDouble() / max(1, tile.zone.capacity)).coerceIn(0.0, 1.0)
+    val volume = tile.construction?.capacity ?: if (tile.zone.residential) tile.completedHousingCapacity else tile.occupants
+    if (volume <= 0) return null
+    val density = (volume.toDouble() / max(1, tile.zone.capacity)).coerceIn(0.0, 1.0)
     val height = ((if (tile.zone.name.endsWith("DENSE")) 10 + density * 40 else 5 + density * 10) * zoom).toInt()
     return BuildingGeometry((w * .65).toInt(), (h * .65).toInt(), height)
 }

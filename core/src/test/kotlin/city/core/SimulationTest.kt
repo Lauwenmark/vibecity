@@ -122,7 +122,8 @@ class SimulationTest {
                 parallel = Simulation(catalog, workers = 8).step(parallel)
             }
             assertEquals(serial, parallel)
-            assertTrue(serial.stats.population > 0)
+            assertEquals(0, serial.stats.population)
+            assertTrue(serial.tiles.any { it.construction != null })
             assertTrue(serial.stats.jobs > 0)
             assertTrue(serial.tiles.any { it.zone.residential && it.watered })
             assertEquals(1, serial.history.size)
