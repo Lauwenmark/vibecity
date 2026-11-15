@@ -6,7 +6,7 @@ import java.awt.geom.AffineTransform
 import java.awt.geom.Area
 import kotlin.math.*
 
-/** Decorative traffic derived only from ROAD counts. Geometry is rebuilt on snapshots/zoom, not frames. */
+/** Decorative traffic derived only from ROAD counts. Geometry is cached independently of traffic volumes and municipal rules. */
 internal class RoadTrafficAnimation {
     internal data class Segment(
         val from: Int,
@@ -32,6 +32,13 @@ internal class RoadTrafficAnimation {
         private set
     private var zoom = 1.0
     private var source: City? = null
+    private var geometryRotation = 0
+    private var geometryLayer = Layer.SURFACE
+    private var geometryCatalog: Map<String, BuildingDef> = emptyMap()
+
+    // Only the current scenery is retained; entries are created for active road edges.
+    private val geometry = mutableMapOf<Long, Segment?>()
+    private var buildingIndex: Map<Pair<Int, Int>, List<Shape>>? = null
     private var roadLoads: List<TrafficLoad> = emptyList()
     val isEmpty: Boolean get() = segments.isEmpty()
 
@@ -43,8 +50,17 @@ internal class RoadTrafficAnimation {
         rotation: Int = 0,
         layer: Layer = Layer.SURFACE,
     ) {
-        this.zoom = zoom
         val previous = source
+        if (city == null || previous == null || !sameScenery(previous, city) || this.zoom != zoom ||
+            geometryRotation != rotation || geometryLayer != layer || geometryCatalog != catalog
+        ) {
+            geometry.clear()
+            buildingIndex = null
+        }
+        this.zoom = zoom
+        geometryRotation = rotation
+        geometryLayer = layer
+        geometryCatalog = catalog
         if (city == null || previous?.seed != city.seed || previous.width != city.width || previous.height != city.height || city.revision < previous.revision) {
             roadLoads = emptyList()
         }
@@ -69,6 +85,69 @@ internal class RoadTrafficAnimation {
             return
         }
         val projection = CityProjection(city.width, city.height, zoom, rotation)
+        val buildings by lazy {
+            buildingIndex ?: indexBuildings(city, catalog, projection, zoom, layer).also { buildingIndex = it }
+        }
+        segments =
+            buildList {
+                city.tiles.forEachIndexed { i, tile ->
+                    if (!tile.road || tile.fire > 0 || volumes[i] == 0) return@forEachIndexed
+                    for (n in city.neighbors(i)) {
+                        if (n <= i || !city.tiles[n].road || city.tiles[n].fire > 0 || !city.transportConnects(i, n)) continue
+                        val volume = min(volumes[i], volumes[n])
+                        if (volume == 0) continue
+                        val ratio = volume.toDouble() / (city.trafficRules.roadEntriesPerMinute * 60)
+                        val count = ceil(ratio * 4).toInt().coerceIn(1, 6)
+                        val speed = .65 / (1 + 3 * ratio.coerceAtMost(3.0))
+                        val key = i.toLong() * city.tiles.size + n
+                        if (key !in geometry) {
+                            val ax = projection.screenX(i % city.width, i / city.width).toDouble()
+                            val ay = projection.centerY(i % city.width, i / city.width, city.surface(i)).toDouble()
+                            val bx = projection.screenX(n % city.width, n / city.width).toDouble()
+                            val by = projection.centerY(n % city.width, n / city.width, city.surface(n)).toDouble()
+                            val bounds = Rectangle(floor(min(ax, bx)).toInt(), floor(min(ay, by)).toInt(), ceil(abs(bx - ax)).toInt() + 1, ceil(abs(by - ay)).toInt() + 1).apply { grow(ceil(6 * zoom).toInt(), ceil(6 * zoom).toInt()) }
+                            val visible = Area(bounds)
+                            val occluders = mutableSetOf<Shape>()
+                            for (y in Math.floorDiv(bounds.y, 64)..Math.floorDiv(bounds.y + bounds.height, 64)) {
+                                for (x in Math.floorDiv(bounds.x, 64)..Math.floorDiv(bounds.x + bounds.width, 64)) occluders.addAll(buildings[x to y].orEmpty())
+                            }
+                            for (shape in occluders) if (shape.intersects(bounds)) visible.subtract(Area(shape))
+                            geometry[key] = if (visible.isEmpty) null else Segment(i, n, ax, ay, bx, by, count, speed, bounds, visible)
+                        }
+                        geometry[key]?.let { cached ->
+                            val segment = if (cached.count == count && cached.speed == speed) cached else cached.copy(count = count, speed = speed)
+                            geometry[key] = segment
+                            add(segment)
+                        }
+                    }
+                }
+            }
+    }
+
+    /** Compare only inputs used by projection, connectivity and building silhouettes. */
+    private fun sameScenery(
+        previous: City,
+        city: City,
+    ): Boolean =
+        previous.width == city.width && previous.height == city.height && previous.seed == city.seed &&
+            previous.terrain == city.terrain &&
+            (
+                previous.tiles === city.tiles ||
+                    city.tiles.indices.all { i ->
+                        val a = previous.tiles[i]
+                        val b = city.tiles[i]
+                        a.road == b.road && (a.fire > 0) == (b.fire > 0) && a.elevation == b.elevation &&
+                            a.building == b.building && a.anchor == b.anchor && a.zone == b.zone && a.occupants == b.occupants
+                    }
+            )
+
+    private fun indexBuildings(
+        city: City,
+        catalog: Map<String, BuildingDef>,
+        projection: CityProjection,
+        zoom: Double,
+        layer: Layer,
+    ): Map<Pair<Int, Int>, List<Shape>> {
         // Spatially indexed building silhouettes prevent cars being painted over foreground roofs.
         val buildings = mutableMapOf<Pair<Int, Int>, MutableList<Shape>>()
         city.tiles.forEachIndexed { i, tile ->
@@ -87,30 +166,7 @@ internal class RoadTrafficAnimation {
                 for (x in Math.floorDiv(bounds.x, 64)..Math.floorDiv(bounds.x + bounds.width, 64)) buildings.getOrPut(x to y) { mutableListOf() }.add(shape)
             }
         }
-        segments =
-            buildList {
-                city.tiles.forEachIndexed { i, tile ->
-                    if (!tile.road || tile.fire > 0 || volumes[i] == 0) return@forEachIndexed
-                    for (n in city.neighbors(i)) {
-                        if (n <= i || !city.tiles[n].road || city.tiles[n].fire > 0 || !city.transportConnects(i, n)) continue
-                        val volume = min(volumes[i], volumes[n])
-                        if (volume == 0) continue
-                        val ratio = volume.toDouble() / (city.trafficRules.roadEntriesPerMinute * 60)
-                        val ax = projection.screenX(i % city.width, i / city.width).toDouble()
-                        val ay = projection.centerY(i % city.width, i / city.width, city.surface(i)).toDouble()
-                        val bx = projection.screenX(n % city.width, n / city.width).toDouble()
-                        val by = projection.centerY(n % city.width, n / city.width, city.surface(n)).toDouble()
-                        val bounds = Rectangle(floor(min(ax, bx)).toInt(), floor(min(ay, by)).toInt(), ceil(abs(bx - ax)).toInt() + 1, ceil(abs(by - ay)).toInt() + 1).apply { grow(ceil(6 * zoom).toInt(), ceil(6 * zoom).toInt()) }
-                        val visible = Area(bounds)
-                        val occluders = mutableSetOf<Shape>()
-                        for (y in Math.floorDiv(bounds.y, 64)..Math.floorDiv(bounds.y + bounds.height, 64)) {
-                            for (x in Math.floorDiv(bounds.x, 64)..Math.floorDiv(bounds.x + bounds.width, 64)) occluders.addAll(buildings[x to y].orEmpty())
-                        }
-                        for (shape in occluders) if (shape.intersects(bounds)) visible.subtract(Area(shape))
-                        if (!visible.isEmpty) add(Segment(i, n, ax, ay, bx, by, ceil(ratio * 4).toInt().coerceIn(1, 6), .65 / (1 + 3 * ratio.coerceAtMost(3.0)), bounds, visible))
-                    }
-                }
-            }
+        return buildings
     }
 
     fun paint(

@@ -2,6 +2,7 @@ package city.client
 
 import city.core.*
 import java.awt.*
+import java.awt.geom.Area
 import java.awt.image.BufferedImage
 import java.nio.file.Files
 import java.nio.file.Path
@@ -39,6 +40,81 @@ class RoadTrafficAnimationTest {
         assertTrue(view.isEmpty)
         view.update(fixture().copy(mobility = null), -1, 1.0)
         assertTrue(view.isEmpty)
+    }
+
+    @Test fun `municipal changes reuse segments and traffic changes reuse masks`() {
+        val source = fixture(12)
+        val view = RoadTrafficAnimation()
+        view.update(source, 8, 1.0)
+        val initial = view.segments.toList()
+        val changedRules = source.copy(revision = 1, treasury = 12345, rules = Rules(taxRate = 12, speed = 0))
+        view.update(changedRules, 8, 1.0)
+        initial.zip(view.segments).forEach { (old, next) -> assertSame(old, next) }
+        val busier = fixture(120).copy(revision = 2)
+        view.update(busier, 8, 1.0)
+        initial.zip(view.segments).forEach { (old, next) ->
+            assertSame(old.visibleRoad, next.visibleRoad)
+            assertSame(old.bounds, next.bounds)
+            assertTrue(next.count > old.count)
+            assertTrue(next.speed < old.speed)
+        }
+        val busy = view.segments.toList()
+        view.update(busier, 0, 1.0)
+        assertTrue(view.isEmpty)
+        view.update(busier, 8, 1.0)
+        busy.zip(view.segments).forEach { (old, next) -> assertSame(old, next) }
+        val capacity = busier.copy(trafficRules = busier.trafficRules.copy(roadEntriesPerMinute = busier.trafficRules.roadEntriesPerMinute * 2))
+        view.update(capacity, 8, 1.0)
+        busy.zip(view.segments).forEach { (old, next) ->
+            assertSame(old.visibleRoad, next.visibleRoad)
+            assertTrue(next.speed > old.speed)
+        }
+        view.update(null, 8, 1.0)
+        view.update(source, 8, 1.0)
+        assertNotSame(initial.first().visibleRoad, view.segments.first().visibleRoad)
+    }
+
+    @Test fun `cached geometry matches fresh geometry after scenery and camera changes`() {
+        val source = fixture()
+        val view = RoadTrafficAnimation()
+
+        data class Scene(
+            val city: City = source,
+            val zoom: Double = 1.0,
+            val rotation: Int = 0,
+            val layer: Layer = Layer.SURFACE,
+            val catalog: Map<String, BuildingDef> = emptyMap(),
+        )
+
+        fun tileScene(change: (Tile) -> Tile): Scene = Scene(source.copy(tiles = source.tiles.mapIndexed { i, tile -> if (i == 7 * 16 + 9) change(tile) else tile }))
+        val scenes =
+            listOf(
+                Scene(),
+                Scene(source.copy(terrain = Terrain.flat(16, 16, 6))),
+                tileScene { it.copy(zone = Zone.RESIDENTIAL_DENSE, occupants = 80) },
+                tileScene { it.copy(zone = Zone.RESIDENTIAL_DENSE, occupants = 20) },
+                tileScene { it.copy(building = "tower", anchor = 7 * 16 + 9) },
+                Scene(zoom = 2.0),
+                Scene(rotation = 1),
+                Scene(layer = Layer.TRAFFIC),
+                Scene(catalog = Catalog().all().associateBy { it.id }),
+                Scene(source.copy(tiles = source.tiles.mapIndexed { i, tile -> if (i == 6 * 16 + 7) tile.copy(fire = 1) else tile })),
+                Scene(source.copy(tiles = source.tiles.mapIndexed { i, tile -> if (i == 6 * 16 + 7) tile.copy(road = false) else tile })),
+            )
+        for (scene in scenes) {
+            view.update(scene.city, 8, scene.zoom, scene.catalog, scene.rotation, scene.layer)
+            val fresh = RoadTrafficAnimation()
+            fresh.update(scene.city, 8, scene.zoom, scene.catalog, scene.rotation, scene.layer)
+            assertEquals(fresh.segments.map { it.from to it.to }, view.segments.map { it.from to it.to })
+            fresh.segments.zip(view.segments).forEach { (expected, actual) ->
+                assertEquals(expected.bounds, actual.bounds)
+                assertEquals(listOf(expected.ax, expected.ay, expected.bx, expected.by, expected.speed), listOf(actual.ax, actual.ay, actual.bx, actual.by, actual.speed))
+                assertEquals(expected.count, actual.count)
+                val difference = Area(expected.visibleRoad)
+                difference.exclusiveOr(Area(actual.visibleRoad))
+                assertTrue(difference.isEmpty)
+            }
+        }
     }
 
     @Test fun `construction retains decorative traffic until recalculation but demolished roads stay empty`() {
