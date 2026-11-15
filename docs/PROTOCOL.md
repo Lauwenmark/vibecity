@@ -66,6 +66,11 @@ Exemple de commande et d’accusé de réception (champs par défaut omis pour l
 
 Après une ou plusieurs mutations rapprochées, tous les clients reçoivent un `STATE` reflétant leur résultat. Un ACK confirme une transaction en
 mémoire, **pas** une sauvegarde durable. Seul l’ACK de `SAVE` confirme la fin de l’écriture du fichier.
+`SAVE` capture l’état au moment où la commande est traitée. Son ACK/ERROR peut arriver après les
+réponses à des commandes suivantes : utiliser `id` pour les associer. Les écritures sont ordonnées,
+avec au plus une demande en attente en plus de l’écriture active ; une file pleine produit un ERROR.
+Pendant la sauvegarde finale d’un arrêt, `PING` reste disponible mais les mutations et nouveaux
+`SAVE` sont refusés. Un échec de cette sauvegarde remet le serveur en service, ville en pause.
 Une sauvegarde ne change pas la révision. Une commande refusée ne change ni la révision ni les fonds.
 
 ```json

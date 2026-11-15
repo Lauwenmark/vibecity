@@ -235,6 +235,11 @@ d’une reconstruction à froid. Les allocations mesurées dans ce chemin sur 64
 
 La sauvegarde est un JSON complet de `City`. Le serveur écrit un fichier temporaire dans le même
 répertoire puis remplace la cible par déplacement atomique si le système de fichiers le permet.
+Le JSON est sérialisé directement dans un flux, sans chaîne complète intermédiaire. Un worker
+unique écrit les instantanés dans l’ordre, pendant que l’acteur continue de traiter les commandes.
+La file conserve au plus une sauvegarde en attente en plus de l’écriture active ; les demandes
+manuelles supplémentaires reçoivent une erreur explicite. Un échec de sauvegarde automatique
+met la ville courante en pause sans annuler les modifications reçues depuis l’instantané sauvegardé.
 Le repli est un remplacement ordinaire, moins robuste à une coupure. Il n’y a pas de journal durable
 par commande, de rotation de sauvegardes ni de garantie contre une panne électrique avant flush disque.
 
@@ -242,9 +247,14 @@ Au chargement : bornes de taille, dimensions, règles et intégrité des emprise
 Un identifiant de bâtiment absent du catalogue est une erreur explicite, pour éviter de perdre
 silencieusement les bâtiments d’un plugin manquant. La sauvegarde n’est pas compatible avec `.SC2`.
 
-L’arrêt normal ferme l’écoute, traite les événements déjà admis jusqu’à l’événement d’arrêt,
-sauvegarde, ferme les sockets et annule le scope. Fermer les sockets débloque les lectures/écritures
-bloquantes. `close()` est un arrêt immédiat sans sauvegarde ; `shutdown()` est le chemin normal.
+L’arrêt normal traite les événements jusqu’à l’événement d’arrêt, puis refuse les nouvelles
+mutations et suspend la simulation. Son instantané final est écrit après les sauvegardes déjà
+admises ; il peut occuper une place supplémentaire pendant l’attente. Les `PING` restent traités.
+La réussite ferme l’écoute et les sockets et annule le scope. Un échec conserve la ville en pause
+et les connexions, afin de réparer la destination et réessayer. Les appels concurrents à `shutdown()`
+attendent la même tentative ; l’annulation d’un appelant n’annule pas la sauvegarde.
+Fermer les sockets débloque les lectures/écritures bloquantes. `close()` est un arrêt immédiat
+sans garantie de sauvegarde ; `shutdown()` est le chemin normal.
 
 ## Limites opérationnelles
 

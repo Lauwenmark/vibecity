@@ -4,7 +4,6 @@ import city.core.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.MissingFieldException
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
 import java.io.ByteArrayInputStream
 import java.io.SequenceInputStream
@@ -12,6 +11,7 @@ import java.nio.file.*
 
 /** A complete snapshot is written to a sibling temp file and atomically replaces the old save. */
 object Persistence {
+    @OptIn(ExperimentalSerializationApi::class)
     fun save(
         path: Path,
         city: City,
@@ -20,7 +20,7 @@ object Persistence {
         Files.createDirectories(target.parent)
         val temporary = Files.createTempFile(target.parent, "city-", ".tmp")
         try {
-            Files.writeString(temporary, wireJson.encodeToString(city))
+            Files.newOutputStream(temporary).buffered().use { wireJson.encodeToStream(city, it) }
             try {
                 Files.move(temporary, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
             } catch (_: AtomicMoveNotSupportedException) {

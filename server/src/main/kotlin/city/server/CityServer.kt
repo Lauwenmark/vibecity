@@ -29,6 +29,7 @@ class CityServer(
     private val tickMillis: Long = 1500,
     systems: List<CityRule> = emptyList(),
     testMode: Boolean = false,
+    private val saveSnapshot: (Path, City) -> Unit = Persistence::save,
 ) : AutoCloseable {
     init {
         require(tickMillis > 0)
@@ -55,8 +56,26 @@ class CityServer(
     private var city = initial.withSharedTerrain()
 
     private var simulationJob: Job? = null
+    private var stopping: CompletableDeferred<Unit>? = null // owned by actor only
+
+    // One active and one pending save; shutdown may retain one additional final snapshot.
+    private val saves = Channel<Save>(1)
+
+    private data class Save(
+        val snapshot: City,
+        val session: Session? = null,
+        val id: Long = 0,
+        val shutdown: CompletableDeferred<Unit>? = null,
+    )
 
     private sealed interface Event {
+        data class Saved(
+            val session: Session?,
+            val id: Long,
+            val shutdown: CompletableDeferred<Unit>?,
+            val failure: Exception?,
+        ) : Event
+
         data class Simulated(
             val revision: Long,
             val result: City?,
@@ -127,15 +146,15 @@ class CityServer(
                         s.lastId = r.id
                         try {
                             require(r.version == PROTOCOL_VERSION) { "Version incompatible" }
+                            require(stopping == null || r.type == "PING") { "Arrêt en cours : modification non acceptée" }
                             when (r.type) {
                                 "PING" -> {
                                     send(s, Response("PONG", id = r.id))
                                 }
 
                                 "SAVE" -> {
-                                    val path = savePath ?: error("Sauvegarde désactivée")
-                                    withContext(Dispatchers.IO) { Persistence.save(path, city) }
-                                    send(s, Response("ACK", id = r.id, message = "Ville sauvegardée"))
+                                    check(savePath != null) { "Sauvegarde désactivée" }
+                                    check(saves.trySend(Save(city, s, r.id)).isSuccess) { "Une sauvegarde est déjà en attente ; réessayez plus tard" }
                                 }
 
                                 else -> {
@@ -152,7 +171,7 @@ class CityServer(
                     }
 
                     is Event.Tick -> {
-                        if (city.rules.speed == 0) {
+                        if (stopping != null || city.rules.speed == 0) {
                             event.done.complete(Unit)
                         } else {
                             val base = city
@@ -176,7 +195,7 @@ class CityServer(
 
                     is Event.Simulated -> {
                         // A command may have invalidated this calculation, even after it finished.
-                        if (event.revision != city.revision) continue
+                        if (stopping != null || event.revision != city.revision) continue
                         val previousYear = city.month / 12
                         if (event.failure != null) {
                             System.err.println("Simulation paused: ${event.failure.message}")
@@ -184,14 +203,8 @@ class CityServer(
                         } else {
                             city = checkNotNull(event.result)
                             if (city.month / 12 > previousYear && savePath != null) {
-                                try {
-                                    withContext(Dispatchers.IO) { Persistence.save(savePath, city) }
-                                } catch (e: Exception) {
-                                    if (e is CancellationException) throw e
-                                    System.err.println("Autosave failed: ${e.message}")
-                                    // Keep the actor responsive so the operator can repair the
-                                    // destination, save manually and shut down without hanging.
-                                    city = city.copy(rules = city.rules.copy(speed = 0), notices = city.notices + "Échec de la sauvegarde automatique : ${e.message}")
+                                if (!saves.trySend(Save(city)).isSuccess) {
+                                    pauseAfterSaveFailure("Échec de la sauvegarde automatique : une sauvegarde est déjà en attente")
                                 }
                             }
                         }
@@ -200,20 +213,46 @@ class CityServer(
 
                     is Event.Stop -> {
                         simulationJob?.cancel()
-                        try {
-                            if (savePath != null) withContext(Dispatchers.IO) { Persistence.save(savePath, city) }
-                            running.set(false)
-                            listener.close()
-                            closeResources()
-                            event.done.complete(Unit)
+                        stopping = event.done
+                        if (savePath == null) {
+                            finishShutdown(event.done)
                             break
-                        } catch (e: Exception) {
-                            if (e is CancellationException) throw e
-                            // Retain the authoritative city and connections so saving can be retried.
-                            city = city.copy(revision = city.revision + 1, rules = city.rules.copy(speed = 0), notices = city.notices + "Échec de la sauvegarde à l’arrêt : ${e.message}")
-                            broadcast()
-                            shutdownAttempt.compareAndSet(event.done, null)
-                            event.done.completeExceptionally(e)
+                        }
+                        val finalSave = Save(city, shutdown = event.done)
+                        // Never suspend the actor on a full save queue: PING and departures still work.
+                        scope.launch { saves.send(finalSave) }
+                    }
+
+                    is Event.Saved -> {
+                        val save = event
+                        val failure = event.failure
+                        when {
+                            save.shutdown != null -> {
+                                if (failure == null) {
+                                    finishShutdown(save.shutdown)
+                                    break
+                                }
+                                stopping = null
+                                pauseAfterSaveFailure("Échec de la sauvegarde à l’arrêt : ${failure.message}")
+                                broadcast()
+                                shutdownAttempt.compareAndSet(save.shutdown, null)
+                                save.shutdown.completeExceptionally(failure)
+                            }
+
+                            save.session != null -> {
+                                if (save.session in sessions) {
+                                    send(save.session, Response(if (failure == null) "ACK" else "ERROR", id = save.id, message = if (failure == null) "Ville sauvegardée" else failure.message ?: "Échec de la sauvegarde"))
+                                }
+                            }
+
+                            failure != null -> {
+                                System.err.println("Autosave failed: ${failure.message}")
+                                // A pending final save supersedes this autosave and owns error recovery.
+                                if (stopping == null) {
+                                    pauseAfterSaveFailure("Échec de la sauvegarde automatique : ${failure.message}")
+                                    broadcast()
+                                }
+                            }
                         }
                     }
                 }
@@ -221,6 +260,20 @@ class CityServer(
         }
 
     init {
+        scope.launch {
+            for (save in saves) {
+                val failure =
+                    try {
+                        saveSnapshot(checkNotNull(savePath), save.snapshot)
+                        null
+                    } catch (e: Exception) {
+                        if (e is CancellationException) throw e
+                        e
+                    }
+                // Completion events do not retain the potentially large snapshot in the actor mailbox.
+                events.send(Event.Saved(save.session, save.id, save.shutdown, failure))
+            }
+        }
         scope.launch {
             try {
                 while (running.get()) {
@@ -363,6 +416,18 @@ class CityServer(
         sessions.forEach { it.states.trySend(response) }
     }
 
+    private fun pauseAfterSaveFailure(message: String) {
+        simulationJob?.cancel()
+        city = city.copy(revision = city.revision + 1, rules = city.rules.copy(speed = 0), notices = city.notices + message)
+    }
+
+    private fun finishShutdown(done: CompletableDeferred<Unit>) {
+        running.set(false)
+        runCatching { listener.close() }
+        closeResources()
+        done.complete(Unit)
+    }
+
     /** Drains commands already admitted, then saves; socket closure unblocks all blocking IO. */
     suspend fun shutdown() {
         while (true) {
@@ -384,6 +449,7 @@ class CityServer(
 
     private fun closeResources() {
         sockets.forEach { runCatching { it.close() } }
+        saves.cancel()
         events.close()
         scope.cancel()
     }

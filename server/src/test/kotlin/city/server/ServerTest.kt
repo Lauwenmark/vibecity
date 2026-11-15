@@ -6,6 +6,8 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import java.net.Socket
 import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlin.test.*
 
 class ServerTest {
@@ -84,6 +86,140 @@ class ServerTest {
                 server.close()
                 if (Files.isDirectory(blocked)) Files.deleteIfExists(path)
                 Files.deleteIfExists(blocked)
+                Files.delete(directory)
+            }
+        }
+
+    @Test fun `slow saves keep commands responsive bound pending work and precede the final snapshot`() =
+        runBlocking {
+            val directory = Files.createTempDirectory("city-save-order")
+            val path = directory.resolve("city.json")
+            val entered = CompletableDeferred<Unit>()
+            val release = CountDownLatch(1)
+            val revisions = java.util.Collections.synchronizedList(mutableListOf<Long>())
+            val server =
+                CityServer(flat(), port = 0, savePath = path, saveSnapshot = { target, snapshot ->
+                    revisions.add(snapshot.revision)
+                    if (revisions.size == 1) {
+                        entered.complete(Unit)
+                        check(release.await(15, TimeUnit.SECONDS))
+                    }
+                    Persistence.save(target, snapshot)
+                })
+            try {
+                Peer(server.port).use { peer ->
+                    peer.until { it.type == "STATE" }
+                    peer.send(Request("SAVE", id = 1))
+                    withTimeout(5000) { entered.await() }
+                    peer.send(Request("BUILD", id = 2, tool = "park", x = 2, y = 2))
+                    assertEquals("ACK", peer.until { it.id == 2L }.type)
+                    peer.send(Request("SAVE", id = 3))
+                    peer.send(Request("PING", id = 4))
+                    val replies = mutableListOf<Response>()
+                    do {
+                        val reply = peer.next()
+                        replies.add(reply)
+                    } while (reply.id != 4L)
+                    assertEquals("PONG", replies.last().type)
+                    assertTrue(replies.none { it.type == "ACK" && it.id in listOf(1L, 3L) })
+                    assertFalse(Files.exists(path))
+                    peer.send(Request("SAVE", id = 5))
+                    assertEquals("ERROR", peer.until { it.id == 5L }.type)
+                    peer.send(Request("TAX", id = 6, value = 9))
+                    val latest = peer.until { it.city?.revision == 2L }.city!!
+                    val stopped = async { server.shutdown() }
+                    release.countDown()
+                    withTimeout(5000) { stopped.await() }
+                    assertEquals(listOf(0L, 1L, 2L), revisions.toList())
+                    assertEquals(latest, Persistence.load(path, Catalog()))
+                }
+            } finally {
+                release.countDown()
+                server.close()
+                Files.deleteIfExists(path)
+                Files.delete(directory)
+            }
+        }
+
+    @Test fun `shutdown remains responsive and completes even if its first caller stops waiting`() =
+        runBlocking {
+            val directory = Files.createTempDirectory("city-stop-waiter")
+            val path = directory.resolve("city.json")
+            val entered = CompletableDeferred<Unit>()
+            val release = CountDownLatch(1)
+            val writes =
+                java.util.concurrent.atomic
+                    .AtomicInteger()
+            val initial = flat()
+            val server =
+                CityServer(initial, port = 0, savePath = path, saveSnapshot = { target, snapshot ->
+                    writes.incrementAndGet()
+                    entered.complete(Unit)
+                    check(release.await(15, TimeUnit.SECONDS))
+                    Persistence.save(target, snapshot)
+                })
+            try {
+                Peer(server.port).use { peer ->
+                    peer.until { it.type == "STATE" }
+                    val first = launch { server.shutdown() }
+                    withTimeout(5000) { entered.await() }
+                    val second = async { server.shutdown() }
+                    first.cancelAndJoin()
+                    peer.send(Request("PING", id = 1))
+                    assertEquals("PONG", peer.until { it.id == 1L }.type)
+                    peer.send(Request("BUILD", id = 2, tool = "park", x = 2, y = 2))
+                    assertEquals("ERROR", peer.until { it.id == 2L }.type)
+                    assertFalse(second.isCompleted)
+                    release.countDown()
+                    withTimeout(5000) { second.await() }
+                    assertEquals(1, writes.get())
+                    assertEquals(initial, Persistence.load(path, Catalog()))
+                }
+            } finally {
+                release.countDown()
+                server.close()
+                Files.deleteIfExists(path)
+                Files.delete(directory)
+            }
+        }
+
+    @Test fun `delayed autosave failure pauses the latest edited city and permits a manual retry`() =
+        runBlocking {
+            val directory = Files.createTempDirectory("city-async-autosave")
+            val path = directory.resolve("city.json")
+            val entered = CompletableDeferred<Unit>()
+            val release = CountDownLatch(1)
+            val writes =
+                java.util.concurrent.atomic
+                    .AtomicInteger()
+            val server =
+                CityServer(flat().copy(month = 11, day = 364, rules = Rules(speed = 3)), port = 0, savePath = path, tickMillis = 40, saveSnapshot = { target, snapshot ->
+                    if (writes.incrementAndGet() == 1) {
+                        entered.complete(Unit)
+                        check(release.await(15, TimeUnit.SECONDS))
+                        throw java.io.IOException("delayed failure")
+                    }
+                    Persistence.save(target, snapshot)
+                })
+            try {
+                Peer(server.port).use { peer ->
+                    withTimeout(5000) { entered.await() }
+                    peer.until { it.type == "STATE" }
+                    peer.send(Request("BUILD", id = 1, tool = "park", x = 2, y = 2))
+                    assertEquals("ACK", peer.until { it.id == 1L }.type)
+                    release.countDown()
+                    val paused = peer.until { it.city?.notices?.any { notice -> notice.contains("delayed failure") } == true }.city!!
+                    assertEquals(0, paused.rules.speed)
+                    assertEquals("park", paused.tiles[34].building)
+                    peer.send(Request("SAVE", id = 2))
+                    assertEquals("ACK", peer.until { it.id == 2L }.type)
+                    assertEquals(paused, Persistence.load(path, Catalog()))
+                }
+                server.shutdown()
+            } finally {
+                release.countDown()
+                server.close()
+                Files.deleteIfExists(path)
                 Files.delete(directory)
             }
         }
@@ -425,7 +561,7 @@ class ServerTest {
             try {
                 Peer(server.port).use { peer ->
                     peer.until { (it.city?.month ?: 0) >= 12 }
-                    assertTrue(Files.exists(path))
+                    withTimeout(5000) { while (!Files.exists(path)) delay(10) }
                     assertTrue(Persistence.load(path, Catalog()).month >= 12)
                 }
             } finally {
