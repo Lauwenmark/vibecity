@@ -95,7 +95,7 @@ internal fun reconcileCitizens(
                 List(count - retained.size) {
                     val id = nextId++
                     val n = noise(city.seed xor id, i, 0)
-                    Citizen(id, "${FIRST_NAMES[n % FIRST_NAMES.size]} ${LAST_NAMES[(n / FIRST_NAMES.size) % LAST_NAMES.size]} #$id", 6 + n % 80, position = i * 4).initialized(city)
+                    Citizen(id, "${FIRST_NAMES[n % FIRST_NAMES.size]} ${LAST_NAMES[(n / FIRST_NAMES.size) % LAST_NAMES.size]} #$id", 6 + n % 80, position = i * TRAVEL_MODE_COUNT).initialized(city)
                 }
             // Arrival batches are not assumed to be families. Newborns carry explicit genealogy.
             Household(i, retained + arrivals, old[i]?.paths.orEmpty())

@@ -86,16 +86,16 @@ class MobilitySimulation(
                 val prune = epoch.plusDays(day.toLong()).dayOfMonth == 1
                 val workPaths = mutableMapOf<Int, Int?>()
                 for (job in household.people.mapNotNull { it.wellbeing.workplace }.distinct()) {
-                    if (router.serves(Need.WORK, job)) workPaths[job] = router.route(home.cell * 4, job * 4)?.let(registry::intern)
+                    if (router.serves(Need.WORK, job)) workPaths[job] = router.route(home.cell * TRAVEL_MODE_COUNT, job * TRAVEL_MODE_COUNT)?.let(registry::intern)
                 }
                 val campusPaths = mutableMapOf<Int, Int?>()
                 for (campus in household.people.mapNotNull { it.life?.study?.campus }.distinct()) {
-                    campusPaths[campus] = if (router.serves(Need.EDUCATION, campus) && city.tiles[campus].building == "college") router.route(home.cell * 4, campus * 4)?.let(registry::intern) else null
+                    campusPaths[campus] = if (router.serves(Need.EDUCATION, campus) && city.tiles[campus].building == "college") router.route(home.cell * TRAVEL_MODE_COUNT, campus * TRAVEL_MODE_COUNT)?.let(registry::intern) else null
                 }
                 val routeIndexes = ArrayList<RouteMemoryIndex>(household.people.size)
                 val people =
                     household.people.map { resident ->
-                        var person = selectStudies(if (prune) resident.prune(city.trafficRules) else resident, city, educationPaths["college"].orEmpty().firstOrNull()?.destination)
+                        var person = selectStudies(if (prune) resident.prepareBicycle(city, home.cell).prune(city.trafficRules) else resident.prepareBicycle(city, home.cell), city, educationPaths["college"].orEmpty().firstOrNull()?.destination)
                         val learningPaths =
                             person.life?.study?.campus?.let { campus ->
                                 if (campus in campusPaths) listOfNotNull(campusPaths[campus]) else educationOptions["college"].orEmpty().filter { registry.paths[it].destination == campus }
@@ -112,8 +112,8 @@ class MobilitySimulation(
                         val valid =
                             person.routes.filter { memory ->
                                 val path = registry.paths.getOrNull(memory.path) ?: return@filter false
-                                if (!validPaths.getOrElse(memory.path) { router.valid(path) }) return@filter false
-                                val destination = if (memory.returning) path.nodes.first() / 4 else path.destination
+                                if (!validPaths.getOrElse(memory.path) { router.valid(path) } || path.nodes.any { it % TRAVEL_MODE_COUNT == TravelMode.BICYCLE.ordinal }) return@filter false
+                                val destination = if (memory.returning) path.nodes.first() / TRAVEL_MODE_COUNT else path.destination
                                 val campus = person.life?.study?.campus
                                 val suitable =
                                     when (memory.need) {
@@ -227,7 +227,9 @@ internal class DayExecutor(
 ) {
     private val rules = city.trafficRules
     private val occupancy = IntArray(city.tiles.size)
-    private val blockedNodes = BooleanArray(city.tiles.size * 4)
+    private val blockedNodes = BooleanArray(city.tiles.size * TRAVEL_MODE_COUNT)
+    private val parking = IntArray(city.tiles.size)
+    private val bicycleRoutes = mutableMapOf<Pair<Int, Int>, TravelPath?>()
     private val peak = IntArray(city.tiles.size)
     private val admittedAt = IntArray(city.tiles.size) { -1 }
     private val admitted = IntArray(city.tiles.size)
@@ -304,26 +306,42 @@ internal class DayExecutor(
         if (minute < 1440) queue.add(Event(minute, agent.leg?.waitSince?.takeIf { it >= 0 } ?: minute, agent))
     }
 
-    private fun road(node: Int) = node % 4 == TravelMode.ROAD.ordinal
+    private fun road(node: Int) = node % TRAVEL_MODE_COUNT == TravelMode.ROAD.ordinal
 
     private fun registry(agent: Agent) = prepared[agent.home].registry
 
-    private fun homeNode(agent: Agent) = prepared[agent.home].home.cell * 4
+    private fun homeNode(agent: Agent) = prepared[agent.home].home.cell * TRAVEL_MODE_COUNT
 
     suspend fun execute() {
+        for (agent in agents.sortedBy { it.person.id }) {
+            val bike = agent.person.bicycle ?: continue
+            if (bike.protectedParking && bike.cell != null) {
+                val pool = city.bicycleParkingCell(bike.cell)
+                if (parking[pool] < city.bicycleParkingCapacity(bike.cell, router.catalog)) {
+                    parking[pool]++
+                } else {
+                    agent.person = agent.person.copy(bicycle = bike.copy(protectedParking = false))
+                }
+            }
+        }
         for (agent in agents) {
+            checkBicycle(agent, 0)
+            if (agent.node % TRAVEL_MODE_COUNT == TravelMode.BICYCLE.ordinal && !router.valid(TravelPath(listOf(agent.node, agent.node / TRAVEL_MODE_COUNT * TRAVEL_MODE_COUNT), listOf(0, 1)))) {
+                agent.node = agent.node / TRAVEL_MODE_COUNT * TRAVEL_MODE_COUNT
+                agent.plan = agent.plan.copy(startNode = agent.node)
+            }
             // Clear invalidated vehicle modes in place after construction; never teleport to a domicile.
-            if (road(agent.node) && !city.tiles[agent.node / 4].road) {
-                agent.node = agent.node / 4 * 4
+            if (road(agent.node) && !city.tiles[agent.node / TRAVEL_MODE_COUNT].road) {
+                agent.node = agent.node / TRAVEL_MODE_COUNT * TRAVEL_MODE_COUNT
                 agent.plan = agent.plan.copy(startNode = agent.node)
             }
             if (road(agent.node)) {
-                occupancy[agent.node / 4]++
-                peak[agent.node / 4] = occupancy[agent.node / 4]
+                occupancy[agent.node / TRAVEL_MODE_COUNT]++
+                peak[agent.node / TRAVEL_MODE_COUNT] = occupancy[agent.node / TRAVEL_MODE_COUNT]
             }
             if (agent.node != homeNode(agent)) {
                 agent.recovery = true
-                val path = router.route(agent.node, homeNode(agent))
+                val path = bicycleHomeRoute(agent) ?: router.route(agent.node, homeNode(agent))
                 if (path != null) start(agent, Need.REST, true, registry(agent).intern(path), 0)
             } else {
                 nextActivity(agent, 0)
@@ -345,6 +363,7 @@ internal class DayExecutor(
         }
         for (agent in agents) {
             if (agent.leg != null) finish(agent, null)
+            checkBicycle(agent, 1440)
             // Every still-pending scheduled activity is unsatisfied; no midnight teleportation.
             val activities = agent.plan.activities.filter { it.scheduled }
             val satisfied =
@@ -381,7 +400,24 @@ internal class DayExecutor(
                 agent.activity++
                 continue
             }
-            start(agent, activity.need, false, activity.route, minute)
+            var chosen = activity.route
+            val bike = agent.person.bicycle
+            if (bike?.cell == agent.node / TRAVEL_MODE_COUNT && agent.person.age >= 10) {
+                val ordinary = registry(agent).paths[chosen]
+                val cycling = bicycleRoute(agent.node, ordinary.destination)
+                if (cycling != null) {
+                    val destination = cycling.destination
+                    val pool = city.bicycleParkingCell(destination)
+                    val available = parking[pool] < city.bicycleParkingCapacity(destination, router.catalog)
+                    val steps = cycling.nodes.zipWithNext().count { (a, b) -> a / TRAVEL_MODE_COUNT != b / TRAVEL_MODE_COUNT }
+                    val chance = bicycleChoicePercent(agent.person, day, steps, cycling.duration, ordinary.duration, available)
+                    if (noise(city.seed xor agent.person.id, day, minute + 937) % 10000 < chance * 100) {
+                        chosen = registry(agent).intern(cycling)
+                        agent.plan = agent.plan.copy(activities = agent.plan.activities.mapIndexed { i, a -> if (i == agent.activity) a.copy(route = chosen, reason = "Trajet à vélo") else a })
+                    }
+                }
+            }
+            start(agent, activity.need, false, chosen, minute)
             return
         }
     }
@@ -396,6 +432,13 @@ internal class DayExecutor(
         val path = registry(agent).paths[pathId]
         check(path.nodes.first() == agent.node)
         agent.returningAt = -1
+        val cycling = path.nodes.any { it % TRAVEL_MODE_COUNT == TravelMode.BICYCLE.ordinal }
+        if (cycling) {
+            val bike = requireNotNull(agent.person.bicycle)
+            check(bike.cell == agent.node / TRAVEL_MODE_COUNT)
+            releaseParking(bike)
+            agent.person = agent.person.copy(bicycle = bike.copy(parkedSince = null, checkedUntil = null, protectedParking = false))
+        }
         agent.leg =
             ActiveLeg(
                 need,
@@ -410,6 +453,7 @@ internal class DayExecutor(
                 },
                 minute,
                 path,
+                selectedMemory = if (cycling) null else pathId,
                 nextDecision = minute + rules.reconsiderMinutes,
                 nodes = mutableListOf(agent.node),
                 times = mutableListOf(0),
@@ -421,11 +465,22 @@ internal class DayExecutor(
         agent: Agent,
         minute: Int,
     ) {
+        checkBicycle(agent, minute)
         val need = agent.plan.activities[agent.activity].need
+        val bikePath = bicycleHomeRoute(agent)
+        if (bikePath != null) {
+            start(agent, need, true, registry(agent).intern(bikePath), minute)
+            return
+        }
         val known = agent.person.routes.filter { it.weekday == day % 7 && it.need == need && it.returning && registry(agent).paths[it.path].nodes.first() == agent.node }
         val chosen = agent.plan.activities[agent.activity].returnRoute ?: chooseRoute(known, city.seed xor agent.person.id xor minute.toLong())?.path
         val pathId = chosen ?: router.route(agent.node, homeNode(agent))?.let { registry(agent).intern(it) }
-        if (pathId != null) start(agent, need, true, pathId, minute)
+        if (pathId != null) {
+            start(agent, need, true, pathId, minute)
+            if (agent.person.bicycle?.let { it.cell == null && it.lastTheftDay == day } == true) {
+                agent.leg!!.decisions.add(RouteDecision(minute, agent.node, "Vélo volé : retour sans vélo"))
+            }
+        }
     }
 
     private suspend fun move(
@@ -438,7 +493,7 @@ internal class DayExecutor(
             return
         }
         val next = leg.path.nodes[leg.index + 1]
-        val cell = next / 4
+        val cell = next / TRAVEL_MODE_COUNT
         if (road(next)) {
             if (admittedAt[cell] != minute) {
                 admittedAt[cell] = minute
@@ -462,13 +517,16 @@ internal class DayExecutor(
             peak[cell] = max(peak[cell], occupancy[cell])
             admitted[cell]++
         }
-        if (road(agent.node)) occupancy[agent.node / 4]--
+        if (road(agent.node)) occupancy[agent.node / TRAVEL_MODE_COUNT]--
+        if (next % TRAVEL_MODE_COUNT == TravelMode.BICYCLE.ordinal || agent.node % TRAVEL_MODE_COUNT == TravelMode.BICYCLE.ordinal) {
+            agent.person = agent.person.copy(bicycle = requireNotNull(agent.person.bicycle).copy(cell = cell))
+        }
         agent.node = next
         leg.index++
         leg.nodes.add(next)
         leg.times.add(minute - leg.departure)
         leg.waitSince = -1
-        if (next % 4 != TravelMode.WALK.ordinal) loads[agent.home].getOrPut(next) { IntArray(24) }[minute / 60]++
+        if (next % TRAVEL_MODE_COUNT != TravelMode.WALK.ordinal) loads[agent.home].getOrPut(next) { IntArray(24) }[minute / 60]++
         if (leg.index == leg.path.nodes.lastIndex) arrive(agent, minute) else enqueue(agent, minute + leg.path.minutes[leg.index + 1] - leg.path.minutes[leg.index])
     }
 
@@ -482,12 +540,12 @@ internal class DayExecutor(
         blocked.fill(false)
         for (cell in occupancy.indices) {
             if (occupancy[cell] >= rules.roadSlots) {
-                blocked[cell * 4] = true
-                blocked[cell * 4 + 1] = true
+                blocked[cell * TRAVEL_MODE_COUNT] = true
+                blocked[cell * TRAVEL_MODE_COUNT + 1] = true
             }
         }
         blocked[blockedNext] = true
-        blocked[blockedNext / 4 * 4] = true
+        blocked[blockedNext / TRAVEL_MODE_COUNT * TRAVEL_MODE_COUNT] = true
         blocked[agent.node] = false
         val goal = leg.path.nodes.last()
         val alternatives =
@@ -531,12 +589,71 @@ internal class DayExecutor(
             agent.activity++
             nextActivity(agent, minute)
         } else {
+            if (leg.nodes.any { it % TRAVEL_MODE_COUNT == TravelMode.BICYCLE.ordinal }) {
+                val cell = agent.node / TRAVEL_MODE_COUNT
+                val pool = city.bicycleParkingCell(cell)
+                val protected = parking[pool] < city.bicycleParkingCapacity(cell, router.catalog)
+                if (protected) parking[pool]++
+                agent.person =
+                    agent.person.copy(
+                        bicycle =
+                            requireNotNull(agent.person.bicycle).copy(
+                                cell = cell,
+                                parkedSince = day * 1440 + minute,
+                                checkedUntil = day * 1440 + minute,
+                                protectedParking = protected,
+                            ),
+                    )
+            }
             val stay = agent.plan.activities[agent.activity].stay
             agent.returningAt = agent.plan.activities[agent.activity]
                 .appointment
                 ?.end
                 ?.let { max(minute, it) } ?: (minute + stay)
             enqueue(agent, agent.returningAt)
+        }
+    }
+
+    private suspend fun bicycleRoute(
+        start: Int,
+        destination: Int,
+    ): TravelPath? {
+        val key = start to destination
+        if (key !in bicycleRoutes) bicycleRoutes[key] = router.bicycleRoute(start, destination)
+        return bicycleRoutes[key]
+    }
+
+    private suspend fun bicycleHomeRoute(agent: Agent): TravelPath? {
+        val bike = agent.person.bicycle ?: return null
+        if (bike.cell != agent.node / TRAVEL_MODE_COUNT || bike.cell == homeNode(agent) / TRAVEL_MODE_COUNT) return null
+        return bicycleRoute(agent.node, homeNode(agent) / TRAVEL_MODE_COUNT)
+    }
+
+    private fun releaseParking(bike: BicycleState) {
+        if (bike.protectedParking && bike.cell != null) parking[city.bicycleParkingCell(bike.cell)]--
+    }
+
+    private fun checkBicycle(
+        agent: Agent,
+        minute: Int,
+    ) {
+        val bike = agent.person.bicycle ?: return
+        val cell = bike.cell ?: return
+        val checked = bike.checkedUntil ?: return
+        val until = day * 1440 + minute
+        if (until <= checked) return
+        val protected = bike.protectedParking && city.bicycleParkingCapacity(cell, router.catalog) > 0
+        val chance = bicycleTheftProbability(city.tiles[cell].crime, until - checked, protected)
+        val stolen = noise(city.seed xor agent.person.id, until, 1973) / Int.MAX_VALUE.toDouble() < chance
+        if (stolen) {
+            releaseParking(bike)
+            agent.person =
+                agent.person.copy(
+                    bicycle = bike.copy(cell = null, parkedSince = null, checkedUntil = null, protectedParking = false, lastTheftDay = day, lastTheftCell = cell, thefts = bike.thefts + 1),
+                    wellbeing = agent.person.wellbeing.copy(satisfaction = (agent.person.wellbeing.satisfaction - 8).coerceAtLeast(0.0)),
+                )
+        } else {
+            agent.person = agent.person.copy(bicycle = bike.copy(checkedUntil = until))
         }
     }
 
@@ -628,7 +745,7 @@ internal class DayExecutor(
                 home.home.copy(
                     options = home.home.options.map { it.copy(paths = it.paths.map(remap::getValue)) },
                     paths = paths,
-                    loads = loads[h].map { (node, hours) -> TrafficLoad(node / 4, TravelMode.entries[node % 4], hours.toList()) },
+                    loads = loads[h].map { (node, hours) -> TrafficLoad(node / TRAVEL_MODE_COUNT, TravelMode.entries[node % TRAVEL_MODE_COUNT], hours.toList()) },
                     completedNeeds = completed[h],
                     unmetNeeds = unmet[h],
                     days = executions,

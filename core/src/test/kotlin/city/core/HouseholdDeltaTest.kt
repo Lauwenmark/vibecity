@@ -3,8 +3,8 @@ package city.core
 import kotlin.test.*
 
 class HouseholdDeltaTest {
-    private val path = TravelPath(listOf(68, 72), listOf(0, 5))
-    private val otherPath = TravelPath(listOf(68, 76), listOf(0, 7))
+    private val path = TravelPath(listOf(17 * TRAVEL_MODE_COUNT, 18 * TRAVEL_MODE_COUNT), listOf(0, 5))
+    private val otherPath = TravelPath(listOf(17 * TRAVEL_MODE_COUNT, 19 * TRAVEL_MODE_COUNT), listOf(0, 7))
     private val route = LearnedRoute(0, Need.WORK, false, 0, 80)
     private val alice = Citizen(1, "Alice", 30, listOf(route), 68)
     private val bob = Citizen(2, "Bob", 40, listOf(route.copy(score = 60)), 68)
@@ -60,8 +60,8 @@ class HouseholdDeltaTest {
                 revision = 20,
                 households =
                     listOf(
-                        Household(18, listOf(alice.copy(position = 72)), listOf(otherPath)),
-                        Household(17, listOf(bob.copy(routes = emptyList()), Citizen(3, "Chloé", 20, position = 68)), emptyList()),
+                        Household(18, listOf(alice.copy(position = 18 * TRAVEL_MODE_COUNT)), listOf(otherPath)),
+                        Household(17, listOf(bob.copy(routes = emptyList()), Citizen(3, "Chloé", 20, position = 17 * TRAVEL_MODE_COUNT)), emptyList()),
                     ),
             )
         val received = decodeResponseFrame(encodeCompressedFrame(Response("STATE", city = changed).compactState(initial))).restoreState(initial).city!!

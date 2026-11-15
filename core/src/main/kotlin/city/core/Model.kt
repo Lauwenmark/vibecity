@@ -93,6 +93,7 @@ data class City(
     val households: List<Household> = emptyList(),
     val nextCitizenId: Long = 1,
     val trafficRules: TrafficRules = TrafficRules(),
+    @kotlinx.serialization.Required val travelModeCount: Int = TRAVEL_MODE_COUNT,
 ) {
     init {
         require(width in 16..256 && height in 16..256 && tiles.size == width * height)
@@ -160,6 +161,7 @@ data class BuildingDef(
     val radius: Int = 0,
     val year: Int = 1900,
     val residents: Int = 0,
+    val bicycleParking: Int = 0,
 )
 
 /** Registry is frozen before the server starts accepting connections. Clients receive its catalog. */
@@ -182,7 +184,7 @@ class Catalog(
         check(!frozen) { "Catalog is frozen for this server session" }
         require(def.id.matches(Regex("[a-z][a-z0-9_.-]{0,63}")))
         require(def.cost >= 0 && def.upkeep >= 0 && def.size in 1..6 && def.radius in 0..64)
-        require(def.power >= 0 && def.water >= 0 && def.residents >= 0)
+        require(def.power >= 0 && def.water >= 0 && def.residents >= 0 && def.bicycleParking in 0..100_000)
         entries[def.id] = def
     }
 
@@ -208,19 +210,19 @@ fun standardBuildings(): List<BuildingDef> =
         BuildingDef("desalination", "Dessalement", 1000, 25, 3, 0x729dbb, water = 500),
         BuildingDef("police", "Commissariat", 500, 25, 3, 0x6497d5, service = "police", radius = 12),
         BuildingDef("fire", "Caserne de pompiers", 500, 25, 3, 0xd46d55, service = "fire", radius = 12),
-        BuildingDef("hospital", "Hôpital", 500, 25, 3, 0xe0d9ca, service = "health", radius = 14),
-        BuildingDef("school", "École", 250, 12, 3, 0xddb879, service = "education", radius = 10),
-        BuildingDef("college", "Université", 1000, 35, 4, 0xc6a880, service = "education", radius = 20),
-        BuildingDef("library", "Bibliothèque", 500, 10, 2, 0xc9aa8a, service = "education", radius = 7),
-        BuildingDef("museum", "Musée", 1000, 15, 3, 0xd9c3aa, service = "park", radius = 10),
+        BuildingDef("hospital", "Hôpital", 500, 25, 3, 0xe0d9ca, service = "health", radius = 14, bicycleParking = 24),
+        BuildingDef("school", "École", 250, 12, 3, 0xddb879, service = "education", radius = 10, bicycleParking = 24),
+        BuildingDef("college", "Université", 1000, 35, 4, 0xc6a880, service = "education", radius = 20, bicycleParking = 80),
+        BuildingDef("library", "Bibliothèque", 500, 10, 2, 0xc9aa8a, service = "education", radius = 7, bicycleParking = 12),
+        BuildingDef("museum", "Musée", 1000, 15, 3, 0xd9c3aa, service = "park", radius = 10, bicycleParking = 16),
         BuildingDef("park", "Petit parc", 10, 1, 1, 0x4da568, service = "park", radius = 4),
-        BuildingDef("large_park", "Grand parc", 150, 6, 3, 0x58a66c, service = "park", radius = 8),
+        BuildingDef("large_park", "Grand parc", 150, 6, 3, 0x58a66c, service = "park", radius = 8, bicycleParking = 20),
         BuildingDef("zoo", "Zoo", 3000, 35, 4, 0xaab879, service = "park", radius = 15),
-        BuildingDef("stadium", "Stade", 5000, 50, 4, 0xb7c5a4, service = "park", radius = 18),
+        BuildingDef("stadium", "Stade", 5000, 50, 4, 0xb7c5a4, service = "park", radius = 18, bicycleParking = 60),
         BuildingDef("prison", "Prison", 1000, 30, 4, 0x979b9c, service = "police", radius = 18),
         BuildingDef("bus", "Dépôt de bus", 200, 8, 2, 0xc7a277, service = "transport", radius = 8),
-        BuildingDef("station", "Gare ferroviaire", 500, 15, 3, 0xb8997a, service = "transport", radius = 12),
-        BuildingDef("metro", "Station de métro", 250, 10, 1, 0x8d8fb8, service = "transport", radius = 10, year = 1910),
+        BuildingDef("station", "Gare ferroviaire", 500, 15, 3, 0xb8997a, service = "transport", radius = 12, bicycleParking = 40),
+        BuildingDef("metro", "Station de métro", 250, 10, 1, 0x8d8fb8, service = "transport", radius = 10, year = 1910, bicycleParking = 20),
         BuildingDef("airport", "Aéroport", 10000, 120, 6, 0xa6b4c1, service = "commerce", radius = 24, year = 1930),
         BuildingDef("seaport", "Port maritime", 5000, 65, 4, 0x8cabb5, service = "industry", radius = 24),
         BuildingDef("mayor", "Maison du maire", 1000, 5, 2, 0xd6baa0, service = "park", radius = 8),

@@ -11,7 +11,7 @@ class LifePersistenceTest {
             val catalog = Catalog(listOf(BuildingDef("home", "Home", 1, 0, residents = 1)))
             val tiles = MutableList(256) { Tile() }
             tiles[17] = Tile(building = "home", anchor = 17)
-            val mother = Citizen(1, "Mother", 20, position = 68, life = CitizenLife(-7304, Sex.FEMALE, 80.0, 1.0, LifeStage.WORKER, lastSalary = 50.0, pregnancyDue = 1, pregnancyFather = 2))
+            val mother = Citizen(1, "Mother", 20, position = 17 * TRAVEL_MODE_COUNT, life = CitizenLife(-7304, Sex.FEMALE, 80.0, 1.0, LifeStage.WORKER, lastSalary = 50.0, pregnancyDue = 1, pregnancyFather = 2))
             val initial = City(width = 16, height = 16, tiles = tiles, terrain = Terrain.flat(16, 16, 2), day = 1, households = listOf(Household(17, listOf(mother))), nextCitizenId = 3)
             val born = Simulation(catalog, workers = 1).step(initial)
             assertEquals(2, born.tiles[17].residentialOccupancy)
@@ -43,7 +43,7 @@ class LifePersistenceTest {
                 listOf(17, 20).mapIndexed { index, cell ->
                     tiles[cell] = tiles[cell].copy(zone = Zone.RESIDENTIAL_DENSE, occupants = 1)
                     val id = index + 1L
-                    Household(cell, listOf(Citizen(id, "Student $id", 15, position = cell * 4, life = CitizenLife(-5500, Sex.FEMALE, 80.0, 1.0, LifeStage.SCHOOL, studentRelationship = StudentRelationship(3 - id, 0)))))
+                    Household(cell, listOf(Citizen(id, "Student $id", 15, position = cell * TRAVEL_MODE_COUNT, life = CitizenLife(-5500, Sex.FEMALE, 80.0, 1.0, LifeStage.SCHOOL, studentRelationship = StudentRelationship(3 - id, 0)))))
                 }
             val input = City(width = 16, height = 16, tiles = tiles, terrain = Terrain.flat(16, 16, 2), households = homes, nextCitizenId = 3, day = 5)
             var result: City? = null

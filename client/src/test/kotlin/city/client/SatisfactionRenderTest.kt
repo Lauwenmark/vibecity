@@ -14,7 +14,7 @@ class SatisfactionRenderTest {
             val cells = listOf(85, 88, 91)
             val scores = listOf(90.0, 55.0, 20.0)
             val colors = listOf(0x88d679, 0xffd166, 0xef7770)
-            val city = City(width = 16, height = 16, tiles = List(256) { if (it in cells) Tile(zone = Zone.RESIDENTIAL_LIGHT, occupants = 1) else Tile() }, households = cells.mapIndexed { index, cell -> Household(cell, listOf(Citizen(index + 1L, "Résident", 30, position = cell * 4, wellbeing = Wellbeing(satisfaction = scores[index])))) })
+            val city = City(width = 16, height = 16, tiles = List(256) { if (it in cells) Tile(zone = Zone.RESIDENTIAL_LIGHT, occupants = 1) else Tile() }, households = cells.mapIndexed { index, cell -> Household(cell, listOf(Citizen(index + 1L, "Résident", 30, position = cell * TRAVEL_MODE_COUNT, wellbeing = Wellbeing(satisfaction = scores[index])))) })
             val canvas = CityCanvas({}, {})
             canvas.city = city
 

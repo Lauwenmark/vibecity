@@ -8,7 +8,7 @@ import kotlinx.serialization.descriptors.buildClassSerialDescriptor
 import kotlinx.serialization.encoding.*
 import java.util.RandomAccess
 
-/** Immutable primitive storage behind the existing List API; a node is cell * 4 + mode.ordinal. */
+/** Immutable primitive storage behind the existing List API; a node is cell * TRAVEL_MODE_COUNT + mode.ordinal. */
 @Serializable(with = TravelPath.Serializer::class)
 class TravelPath private constructor(
     private val nodeStorage: IntValues,
@@ -21,7 +21,7 @@ class TravelPath private constructor(
     val nodes: List<Int> get() = nodeStorage
     val minutes: List<Int> get() = minuteStorage
     val duration: Int get() = minuteStorage.values.last()
-    val destination: Int get() = nodeStorage.values.last() / 4
+    val destination: Int get() = nodeStorage.values.last() / TRAVEL_MODE_COUNT
 
     fun copy(
         nodes: List<Int> = this.nodes,

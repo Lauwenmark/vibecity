@@ -55,7 +55,7 @@ class MobilityTest {
                     city.households
                         .single()
                         .people[person.slot]
-                        .position / 4,
+                        .position / TRAVEL_MODE_COUNT,
                     m.position(person, h, 1439),
                 )
             }
@@ -76,7 +76,7 @@ class MobilityTest {
             for (day in h.days) {
                 for (leg in day.legs) {
                     leg.trace.nodes.forEachIndexed { j, node ->
-                        if (j > 0 && node % 4 != 0) {
+                        if (j > 0 && node % TRAVEL_MODE_COUNT != 0) {
                             val counts = expected.getOrPut(node) { IntArray(24) }
                             counts[(leg.departure + leg.trace.minutes[j]) / 60]++
                         }
@@ -84,7 +84,7 @@ class MobilityTest {
                     if (leg.arrival != null) assertEquals(leg.trace.nodes.last(), day.positionAt(leg.arrival))
                 }
             }
-            for (load in m.aggregateLoads()) assertEquals(expected[load.cell * 4 + load.mode.ordinal]!!.toList(), load.hours)
+            for (load in m.aggregateLoads()) assertEquals(expected[load.cell * TRAVEL_MODE_COUNT + load.mode.ordinal]!!.toList(), load.hours)
             assertTrue(city.tiles.any { it.traffic > 0 })
         }
 
@@ -138,7 +138,7 @@ class MobilityTest {
                         .homes
                         .single()
                         .paths
-                        .any { path -> path.nodes.any { it % 4 == mode.ordinal } },
+                        .any { path -> path.nodes.any { it % TRAVEL_MODE_COUNT == mode.ordinal } },
                 )
                 assertTrue(connected.mobility!!.aggregateLoads().any { it.mode == mode })
                 assertTrue(
@@ -199,8 +199,8 @@ class MobilityTest {
                     .paths
                     .first()
             assertTrue(busyPath.duration > freePath.duration)
-            assertTrue(freePath.nodes.any { it % 4 == TravelMode.ROAD.ordinal })
-            assertTrue(busyPath.nodes.none { it % 4 == TravelMode.ROAD.ordinal })
+            assertTrue(freePath.nodes.any { it % TRAVEL_MODE_COUNT == TravelMode.ROAD.ordinal })
+            assertTrue(busyPath.nodes.none { it % TRAVEL_MODE_COUNT == TravelMode.ROAD.ordinal })
         }
 
     @Test fun `plans survive serialization and old snapshots default to no mobility`() =

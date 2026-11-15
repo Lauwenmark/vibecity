@@ -9,8 +9,8 @@ import javax.swing.*
 import kotlin.test.*
 
 class ResidentNavigationTest {
-    private val alice = Citizen(1, "Alice", 23, position = 68, life = CitizenLife(-8400, Sex.FEMALE, 80.0, 1.1, LifeStage.WORKER))
-    private val bob = Citizen(2, "Bob", 70, position = 68, life = CitizenLife(-25000, Sex.MALE, 75.0, 1.0, LifeStage.RETIRED))
+    private val alice = Citizen(1, "Alice", 23, position = 17 * TRAVEL_MODE_COUNT, life = CitizenLife(-8400, Sex.FEMALE, 80.0, 1.1, LifeStage.WORKER))
+    private val bob = Citizen(2, "Bob", 70, position = 17 * TRAVEL_MODE_COUNT, life = CitizenLife(-25000, Sex.MALE, 75.0, 1.0, LifeStage.RETIRED))
 
     private fun city(people: List<Citizen>) = City(width = 16, height = 16, tiles = List(256) { Tile() }, households = listOf(Household(17, people)), nextCitizenId = 3)
 

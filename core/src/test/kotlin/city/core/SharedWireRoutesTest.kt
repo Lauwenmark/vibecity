@@ -6,7 +6,7 @@ import kotlin.test.*
 
 class SharedWireRoutesTest {
     private fun city(): City {
-        val paths = List(100) { TravelPath(List(30) { n -> n * 4 }, List(30) { n -> n * 5 }) }
+        val paths = List(100) { TravelPath(List(30) { n -> n * TRAVEL_MODE_COUNT }, List(30) { n -> n * 5 }) }
         return City(width = 16, height = 16, tiles = List(256) { Tile() }, households = listOf(Household(17, emptyList(), paths)), mobility = Mobility(0, listOf(MobilityHome(17, 1, emptyList(), paths)), 0, 0))
     }
 

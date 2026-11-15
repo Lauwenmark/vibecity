@@ -132,7 +132,7 @@ class MobilityViewTest {
             val memory = combos.single { (it.getItemAt(0) as? String)?.startsWith("Itinéraire") == true }
             assertTrue(memory.itemCount > 0)
             assertTrue(memory.getItemAt(0).toString().contains("score"))
-            assertEquals(17, path!!.nodes.first() / 4)
+            assertEquals(17, path!!.nodes.first() / TRAVEL_MODE_COUNT)
             children(panel).filterIsInstance<JCheckBox>().single { it.text == "Retour" }.doClick()
             assertEquals(17, path!!.destination)
             assertTrue(

@@ -332,12 +332,12 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         if (mobilityDialog == null) {
             val content =
                 MobilityPanel { path, position, hour ->
-                    val origin = path?.nodes?.firstOrNull()?.div(4) ?: position
+                    val origin = path?.nodes?.firstOrNull()?.div(TRAVEL_MODE_COUNT) ?: position
                     if (origin != null && origin !=
                         canvas.itinerary
                             ?.nodes
                             ?.firstOrNull()
-                            ?.div(4)
+                            ?.div(TRAVEL_MODE_COUNT)
                     ) {
                         canvas.focusCell(origin)
                     }
@@ -390,7 +390,7 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
                 .firstOrNull { it.cell == i }
                 ?.people
                 ?.size ?: 0
-        }}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Charge de pointe ${t.traffic} %"
+        }}\nÉlectricité : ${if (t.powered) "oui" else "non"} · Eau : ${if (t.watered) "oui" else "non"}\nParking vélo : ${definitions.find { it.id == t.building }?.bicycleParking ?: 0} places\nPollution ${t.pollution} · Crime ${t.crime}\nValeur ${t.landValue} · Charge de pointe ${t.traffic} %"
         val household = c.households.firstOrNull { it.cell == i }
         val opinion =
             household

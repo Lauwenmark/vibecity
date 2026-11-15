@@ -16,7 +16,7 @@ class StudentRomanceTest {
             id,
             "Élève $id",
             age,
-            position = cell * 4,
+            position = cell * TRAVEL_MODE_COUNT,
             life = CitizenLife(dateDay(epoch.minusYears(age.toLong())), Sex.FEMALE, 80.0, 1.0, LifeStage.SCHOOL),
         )
 
@@ -29,7 +29,7 @@ class StudentRomanceTest {
         val tiles = MutableList(256) { Tile(powered = true, watered = true) }
         val people = listOf(a, b).map { p -> if (paired) p.copy(life = p.life!!.copy(studentRelationship = StudentRelationship(if (p.id == a.id) b.id else a.id, 0))) else p }
         val homes =
-            people.groupBy { it.position / 4 }.map { (cell, residents) ->
+            people.groupBy { it.position / TRAVEL_MODE_COUNT }.map { (cell, residents) ->
                 tiles[cell] = tiles[cell].copy(zone = Zone.RESIDENTIAL_DENSE, occupants = residents.size)
                 Household(cell, residents)
             }
@@ -188,9 +188,9 @@ class StudentRomanceTest {
         val prepared =
             base.households.map { home ->
                 val p = home.people.single()
-                val out = assertNotNull(router.route(home.cell * 4, 36 * 4))
-                val back = assertNotNull(router.route(36 * 4, home.cell * 4))
-                val registry = HomeRoutes(listOf(out, back, TravelPath(listOf(home.cell * 4), listOf(0))))
+                val out = assertNotNull(router.route(home.cell * TRAVEL_MODE_COUNT, 36 * TRAVEL_MODE_COUNT))
+                val back = assertNotNull(router.route(36 * TRAVEL_MODE_COUNT, home.cell * TRAVEL_MODE_COUNT))
+                val registry = HomeRoutes(listOf(out, back, TravelPath(listOf(home.cell * TRAVEL_MODE_COUNT), listOf(0))))
                 val date = StudentAppointment(1, if (p.id == 1L) 2 else 1, StudentDateKind.OUTING, 36, 1000)
                 val activities =
                     listOf(
@@ -249,7 +249,7 @@ class StudentRomanceTest {
             val c = base.copy(seed = seed)
             val prepared =
                 c.households.map { home ->
-                    val registry = HomeRoutes(listOf(TravelPath(listOf(home.cell * 4), listOf(0))))
+                    val registry = HomeRoutes(listOf(TravelPath(listOf(home.cell * TRAVEL_MODE_COUNT), listOf(0))))
                     val activities = listOf(PlannedActivity(Need.EDUCATION, 0, 1320, 0, 0), PlannedActivity(Need.REST, 1320, 0))
                     PreparedHome(MobilityHome(home.cell, 1, emptyList(), registry.paths, days = home.people.map { CitizenDay(it.id, it.position, activities) }), home.people, registry)
                 }
@@ -278,7 +278,7 @@ class StudentRomanceTest {
                 val households = listOf(Household(17, listOf(pair[0])), Household(30, listOf(pair[1]) + if (congested) listOf(opponent) else emptyList()))
                 val c = City(width = 16, height = 16, tiles = tiles, day = 5, households = households, nextCitizenId = 4, trafficRules = TrafficRules(roadSlots = 1, roadEntriesPerMinute = 1, reroutePercent = 0))
                 val router = MobilityRouter(c, catalog, null)
-                val crossing = assertNotNull(router.route(68, 120))
+                val crossing = assertNotNull(router.route(17 * TRAVEL_MODE_COUNT, 30 * TRAVEL_MODE_COUNT))
                 val departure = 1000 - crossing.duration
                 val prepared =
                     households.map { home ->
@@ -286,8 +286,8 @@ class StudentRomanceTest {
                         val days =
                             home.people.map { p ->
                                 val target = if (p.id == 3L) 17 else 30
-                                val route = registry.intern(assertNotNull(router.route(home.cell * 4, target * 4)))
-                                val back = registry.intern(assertNotNull(router.route(target * 4, home.cell * 4)))
+                                val route = registry.intern(assertNotNull(router.route(home.cell * TRAVEL_MODE_COUNT, target * TRAVEL_MODE_COUNT)))
+                                val back = registry.intern(assertNotNull(router.route(target * TRAVEL_MODE_COUNT, home.cell * TRAVEL_MODE_COUNT)))
                                 val date = if (p.id == 3L) null else StudentAppointment(1, 3 - p.id, StudentDateKind.VISIT, 30, 1000)
                                 val start = if (p.id == 2L) 1000 else departure
                                 CitizenDay(p.id, p.position, listOf(PlannedActivity(if (date == null) Need.WORK else Need.LEISURE, start, 75, route, back, appointment = date), PlannedActivity(Need.REST, 1320, 0)))

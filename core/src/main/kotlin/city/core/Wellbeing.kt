@@ -137,7 +137,7 @@ fun updateWellbeing(
                         val fulfillmentTimes = mutableListOf<Int>()
                         for (activity in activities.filter { it.appointment == null }) {
                             val leg = legs.firstOrNull { activity.matches(it) && !it.returning && it.arrival != null }
-                            val fulfilled = if (activity.need == Need.REST) person.position == home.cell * 4 else leg?.arrival?.let { it + activity.stay < 1440 } == true
+                            val fulfilled = if (activity.need == Need.REST) person.position == home.cell * TRAVEL_MODE_COUNT else leg?.arrival?.let { it + activity.stay < 1440 } == true
                             if (fulfilled && activity.need != Need.REST && leg?.arrival != null) fulfillmentTimes.add((leg.arrival + activity.stay - activity.departure).coerceAtLeast(0))
                             if (!fulfilled) {
                                 missed++
@@ -157,7 +157,7 @@ fun updateWellbeing(
                             legs.sumOf { leg ->
                                 leg.trace.nodes
                                     .zipWithNext()
-                                    .sumOf { (a, b) -> abs(a / 4 % city.width - b / 4 % city.width) + abs(a / 4 / city.width - b / 4 / city.width) }
+                                    .sumOf { (a, b) -> abs(a / TRAVEL_MODE_COUNT % city.width - b / TRAVEL_MODE_COUNT % city.width) + abs(a / TRAVEL_MODE_COUNT / city.width - b / TRAVEL_MODE_COUNT / city.width) }
                             }
                         val delays =
                             legs.map { leg ->
@@ -188,7 +188,7 @@ fun updateWellbeing(
                             listOf(
                                 needsPenalty.coerceAtMost(55.0),
                                 max(max((travel - 90).coerceAtLeast(0) / 12.0, delay / 4), (distance - 80).coerceAtLeast(0) / 20.0).coerceAtMost(25.0),
-                                (tile.crime * .65 + destinationCrime * .35) * .18,
+                                (tile.crime * .65 + destinationCrime * .35) * .18 + (person.bicycle?.unhappiness(city.mobility.day) ?: 0.0),
                                 (40 - service("fire")).coerceAtLeast(0) * .15,
                                 (if (!tile.watered) 22.0 else 0.0) + (if (!tile.powered) 18.0 else 0.0),
                                 tile.pollution * .22,
@@ -253,7 +253,7 @@ fun migrateUnhappyHouseholds(
     var relocated = 0
     for (home in city.households) {
         val residentCount = if (tiles[home.cell].zone.residential) tiles[home.cell].occupants else tiles[home.cell].residentialOccupancy ?: tiles[home.cell].building?.let { catalog[it].residents } ?: 0
-        if (home.people.isEmpty() || home.people.size != residentCount || home.people.any { it.position != home.cell * 4 }) continue
+        if (home.people.isEmpty() || home.people.size != residentCount || home.people.any { it.position != home.cell * TRAVEL_MODE_COUNT }) continue
         val chance = home.moveProbability()
         if (chance <= 0 || noise(city.seed xor home.people.first().id, home.cell, city.nextDay()) / 2147483648.0 >= chance) continue
         // A cell is the existing simulation's household. Never merge unrelated route registries.
@@ -271,7 +271,7 @@ fun migrateUnhappyHouseholds(
             departed += home.people.size
         } else {
             tiles[destination] = tiles[destination].copy(occupants = home.people.size)
-            homes[destination] = Household(destination, home.people.map { it.copy(position = destination * 4, routes = emptyList(), wellbeing = it.wellbeing.copy(residenceDays = 0)) })
+            homes[destination] = Household(destination, home.people.map { it.copy(bicycle = it.bicycle?.let { bike -> if (bike.cell == home.cell) bike.copy(cell = destination, parkedSince = null, checkedUntil = null, protectedParking = false) else bike }, position = destination * TRAVEL_MODE_COUNT, routes = emptyList(), wellbeing = it.wellbeing.copy(residenceDays = 0)) })
             relocated += home.people.size
         }
     }

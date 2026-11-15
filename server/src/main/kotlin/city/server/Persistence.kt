@@ -2,9 +2,12 @@ package city.server
 
 import city.core.*
 import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.MissingFieldException
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.*
+import java.io.ByteArrayInputStream
+import java.io.SequenceInputStream
 import java.nio.file.*
 
 /** A complete snapshot is written to a sibling temp file and atomically replaces the old save. */
@@ -38,17 +41,28 @@ object Persistence {
             try {
                 Files.newInputStream(path).use { wireJson.decodeFromStream<City>(it) }
             } catch (failure: SerializationException) {
-                // Only legacy mobility without its execution marker uses the old migration path.
-                // A malformed modern save must never be silently repaired or lose its mobility.
-                val encoded = wireJson.parseToJsonElement(Files.readString(path)).jsonObject
-                val legacy = (encoded["mobility"] as? JsonObject)?.let { "executionVersion" !in it } == true
-                if (!legacy) throw failure
-                val normalized = JsonObject(encoded + ("mobility" to JsonNull))
-                wireJson.decodeFromJsonElement<City>(normalized).let { city ->
-                    city.copy(tiles = city.tiles.map { it.copy(traffic = 0) })
+                if (failure is MissingFieldException && failure.missingFields == listOf("travelModeCount")) {
+                    // Old large saves also stay streamed: prepend only the missing encoding marker.
+                    Files.newInputStream(path).use { input ->
+                        var first = input.read()
+                        while (first in listOf(9, 10, 13, 32)) first = input.read()
+                        require(first == '{'.code)
+                        SequenceInputStream(ByteArrayInputStream("{\"travelModeCount\":4,".toByteArray()), input).use {
+                            wireJson.decodeFromStream<City>(it)
+                        }
+                    }
+                } else {
+                    // Very old mobility without execution traces is invalidated; malformed modern data is rejected.
+                    val encoded = wireJson.parseToJsonElement(Files.readString(path)).jsonObject
+                    val legacy = (encoded["mobility"] as? JsonObject)?.let { "executionVersion" !in it } == true
+                    if (!legacy) throw failure
+                    val normalized = JsonObject(encoded + ("mobility" to JsonNull) + (if ("travelModeCount" !in encoded) mapOf("travelModeCount" to JsonPrimitive(4)) else emptyMap()))
+                    wireJson.decodeFromJsonElement<City>(normalized).let { city ->
+                        city.copy(tiles = city.tiles.map { it.copy(traffic = 0) })
+                    }
                 }
             }
-        val city = original.withSharedTerrain()
+        val city = original.upgradeTravelNodes().withSharedTerrain()
         require(city.month >= 0 && city.revision >= 0 && city.debt in 0..100_000)
         require(city.rules.taxRate in 0..20 && city.rules.speed in 0..3 && city.rules.serviceFunding in 0..100)
         city.tiles.forEachIndexed { i, t ->

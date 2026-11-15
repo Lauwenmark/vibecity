@@ -30,23 +30,23 @@ class TemporalTrafficTest {
         val homes =
             listOf(17, 30).map { cell ->
                 val goal = if (cell == 17) 30 else 17
-                val path = assertNotNull(router.route(cell * 4, goal * 4))
-                assertTrue(path.nodes.any { it % 4 == 1 })
+                val path = assertNotNull(router.route(cell * TRAVEL_MODE_COUNT, goal * TRAVEL_MODE_COUNT))
+                assertTrue(path.nodes.any { it % TRAVEL_MODE_COUNT == 1 })
                 val registry = HomeRoutes(listOf(path))
                 val memories = mutableListOf(LearnedRoute(0, Need.WORK, false, 0, 80))
                 if (known) {
                     for (index in path.nodes.indices) {
                         val node = path.nodes[index]
-                        if (node % 4 != 1 || index == path.nodes.lastIndex) continue
+                        if (node % TRAVEL_MODE_COUNT != 1 || index == path.nodes.lastIndex) continue
                         val next = path.nodes[index + 1]
-                        val avoid = setOf(next, next / 4 * 4)
-                        val alternative = router.route(node, goal * 4, avoid) ?: continue
+                        val avoid = setOf(next, next / TRAVEL_MODE_COUNT * TRAVEL_MODE_COUNT)
+                        val alternative = router.route(node, goal * TRAVEL_MODE_COUNT, avoid) ?: continue
                         val complete = router.path(path.nodes.take(index) + alternative.nodes) ?: continue
                         val key = registry.intern(complete)
                         if (memories.none { it.path == key }) memories.add(LearnedRoute(0, Need.WORK, false, key, 20))
                     }
                 }
-                val people = List(6) { Citizen(id++, "Test $id", 30, memories.toList(), cell * 4) }
+                val people = List(6) { Citizen(id++, "Test $id", 30, memories.toList(), cell * TRAVEL_MODE_COUNT) }
                 val activities = listOf(PlannedActivity(Need.WORK, 480, 10, 0), PlannedActivity(Need.REST, 1320, 0))
                 val home = MobilityHome(cell, people.size, listOf(NeedOptions(Need.WORK, listOf(0))), registry.paths, days = people.map { CitizenDay(it.id, it.position, activities) })
                 PreparedHome(home, people, registry)
@@ -66,8 +66,8 @@ class TemporalTrafficTest {
                 val occupied =
                     actualDays
                         .map { it.positionAt(minute) }
-                        .filter { it % 4 == 1 }
-                        .groupingBy { it / 4 }
+                        .filter { it % TRAVEL_MODE_COUNT == 1 }
+                        .groupingBy { it / TRAVEL_MODE_COUNT }
                         .eachCount()
                 assertTrue(occupied.values.all { it <= 1 }, "Occupied road slots at minute $minute")
             }
@@ -80,7 +80,7 @@ class TemporalTrafficTest {
             for (cell in byCell.values) for (hour in 0..23) assertTrue(cell.sumOf { it.hours[hour] } <= 60)
             val legs = executor.homes().flatMap { it.days }.flatMap { it.legs }
             assertTrue(legs.any { it.waitMinutes > 0 })
-            val stranded = legs.filter { it.arrival == null && it.trace.nodes.last() % 4 == 1 }
+            val stranded = legs.filter { it.arrival == null && it.trace.nodes.last() % TRAVEL_MODE_COUNT == 1 }
             assertTrue(stranded.isNotEmpty(), "The opposing queues must hold upstream road slots")
             for (home in executor.homes()) {
                 for (load in home.loads.filter { it.mode == TravelMode.ROAD }) assertTrue(load.hours.all { it <= 60 })
@@ -89,7 +89,7 @@ class TemporalTrafficTest {
                     assertEquals(day.positionAt(1439), person.position)
                 }
             }
-            assertTrue(executor.households().flatMap { it.people }.any { it.position % 4 == 1 })
+            assertTrue(executor.households().flatMap { it.people }.any { it.position % TRAVEL_MODE_COUNT == 1 })
         }
 
     @Test fun `new successful detours are learned at low score and abandoned plans lose score`() =
@@ -179,7 +179,7 @@ class TemporalTrafficTest {
             val tiles = MutableList(256) { Tile() }
             tiles[17] = Tile(zone = Zone.RESIDENTIAL_LIGHT, occupants = 1, powered = true)
             tiles[30] = Tile(building = "school", anchor = 30, powered = true)
-            val child = Citizen(1, "Alice", 12, position = 68)
+            val child = Citizen(1, "Alice", 12, position = 17 * TRAVEL_MODE_COUNT)
             val base = City(width = 16, height = 16, tiles = tiles, households = listOf(Household(17, listOf(child))), nextCitizenId = 2)
             val engine = MobilitySimulation(catalog)
             val friday = engine.simulate(base.copy(day = 4))

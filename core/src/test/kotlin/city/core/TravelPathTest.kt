@@ -39,7 +39,7 @@ class TravelPathTest {
         assertEquals(path.nodes, nodes)
         assertEquals(path.minutes, minutes)
         assertEquals(6, path.duration)
-        assertEquals(33, path.destination)
+        assertEquals(132 / TRAVEL_MODE_COUNT, path.destination)
     }
 
     @Test fun `legacy JSON representation round trips exactly including field order variants`() {

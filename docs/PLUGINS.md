@@ -99,3 +99,9 @@ champs dans une règle de plugin ne remplace pas le moteur de mobilité.
 `Simulation.step` exécute maintenant un jour civil. Les règles de cases et systèmes globaux
 restent exécutés lors du traitement économique du premier jour du mois. La mobilité suit ce
 traitement, ou l’actualisation quotidienne des réseaux les autres jours.
+
+
+Les définitions de bâtiments peuvent préciser `bicycleParking = 24` pour offrir
+24 places vélo, partagées par toute l’emprise. La valeur par défaut est 0 ; les valeurs
+acceptées vont de 0 à 100 000. Ce paramètre est transmis au client avec le catalogue
+et influence le choix du vélo ainsi que la protection contre le vol.

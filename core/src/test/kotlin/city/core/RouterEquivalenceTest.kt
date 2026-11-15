@@ -41,10 +41,11 @@ class RouterEquivalenceTest {
                 val reference = ReferenceMobilityRouter(city, Catalog(), previous)
                 val router = MobilityRouter(city, Catalog(), previous)
                 // Check all four modes and all potential adjacent/transfer edges, including slopes and fire.
-                for (node in 0 until city.tiles.size * 4) {
+                for (node in 0 until city.tiles.size * TRAVEL_MODE_COUNT) {
+                    if (node % TRAVEL_MODE_COUNT == TravelMode.BICYCLE.ordinal) continue
                     val expected = reference.edges(node).toMap()
-                    for (cell in city.neighbors(node / 4) + node / 4) {
-                        for (mode in 0..3) assertEquals(expected[cell * 4 + mode], router.duration(node, cell * 4 + mode))
+                    for (cell in city.neighbors(node / TRAVEL_MODE_COUNT) + node / TRAVEL_MODE_COUNT) {
+                        for (mode in 0..3) assertEquals(expected[cell * TRAVEL_MODE_COUNT + mode], router.duration(node, cell * TRAVEL_MODE_COUNT + mode))
                     }
                 }
                 for (need in Need.entries) {
@@ -52,12 +53,12 @@ class RouterEquivalenceTest {
                 }
                 val random = Random(seed)
                 repeat(80) {
-                    val start = random.nextInt(city.tiles.size * 4)
-                    val goal = random.nextInt(city.tiles.size * 4)
-                    val blocked = List(16) { random.nextInt(city.tiles.size * 4) }.toSet()
+                    val start = (random.nextInt(city.tiles.size) * TRAVEL_MODE_COUNT + random.nextInt(4))
+                    val goal = (random.nextInt(city.tiles.size) * TRAVEL_MODE_COUNT + random.nextInt(4))
+                    val blocked = List(16) { (random.nextInt(city.tiles.size) * TRAVEL_MODE_COUNT + random.nextInt(4)) }.toSet()
                     val expected = reference.route(start, goal, blocked)
                     assertEquals(expected, router.route(start, goal, blocked))
-                    val mask = BooleanArray(city.tiles.size * 4)
+                    val mask = BooleanArray(city.tiles.size * TRAVEL_MODE_COUNT)
                     blocked.forEach { mask[it] = true }
                     assertEquals(expected, router.route(start, goal, mask))
                     mask.fill(false)

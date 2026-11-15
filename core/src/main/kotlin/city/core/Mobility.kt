@@ -18,6 +18,8 @@ enum class Need(
     REST("Repos"),
 }
 
+const val TRAVEL_MODE_COUNT = 5
+
 @Serializable
 enum class TravelMode(
     val label: String,
@@ -27,6 +29,7 @@ enum class TravelMode(
     ROAD("Route", 120),
     RAIL("Train", 600),
     METRO("Métro", 900),
+    BICYCLE("Vélo", 600),
 }
 
 @Serializable
@@ -77,11 +80,11 @@ data class Mobility(
                     for (index in 1 until nodes.size) {
                         val from = nodes[index - 1]
                         val to = nodes[index]
-                        val boarding = from % 4 == TravelMode.WALK.ordinal && to % 4 == TravelMode.METRO.ordinal
-                        val alighting = from % 4 == TravelMode.METRO.ordinal && to % 4 == TravelMode.WALK.ordinal
+                        val boarding = from % TRAVEL_MODE_COUNT == TravelMode.WALK.ordinal && to % TRAVEL_MODE_COUNT == TravelMode.METRO.ordinal
+                        val alighting = from % TRAVEL_MODE_COUNT == TravelMode.METRO.ordinal && to % TRAVEL_MODE_COUNT == TravelMode.WALK.ordinal
                         if (!boarding && !alighting) continue
                         // The walking node identifies the station, even when its tunnel is adjacent.
-                        val station = (if (boarding) from else to) / 4
+                        val station = (if (boarding) from else to) / TRAVEL_MODE_COUNT
                         val previous = counts[station] ?: StationPassengers()
                         counts[station] =
                             StationPassengers(
@@ -196,17 +199,17 @@ fun Mobility.position(
     home: MobilityHome,
     minute: Int,
 ): Int {
-    home.days.getOrNull(resident.slot)?.let { return it.positionAt(minute) / 4 }
+    home.days.getOrNull(resident.slot)?.let { return it.positionAt(minute) / TRAVEL_MODE_COUNT }
     for (trip in itinerary(resident, home)) {
         if (!trip.fulfilled || trip.path == null || minute < trip.departure || minute >= trip.arrivalHome) continue
         val path = home.paths[trip.path]
         if (minute < trip.departure + path.duration) {
             val elapsed = minute - trip.departure
-            return path.nodes[path.minutes.indexOfLast { it <= elapsed }.coerceAtLeast(0)] / 4
+            return path.nodes[path.minutes.indexOfLast { it <= elapsed }.coerceAtLeast(0)] / TRAVEL_MODE_COUNT
         }
         if (minute < trip.returnDeparture) return path.destination
         val remaining = path.duration - (minute - trip.returnDeparture)
-        return path.nodes[path.minutes.indexOfFirst { it >= remaining }.coerceAtLeast(0)] / 4
+        return path.nodes[path.minutes.indexOfFirst { it >= remaining }.coerceAtLeast(0)] / TRAVEL_MODE_COUNT
     }
     return resident.home
 }
@@ -216,11 +219,11 @@ fun Mobility.aggregateLoads(): List<TrafficLoad> {
     val totals = sortedMapOf<Int, IntArray>()
     for (home in homes) {
         for (load in home.loads) {
-            val hours = totals.getOrPut(load.cell * 4 + load.mode.ordinal) { IntArray(24) }
+            val hours = totals.getOrPut(load.cell * TRAVEL_MODE_COUNT + load.mode.ordinal) { IntArray(24) }
             for (hour in 0..23) hours[hour] += load.hours[hour]
         }
     }
-    return totals.map { (node, hours) -> TrafficLoad(node / 4, TravelMode.entries[node % 4], hours.toList()) }
+    return totals.map { (node, hours) -> TrafficLoad(node / TRAVEL_MODE_COUNT, TravelMode.entries[node % TRAVEL_MODE_COUNT], hours.toList()) }
 }
 
 /** A bounded number of workers claim homes dynamically; each worker owns its result list. */
@@ -255,7 +258,7 @@ internal class MobilityRouter(
     private val surfaces = Array(size) { city.surface(it) }
     private val neighbors = Array(size) { city.neighbors(it) }
     private val transfers = Array(size) { mutableListOf<Int>() }
-    private val delay = IntArray(size * 4)
+    private val delay = IntArray(size * TRAVEL_MODE_COUNT)
     private val destinations =
         Need.entries.associateWith { need ->
             city.tiles.indices.filter { i ->
@@ -281,8 +284,8 @@ internal class MobilityRouter(
 
     init {
         previous?.aggregateLoads()?.forEach { load ->
-            if (load.cell in city.tiles.indices && load.mode.capacity > 0) {
-                delay[load.cell * 4 + load.mode.ordinal] = ((load.hours.max().toLong() * 2 / load.hourlyCapacity(city)) - 1).coerceIn(0, 8).toInt()
+            if (load.cell in city.tiles.indices && load.mode.capacity > 0 && load.mode != TravelMode.BICYCLE) {
+                delay[load.cell * TRAVEL_MODE_COUNT + load.mode.ordinal] = ((load.hours.max().toLong() * 2 / load.hourlyCapacity(city)) - 1).coerceIn(0, 8).toInt()
             }
         }
         city.tiles.forEachIndexed { i, tile ->
@@ -296,7 +299,7 @@ internal class MobilityRouter(
                 for (n in neighbors[i] + i) {
                     val connected = if (mode == TravelMode.RAIL) city.tiles[n].rail else city.tiles[n].subway
                     if (connected) {
-                        val node = n * 4 + mode.ordinal
+                        val node = n * TRAVEL_MODE_COUNT + mode.ordinal
                         transfers[i].add(node)
                     }
                 }
@@ -307,13 +310,13 @@ internal class MobilityRouter(
     // Triples (destination, base minutes, congested minutes), in the original neighbor order.
     // Built once per immutable city snapshot; no collections or terrain objects during traversal.
     private val adjacency =
-        Array(size * 4) { node ->
+        Array(size * TRAVEL_MODE_COUNT) { node ->
             val edges = buildEdges(node)
             IntArray(edges.size * 3).also { data ->
                 edges.forEachIndexed { index, (next, cost) ->
                     data[index * 3] = next
                     data[index * 3 + 1] = cost
-                    data[index * 3 + 2] = cost + if (node % 4 != 0 && node % 4 == next % 4) delay[next] else 0
+                    data[index * 3 + 2] = cost + if (node % TRAVEL_MODE_COUNT != 0 && node % TRAVEL_MODE_COUNT == next % TRAVEL_MODE_COUNT) delay[next] else 0
                 }
             }
         }
@@ -330,23 +333,34 @@ internal class MobilityRouter(
     private fun walkable(i: Int) = (!city.tiles[i].water || city.tiles[i].road) && city.tiles[i].fire == 0
 
     private fun buildEdges(node: Int): List<Pair<Int, Int>> {
-        val i = node / 4
+        val i = node / TRAVEL_MODE_COUNT
         if (i !in city.tiles.indices || city.tiles[i].fire > 0) return emptyList()
-        val mode = TravelMode.entries[node % 4]
+        val mode = TravelMode.entries[node % TRAVEL_MODE_COUNT]
         return buildList {
             when (mode) {
                 TravelMode.WALK -> {
                     if (walkable(i)) {
-                        for (n in neighbors[i]) if (walkable(n) && abs(surfaces[i].minimum - surfaces[n].minimum) <= 1) add(n * 4 to 5)
-                        if (city.tiles[i].road) add(i * 4 + 1 to 2)
-                        for (target in transfers[i]) if (city.tiles[target / 4].fire == 0) add(target to 5)
+                        for (n in neighbors[i]) if (walkable(n) && abs(surfaces[i].minimum - surfaces[n].minimum) <= 1) add(n * TRAVEL_MODE_COUNT to 5)
+                        add(i * TRAVEL_MODE_COUNT + TravelMode.BICYCLE.ordinal to 1)
+                        if (city.tiles[i].road) add(i * TRAVEL_MODE_COUNT + 1 to 2)
+                        for (target in transfers[i]) if (city.tiles[target / TRAVEL_MODE_COUNT].fire == 0) add(target to 5)
+                    }
+                }
+
+                TravelMode.BICYCLE -> {
+                    if (walkable(i)) {
+                        add(i * TRAVEL_MODE_COUNT to 1)
+                        for (n in neighbors[i]) {
+                            val rise = surfaces[n].minimum - surfaces[i].minimum
+                            if (walkable(n) && abs(rise) <= 1) add(n * TRAVEL_MODE_COUNT + mode.ordinal to (2 + rise.coerceAtLeast(0) * 2))
+                        }
                     }
                 }
 
                 TravelMode.ROAD -> {
                     if (city.tiles[i].road) {
-                        add(i * 4 to 2)
-                        for (n in neighbors[i]) if (city.tiles[n].road && city.tiles[n].fire == 0 && connects(i, n)) add(n * 4 + 1 to 2)
+                        add(i * TRAVEL_MODE_COUNT to 2)
+                        for (n in neighbors[i]) if (city.tiles[n].road && city.tiles[n].fire == 0 && connects(i, n)) add(n * TRAVEL_MODE_COUNT + 1 to 2)
                     }
                 }
 
@@ -355,9 +369,9 @@ internal class MobilityRouter(
                     if (exists) {
                         for (n in neighbors[i]) {
                             val connects = if (mode == TravelMode.RAIL) city.tiles[n].rail && connects(i, n) else city.tiles[n].subway
-                            if (connects && city.tiles[n].fire == 0) add(n * 4 + mode.ordinal to 1)
+                            if (connects && city.tiles[n].fire == 0) add(n * TRAVEL_MODE_COUNT + mode.ordinal to 1)
                         }
-                        for (n in neighbors[i] + i) if (node in transfers[n] && walkable(n)) add(n * 4 to 5)
+                        for (n in neighbors[i] + i) if (node in transfers[n] && walkable(n)) add(n * TRAVEL_MODE_COUNT to 5)
                     }
                 }
             }
@@ -428,7 +442,7 @@ internal class MobilityRouter(
     private val workspaces = java.util.ArrayDeque<SearchWorkspace>()
 
     private suspend fun <T> withWorkspace(action: suspend (SearchWorkspace) -> T): T {
-        val workspace = synchronized(workspaces) { workspaces.pollFirst() } ?: SearchWorkspace(size * 4)
+        val workspace = synchronized(workspaces) { workspaces.pollFirst() } ?: SearchWorkspace(size * TRAVEL_MODE_COUNT)
         try {
             return action(workspace)
         } finally {
@@ -442,6 +456,7 @@ internal class MobilityRouter(
         start: Int,
         goal: Int? = null,
         blocked: BooleanArray? = null,
+        cycling: Boolean = false,
     ) {
         val distance = workspace.distance
         val parent = workspace.parent
@@ -463,6 +478,7 @@ internal class MobilityRouter(
                 val next = edges[edge]
                 val total = cost + edges[edge + 2]
                 edge += 3
+                if ((next % TRAVEL_MODE_COUNT == TravelMode.BICYCLE.ordinal) != cycling) continue
                 if (blocked != null && blocked[next]) continue
                 if (total < distance[next] && total <= 180) {
                     if (distance[next] == Int.MAX_VALUE) workspace.touched[workspace.count++] = next
@@ -494,7 +510,7 @@ internal class MobilityRouter(
         start: Int,
         goal: Int,
         blocked: Set<Int> = emptySet(),
-    ): TravelPath? = route(start, goal, if (blocked.isEmpty()) null else BooleanArray(size * 4).also { mask -> blocked.forEach { if (it in mask.indices) mask[it] = true } })
+    ): TravelPath? = route(start, goal, if (blocked.isEmpty()) null else BooleanArray(size * TRAVEL_MODE_COUNT).also { mask -> blocked.forEach { if (it in mask.indices) mask[it] = true } })
 
     /** The caller owns the mask exclusively until this call returns; searches only read it. */
     suspend fun route(
@@ -503,9 +519,24 @@ internal class MobilityRouter(
         blocked: BooleanArray?,
     ): TravelPath? =
         withWorkspace { workspace ->
-            require(blocked == null || blocked.size == size * 4)
+            require(blocked == null || blocked.size == size * TRAVEL_MODE_COUNT)
             search(workspace, start, goal, blocked)
             reconstruct(goal, workspace.distance, workspace.parent)
+        }
+
+    /** A bicycle cannot be acquired en route or taken onto public transport. */
+    suspend fun bicycleRoute(
+        start: Int,
+        destination: Int,
+    ): TravelPath? =
+        withWorkspace { workspace ->
+            val first = start / TRAVEL_MODE_COUNT * TRAVEL_MODE_COUNT + TravelMode.BICYCLE.ordinal
+            val last = destination * TRAVEL_MODE_COUNT + TravelMode.BICYCLE.ordinal
+            if (!walkable(first / TRAVEL_MODE_COUNT) || !walkable(destination)) return@withWorkspace null
+            search(workspace, first, last, cycling = true)
+            val cycling = reconstruct(last, workspace.distance, workspace.parent) ?: return@withWorkspace null
+            val nodes = (if (start == first) emptyList() else listOf(start)) + cycling.nodes + (destination * TRAVEL_MODE_COUNT)
+            path(nodes)?.takeIf { it.duration <= 180 }
         }
 
     data class DestinationChoices(
@@ -516,14 +547,14 @@ internal class MobilityRouter(
     /** One graph search supplies both ordinary needs and the distinct educational categories. */
     suspend fun destinationsFrom(home: Int): DestinationChoices =
         withWorkspace { workspace ->
-            search(workspace, home * 4)
+            search(workspace, home * TRAVEL_MODE_COUNT)
 
             fun nearest(targets: List<Int>): List<TravelPath> =
                 targets
-                    .filter { workspace.distance[it * 4] < Int.MAX_VALUE }
-                    .sortedWith(compareBy<Int> { workspace.distance[it * 4] }.thenBy { it })
+                    .filter { workspace.distance[it * TRAVEL_MODE_COUNT] < Int.MAX_VALUE }
+                    .sortedWith(compareBy<Int> { workspace.distance[it * TRAVEL_MODE_COUNT] }.thenBy { it })
                     .take(2)
-                    .mapNotNull { reconstruct(it * 4, workspace.distance, workspace.parent) }
+                    .mapNotNull { reconstruct(it * TRAVEL_MODE_COUNT, workspace.distance, workspace.parent) }
             DestinationChoices(
                 destinations.filterKeys { it != Need.REST }.mapValues { (_, targets) -> nearest(targets) },
                 destinations.getValue(Need.EDUCATION).groupBy { city.tiles[it].building!! }.mapValues { (_, targets) -> nearest(targets) },
@@ -562,20 +593,20 @@ fun Mobility.validate(
             require(option.paths.size <= 2 && option.need != Need.REST)
             for (index in option.paths) {
                 require(index in home.paths.indices)
-                require(home.paths[index].nodes.firstOrNull() == home.cell * 4)
+                require(home.paths[index].nodes.firstOrNull() == home.cell * TRAVEL_MODE_COUNT)
             }
         }
         require(home.completedNeeds >= 0 && home.unmetNeeds >= 0)
         for (path in home.paths) {
             require(path.nodes.isNotEmpty() && path.nodes.size == path.minutes.size)
-            require(path.nodes.all { it in 0 until city.tiles.size * 4 })
+            require(path.nodes.all { it in 0 until city.tiles.size * TRAVEL_MODE_COUNT })
             require(path.minutes.first() == 0 && path.minutes.last() in 0..1440)
             require(path.minutes.zipWithNext().all { (a, b) -> b > a })
-            require(path.nodes.last() % 4 == 0)
+            require(path.nodes.last() % TRAVEL_MODE_COUNT == 0)
         }
         require(
             home.loads
-                .map { it.cell * 4 + it.mode.ordinal }
+                .map { it.cell * TRAVEL_MODE_COUNT + it.mode.ordinal }
                 .distinct()
                 .size == home.loads.size,
         )

@@ -51,6 +51,7 @@ data class Citizen(
     val position: Int,
     val wellbeing: Wellbeing = Wellbeing(),
     val life: CitizenLife? = null,
+    val bicycle: BicycleState? = null,
 )
 
 @Serializable
@@ -136,6 +137,7 @@ internal fun chooseRoute(
 }
 
 fun City.validateCitizens() {
+    require(travelModeCount == TRAVEL_MODE_COUNT)
     require(day == null || day >= 0)
     require(nextCitizenId > 0)
     require(households.map { it.cell }.distinct().size == households.size)
@@ -144,13 +146,26 @@ fun City.validateCitizens() {
         require(household.cell in tiles.indices)
         for (path in household.paths) {
             require(path.nodes.isNotEmpty() && path.nodes.size == path.minutes.size)
-            require(path.nodes.all { it in 0 until tiles.size * 4 })
+            require(path.nodes.all { it in 0 until tiles.size * TRAVEL_MODE_COUNT })
             require(path.minutes.first() == 0 && path.minutes.zipWithNext().all { (a, b) -> b > a })
         }
         for (person in household.people) {
             require(person.id in 1 until nextCitizenId && ids.add(person.id))
-            require(person.name.length in 1..120 && person.age in 0..120 && person.position in 0 until tiles.size * 4)
+            require(person.name.length in 1..120 && person.age in 0..120 && person.position in 0 until tiles.size * TRAVEL_MODE_COUNT)
             person.life?.validate(person, this)
+            if (person.position % TRAVEL_MODE_COUNT == TravelMode.BICYCLE.ordinal) require(person.bicycle?.cell == person.position / TRAVEL_MODE_COUNT)
+            person.bicycle?.let { bike ->
+                require(bike.cell == null || bike.cell in tiles.indices)
+                require(bike.savings.isFinite() && bike.savings in 0.0..120.0 && bike.updatedDay >= -1 && bike.thefts >= 0)
+                require((bike.lastTheftDay == null) == (bike.lastTheftCell == null))
+                require(bike.lastTheftDay == null || bike.lastTheftDay >= 0)
+                require(bike.lastTheftCell == null || bike.lastTheftCell in tiles.indices)
+                require((bike.parkedSince == null) == (bike.checkedUntil == null))
+                require(bike.parkedSince == null || (bike.cell != null && bike.parkedSince >= 0 && bike.checkedUntil!! >= bike.parkedSince))
+                require(!bike.protectedParking || bike.parkedSince != null)
+                require(person.position % TRAVEL_MODE_COUNT != TravelMode.BICYCLE.ordinal || bike.cell == person.position / TRAVEL_MODE_COUNT)
+            }
+
             val opinion = person.wellbeing
             require(opinion.satisfaction.isFinite() && opinion.satisfaction in 0.0..100.0)
             require(opinion.pressure.isFinite() && opinion.pressure in 0.0..100.0 && opinion.trend.isFinite())
@@ -182,7 +197,7 @@ fun City.validateCitizens() {
             require(home.paths == household.paths && home.residents == household.people.size)
             require(home.days.map { it.citizenId } == household.people.map { it.id })
             for (personDay in home.days) {
-                require(personDay.startNode in 0 until tiles.size * 4)
+                require(personDay.startNode in 0 until tiles.size * TRAVEL_MODE_COUNT)
                 require(
                     personDay.activities
                         .map { it.need to it.appointment?.id }
@@ -207,7 +222,7 @@ fun City.validateCitizens() {
                     require(leg.appointmentId == null || personDay.activities.any { it.matches(leg) })
                     require(leg.planned in home.paths.indices && leg.departure in 0..1439 && (leg.arrival == null || leg.arrival in leg.departure..1439))
                     require(leg.trace.nodes.isNotEmpty() && leg.trace.nodes.size == leg.trace.minutes.size)
-                    require(leg.trace.nodes.all { it in 0 until tiles.size * 4 })
+                    require(leg.trace.nodes.all { it in 0 until tiles.size * TRAVEL_MODE_COUNT })
                     require(
                         leg.trace.minutes.first() == 0 &&
                             leg.trace.minutes
@@ -217,7 +232,7 @@ fun City.validateCitizens() {
                     require(leg.trace.nodes.first() == home.paths[leg.planned].nodes.first())
                     require(leg.trace.minutes.last() <= 1439 - leg.departure)
                     require(leg.arrival == null || leg.trace.minutes.last() == leg.arrival - leg.departure)
-                    require(leg.waitMinutes >= 0 && leg.decisions.all { it.minute in 0..1439 && it.node in 0 until tiles.size * 4 })
+                    require(leg.waitMinutes >= 0 && leg.decisions.all { it.minute in 0..1439 && it.node in 0 until tiles.size * TRAVEL_MODE_COUNT })
                 }
             }
         }

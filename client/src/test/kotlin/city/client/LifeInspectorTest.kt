@@ -18,7 +18,8 @@ class LifeInspectorTest {
                 1,
                 "Camille",
                 20,
-                position = 68,
+                position = 17 * TRAVEL_MODE_COUNT,
+                bicycle = BicycleState(lastTheftDay = 44, lastTheftCell = 35, thefts = 1),
                 life =
                     CitizenLife(
                         -7304,
@@ -32,7 +33,7 @@ class LifeInspectorTest {
                         pregnancyFather = 2,
                     ),
             )
-        val day = CitizenDay(1, 68, listOf(PlannedActivity(Need.REST, 1320, 0)))
+        val day = CitizenDay(1, 17 * TRAVEL_MODE_COUNT, listOf(PlannedActivity(Need.REST, 1320, 0)))
         val city =
             City(
                 width = 16,
@@ -48,20 +49,20 @@ class LifeInspectorTest {
             panel.updateSnapshot(city)
             panel.openResident(0)
             val text = texts(panel).joinToString("\n")
-            for (expected in listOf("NI", "CA", "Informatique", "40/45", "Partenaire : #2", "Naissance prévue", "18–24 ans : 1")) assertContains(text, expected)
+            for (expected in listOf("NI", "CA", "Informatique", "40/45", "Partenaire : #2", "Naissance prévue", "18–24 ans : 1", "Vélo : aucun", "Dernier vol", "Réticence", "malus de bonheur restant")) assertContains(text, expected)
             panel.updateSnapshot(city.copy(households = listOf(Household(17, listOf(p.copy(age = 25))))))
             assertContains(texts(panel).joinToString("\n"), "25–44 ans : 1")
         }
     }
 
     @Test fun `inspector distinguishes ordinary leisure and student appointment traces`() {
-        val paths = listOf(TravelPath(listOf(68, 144), listOf(0, 10)), TravelPath(listOf(68, 80), listOf(0, 12)))
-        val p = Citizen(1, "Camille", 15, position = 68, life = CitizenLife(-5500, Sex.FEMALE, 80.0, 1.0, LifeStage.SCHOOL, studentRelationship = StudentRelationship(2, 0, 62.0)))
+        val paths = listOf(TravelPath(listOf(17 * TRAVEL_MODE_COUNT, 36 * TRAVEL_MODE_COUNT), listOf(0, 10)), TravelPath(listOf(17 * TRAVEL_MODE_COUNT, 20 * TRAVEL_MODE_COUNT), listOf(0, 12)))
+        val p = Citizen(1, "Camille", 15, position = 17 * TRAVEL_MODE_COUNT, life = CitizenLife(-5500, Sex.FEMALE, 80.0, 1.0, LifeStage.SCHOOL, studentRelationship = StudentRelationship(2, 0, 62.0)))
         val date = StudentAppointment(1, 2, StudentDateKind.VISIT, 20, 1000)
         val day =
             CitizenDay(
                 1,
-                68,
+                17 * TRAVEL_MODE_COUNT,
                 listOf(PlannedActivity(Need.LEISURE, 900, 45, 0), PlannedActivity(Need.LEISURE, 988, 75, 1, appointment = date)),
                 listOf(ExecutedLeg(Need.LEISURE, false, 0, 900, 910, paths[0], status = "Sortie ordinaire"), ExecutedLeg(Need.LEISURE, false, 1, 988, 1000, paths[1], status = "Trajet de visite", appointmentId = 1)),
                 StudentDateOutcome(StudentDateStatus.SUCCESS, 75, 1.0, 6.0),

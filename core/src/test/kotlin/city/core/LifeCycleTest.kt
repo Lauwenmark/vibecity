@@ -14,7 +14,7 @@ class LifeCycleTest {
         stage: LifeStage = LifeStage.WORKER,
         knowledge: Double = 80.0,
         ca: Double = 1.0,
-    ): Citizen = Citizen(id, "Person $id", age, position = 68, life = CitizenLife(dateDay(epoch.minusYears(age.toLong())), Sex.FEMALE, knowledge, ca, stage, lastSalary = if (stage == LifeStage.WORKER) 50.0 else 0.0))
+    ): Citizen = Citizen(id, "Person $id", age, position = 17 * TRAVEL_MODE_COUNT, life = CitizenLife(dateDay(epoch.minusYears(age.toLong())), Sex.FEMALE, knowledge, ca, stage, lastSalary = if (stage == LifeStage.WORKER) 50.0 else 0.0))
 
     private fun city(
         vararg people: Citizen,
@@ -42,7 +42,7 @@ class LifeCycleTest {
             p.id,
             68,
             listOf(PlannedActivity(Need.EDUCATION, 480, if (p.isStudent) 360 else 60, scheduled = scheduled)),
-            if (attends) listOf(ExecutedLeg(Need.EDUCATION, false, 0, 480, arrival, TravelPath(listOf(68, destination * 4), listOf(0, arrival - 480)))) else emptyList(),
+            if (attends) listOf(ExecutedLeg(Need.EDUCATION, false, 0, 480, arrival, TravelPath(listOf(17 * TRAVEL_MODE_COUNT, destination * TRAVEL_MODE_COUNT), listOf(0, arrival - 480)))) else emptyList(),
         )
 
     @Test fun `old saves migrate once without replacing identities and knowledge persists on wire`() {
@@ -356,7 +356,7 @@ class LifeCycleTest {
             moved.households
                 .single { it.cell == 20 }
                 .people
-                .all { it.position == 80 && it.routes.isEmpty() },
+                .all { it.position == 20 * TRAVEL_MODE_COUNT && it.routes.isEmpty() },
         )
         assertEquals(3, moved.tiles[20].occupants)
         assertEquals(2, moved.tiles[17].occupants)
@@ -366,7 +366,7 @@ class LifeCycleTest {
 
     @Test fun `partner joins independent partner and capacity blocks impossible moves`() {
         val a = person().let { it.copy(life = it.life!!.copy(partner = 2, parents = listOf(3))) }
-        val b = person(id = 2).let { it.copy(position = 80, life = it.life!!.copy(partner = 1, sex = Sex.MALE)) }
+        val b = person(id = 2).let { it.copy(position = 20 * TRAVEL_MODE_COUNT, life = it.life!!.copy(partner = 1, sex = Sex.MALE)) }
         val initial =
             city(a, person(id = 3, age = 50)).let { c ->
                 c.copy(
@@ -423,7 +423,7 @@ class LifeCycleTest {
                             else -> t
                         }
                     },
-                households = listOf(Household(17, listOf(woman)), Household(20, listOf(man.copy(position = 80)))),
+                households = listOf(Household(17, listOf(woman)), Household(20, listOf(man.copy(position = 20 * TRAVEL_MODE_COUNT)))),
             )
         // Keep both away from home so the monthly move cannot co-locate them before conception.
         val separated = apart.copy(households = apart.households.map { h -> h.copy(people = h.people.map { it.copy(position = 0) }) })

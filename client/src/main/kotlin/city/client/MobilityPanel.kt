@@ -279,7 +279,7 @@ internal class MobilityPanel(
                 2 -> memories.getOrNull(remembered.selectedIndex)?.let { h?.paths?.getOrNull(it.path) }
                 else -> if (returning.isSelected) activity?.returnRoute?.let { h?.paths?.getOrNull(it) } else activity?.route?.let { h?.paths?.getOrNull(it) }
             }
-        val position = day?.positionAt(minute)?.div(4) ?: person.position / 4
+        val position = day?.positionAt(minute)?.div(TRAVEL_MODE_COUNT) ?: person.position / TRAVEL_MODE_COUNT
         if (cohortHomes !== c.households) {
             cohortHomes = c.households
             cohorts = c.educationByAge()
@@ -317,6 +317,12 @@ internal class MobilityPanel(
                                 .sortedByDescending { it.second }
                         append(if (factors.isEmpty()) "Aucun facteur négatif.\n" else factors.joinToString(" ; ") { (factor, value) -> "${factor.label} : −%.1f".format(value) } + "\n")
                     }
+                }
+                person.bicycle?.let { bike ->
+                    val date = c.mobility?.day ?: c.nextDay()
+                    append("Vélo : ${bike.cell?.let { "à ${it % c.width}, ${it / c.width}" } ?: "aucun"}. Réticence : %.1f / 100.\n".format(bike.reluctance(date)))
+                    if (bike.parkedSince != null) append(if (bike.protectedParking) "Stationné sur une place vélo.\n" else "Stationné sans place vélo protégée.\n")
+                    bike.lastTheftDay?.let { append("Dernier vol : ${epoch.plusDays(it.toLong())} ; malus de bonheur restant : %.1f.\n".format(bike.unhappiness(date))) }
                 }
                 append("Position réelle : ${position % c.width}, ${position / c.width} (point blanc). Plan du matin, parcours réalisé et carnet sont distincts.\n")
                 if (leg != null) {

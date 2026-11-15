@@ -13,7 +13,7 @@ internal class ReferenceMobilityRouter(
     private val size = city.tiles.size
     private val neighbors = Array(size) { city.neighbors(it) }
     private val transfers = Array(size) { mutableListOf<Int>() }
-    private val delay = IntArray(size * 4)
+    private val delay = IntArray(size * TRAVEL_MODE_COUNT)
     private val destinations =
         Need.entries.associateWith { need ->
             city.tiles.indices.filter { i ->
@@ -34,7 +34,7 @@ internal class ReferenceMobilityRouter(
     init {
         previous?.aggregateLoads()?.forEach { load ->
             if (load.cell in city.tiles.indices && load.mode.capacity > 0) {
-                delay[load.cell * 4 + load.mode.ordinal] = ((load.hours.max().toLong() * 2 / load.hourlyCapacity(city)) - 1).coerceIn(0, 8).toInt()
+                delay[load.cell * TRAVEL_MODE_COUNT + load.mode.ordinal] = ((load.hours.max().toLong() * 2 / load.hourlyCapacity(city)) - 1).coerceIn(0, 8).toInt()
             }
         }
         city.tiles.forEachIndexed { i, tile ->
@@ -48,7 +48,7 @@ internal class ReferenceMobilityRouter(
                 for (n in neighbors[i] + i) {
                     val connected = if (mode == TravelMode.RAIL) city.tiles[n].rail else city.tiles[n].subway
                     if (connected) {
-                        val node = n * 4 + mode.ordinal
+                        val node = n * TRAVEL_MODE_COUNT + mode.ordinal
                         transfers[i].add(node)
                     }
                 }
@@ -62,23 +62,27 @@ internal class ReferenceMobilityRouter(
         node: Int,
         congested: Boolean = false,
     ): List<Pair<Int, Int>> {
-        val i = node / 4
+        val i = node / TRAVEL_MODE_COUNT
         if (i !in city.tiles.indices || city.tiles[i].fire > 0) return emptyList()
-        val mode = TravelMode.entries[node % 4]
+        val mode = TravelMode.entries[node % TRAVEL_MODE_COUNT]
         return buildList {
             when (mode) {
                 TravelMode.WALK -> {
                     if (walkable(i)) {
-                        for (n in neighbors[i]) if (walkable(n) && abs(city.surface(i).minimum - city.surface(n).minimum) <= 1) add(n * 4 to 5)
-                        if (city.tiles[i].road) add(i * 4 + 1 to 2)
-                        for (target in transfers[i]) if (city.tiles[target / 4].fire == 0) add(target to 5)
+                        for (n in neighbors[i]) if (walkable(n) && abs(city.surface(i).minimum - city.surface(n).minimum) <= 1) add(n * TRAVEL_MODE_COUNT to 5)
+                        if (city.tiles[i].road) add(i * TRAVEL_MODE_COUNT + 1 to 2)
+                        for (target in transfers[i]) if (city.tiles[target / TRAVEL_MODE_COUNT].fire == 0) add(target to 5)
                     }
+                }
+
+                TravelMode.BICYCLE -> {
+                    Unit
                 }
 
                 TravelMode.ROAD -> {
                     if (city.tiles[i].road) {
-                        add(i * 4 to 2)
-                        for (n in neighbors[i]) if (city.tiles[n].road && city.tiles[n].fire == 0 && city.transportConnects(i, n)) add(n * 4 + 1 to (2 + if (congested) delay[n * 4 + 1] else 0))
+                        add(i * TRAVEL_MODE_COUNT to 2)
+                        for (n in neighbors[i]) if (city.tiles[n].road && city.tiles[n].fire == 0 && city.transportConnects(i, n)) add(n * TRAVEL_MODE_COUNT + 1 to (2 + if (congested) delay[n * TRAVEL_MODE_COUNT + 1] else 0))
                     }
                 }
 
@@ -87,9 +91,9 @@ internal class ReferenceMobilityRouter(
                     if (exists) {
                         for (n in neighbors[i]) {
                             val connects = if (mode == TravelMode.RAIL) city.tiles[n].rail && city.transportConnects(i, n) else city.tiles[n].subway
-                            if (connects && city.tiles[n].fire == 0) add(n * 4 + mode.ordinal to (1 + if (congested) delay[n * 4 + mode.ordinal] else 0))
+                            if (connects && city.tiles[n].fire == 0) add(n * TRAVEL_MODE_COUNT + mode.ordinal to (1 + if (congested) delay[n * TRAVEL_MODE_COUNT + mode.ordinal] else 0))
                         }
-                        for (n in neighbors[i] + i) if (node in transfers[n] && walkable(n)) add(n * 4 to 5)
+                        for (n in neighbors[i] + i) if (node in transfers[n] && walkable(n)) add(n * TRAVEL_MODE_COUNT to 5)
                     }
                 }
             }
@@ -101,7 +105,7 @@ internal class ReferenceMobilityRouter(
         to: Int,
     ): Int? = edges(from).firstOrNull { it.first == to }?.second
 
-    fun valid(path: TravelPath): Boolean = path.nodes.isNotEmpty() && path.nodes.all { it in 0 until size * 4 } && path.nodes.zipWithNext().all { (a, b) -> duration(a, b) != null }
+    fun valid(path: TravelPath): Boolean = path.nodes.isNotEmpty() && path.nodes.all { it in 0 until size * TRAVEL_MODE_COUNT } && path.nodes.zipWithNext().all { (a, b) -> duration(a, b) != null }
 
     fun serves(
         need: Need,
@@ -124,8 +128,8 @@ internal class ReferenceMobilityRouter(
         goal: Int? = null,
         blocked: Set<Int> = emptySet(),
     ): Pair<IntArray, IntArray> {
-        val distance = IntArray(size * 4) { Int.MAX_VALUE }
-        val parent = IntArray(size * 4) { -1 }
+        val distance = IntArray(size * TRAVEL_MODE_COUNT) { Int.MAX_VALUE }
+        val parent = IntArray(size * TRAVEL_MODE_COUNT) { -1 }
 
         data class Visit(
             val node: Int,
@@ -179,13 +183,13 @@ internal class ReferenceMobilityRouter(
     }
 
     suspend fun from(home: Int): Map<Need, List<TravelPath>> {
-        val (distance, parent) = search(home * 4)
+        val (distance, parent) = search(home * TRAVEL_MODE_COUNT)
         return destinations.filterKeys { it != Need.REST }.mapValues { (_, targets) ->
             targets
-                .filter { distance[it * 4] < Int.MAX_VALUE }
-                .sortedWith(compareBy<Int> { distance[it * 4] }.thenBy { it })
+                .filter { distance[it * TRAVEL_MODE_COUNT] < Int.MAX_VALUE }
+                .sortedWith(compareBy<Int> { distance[it * TRAVEL_MODE_COUNT] }.thenBy { it })
                 .take(2)
-                .mapNotNull { reconstruct(it * 4, distance, parent) }
+                .mapNotNull { reconstruct(it * TRAVEL_MODE_COUNT, distance, parent) }
         }
     }
 }

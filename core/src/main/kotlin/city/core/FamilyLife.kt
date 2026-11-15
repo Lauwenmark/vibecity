@@ -21,7 +21,7 @@ internal fun deliverBabies(city: City): City {
                                 id,
                                 "${FIRST_NAMES[n % FIRST_NAMES.size]} #$id",
                                 0,
-                                position = home.cell * 4,
+                                position = home.cell * TRAVEL_MODE_COUNT,
                                 life =
                                     CitizenLife(
                                         city.nextDay(),
@@ -104,7 +104,7 @@ internal fun monthlyFamilies(
     ): Boolean {
         val migrating = ids.filter { cells[it] != destination }
         if (migrating.isEmpty() || occupants[destination].orEmpty().size + migrating.size > capacity(destination)) return false
-        if (migrating.any { people.getValue(it).position != cells.getValue(it) * 4 }) return false
+        if (migrating.any { people.getValue(it).position != cells.getValue(it) * TRAVEL_MODE_COUNT }) return false
         val residents = (occupants[destination].orEmpty() + migrating).map { people.getValue(it) }
         val income = residents.sumOf { it.dailyIncome }
         val rent = 5.0 + city.tiles[destination].landValue * .1 + if (city.tiles[destination].zone == Zone.RESIDENTIAL_LIGHT) 2 else 0
@@ -112,9 +112,10 @@ internal fun monthlyFamilies(
         for (id in migrating) {
             occupants[cells.getValue(id)]?.remove(id)
             occupants.getOrPut(destination) { mutableListOf() }.add(id)
+            val previousHome = cells.getValue(id)
             cells[id] = destination
             val person = people.getValue(id)
-            people[id] = person.copy(position = destination * 4, routes = emptyList(), wellbeing = person.wellbeing.copy(residenceDays = 0, workplace = null))
+            people[id] = person.copy(bicycle = person.bicycle?.let { if (it.cell == previousHome) it.copy(cell = destination, parkedSince = null, checkedUntil = null, protectedParking = false) else it }, position = destination * TRAVEL_MODE_COUNT, routes = emptyList(), wellbeing = person.wellbeing.copy(residenceDays = 0, workplace = null))
         }
         return true
     }

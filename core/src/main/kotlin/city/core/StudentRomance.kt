@@ -201,8 +201,8 @@ internal suspend fun planStudentDates(
         val n = noise(city.seed xor person.id, 726, city.nextDay())
         val kind = if (n % 2 == 0 || leisure.isEmpty()) StudentDateKind.VISIT else StudentDateKind.OUTING
         val destination = if (kind == StudentDateKind.VISIT) homes[places[(n / 2) % 2].first].home.cell else leisure[n % leisure.size]
-        val outbound = places.map { (h, _) -> router.route(homes[h].home.cell * 4, destination * 4) }
-        val inbound = places.map { (h, _) -> router.route(destination * 4, homes[h].home.cell * 4) }
+        val outbound = places.map { (h, _) -> router.route(homes[h].home.cell * TRAVEL_MODE_COUNT, destination * TRAVEL_MODE_COUNT) }
+        val inbound = places.map { (h, _) -> router.route(destination * TRAVEL_MODE_COUNT, homes[h].home.cell * TRAVEL_MODE_COUNT) }
         // Missing routes still produce a failed appointment if the calendars permit it.
         val durations = outbound.map { it?.duration ?: 15 }
         val returns = inbound.map { it?.duration ?: 15 }
@@ -384,7 +384,7 @@ fun Mobility.studentDateStatistics(width: Int): StudentDateStatistics {
                 distance +=
                     leg.trace.nodes
                         .zipWithNext()
-                        .sumOf { (a, b) -> (abs(a / 4 % width - b / 4 % width) + abs(a / 4 / width - b / 4 / width)).toLong() }
+                        .sumOf { (a, b) -> (abs(a / TRAVEL_MODE_COUNT % width - b / TRAVEL_MODE_COUNT % width) + abs(a / TRAVEL_MODE_COUNT / width - b / TRAVEL_MODE_COUNT / width)).toLong() }
             }
         }
     }

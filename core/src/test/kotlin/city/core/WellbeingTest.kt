@@ -12,9 +12,9 @@ class WellbeingTest {
         val tiles = MutableList(256) { Tile(powered = true, watered = true, landValue = 60) }
         tiles[homeCell] = tiles[homeCell].copy(zone = Zone.RESIDENTIAL_LIGHT, occupants = 1)
         tiles[18] = tiles[18].copy(zone = Zone.COMMERCIAL_LIGHT, occupants = 1)
-        val person = Citizen(1, "Camille", 70, position = homeCell * 4, wellbeing = Wellbeing(satisfaction = score))
+        val person = Citizen(1, "Camille", 70, position = homeCell * TRAVEL_MODE_COUNT, wellbeing = Wellbeing(satisfaction = score))
         val household = Household(homeCell, listOf(person))
-        val day = CitizenDay(1, homeCell * 4, listOf(PlannedActivity(Need.REST, 1320, 0)))
+        val day = CitizenDay(1, homeCell * TRAVEL_MODE_COUNT, listOf(PlannedActivity(Need.REST, 1320, 0)))
         return City(width = 16, height = 16, tiles = tiles, day = 1, nextCitizenId = 2, households = listOf(household), mobility = Mobility(0, listOf(MobilityHome(homeCell, 1, emptyList(), days = listOf(day))), 1, 0))
     }
 
@@ -59,9 +59,9 @@ class WellbeingTest {
 
     @Test fun `late long trip and missed food affect opinion and destination crime`() {
         val city = ideal(fixture())
-        val path = TravelPath(listOf(68, 72), listOf(0, 5))
-        val trace = TravelPath(listOf(68, 72), listOf(0, 100))
-        val day = CitizenDay(1, 68, listOf(PlannedActivity(Need.LEISURE, 60, 45, 0), PlannedActivity(Need.FOOD, 1200, 30)), listOf(ExecutedLeg(Need.LEISURE, false, 0, 90, 190, trace)))
+        val path = TravelPath(listOf(17 * TRAVEL_MODE_COUNT, 18 * TRAVEL_MODE_COUNT), listOf(0, 5))
+        val trace = TravelPath(listOf(17 * TRAVEL_MODE_COUNT, 18 * TRAVEL_MODE_COUNT), listOf(0, 100))
+        val day = CitizenDay(1, 17 * TRAVEL_MODE_COUNT, listOf(PlannedActivity(Need.LEISURE, 60, 45, 0), PlannedActivity(Need.FOOD, 1200, 30)), listOf(ExecutedLeg(Need.LEISURE, false, 0, 90, 190, trace)))
         val changed = city.copy(tiles = city.tiles.mapIndexed { i, t -> if (i == 18) t.copy(crime = 100) else t }, mobility = city.mobility!!.copy(homes = listOf(MobilityHome(17, 1, emptyList(), paths = listOf(path), days = listOf(day)))))
         val opinion =
             updateWellbeing(changed, catalog)
@@ -80,8 +80,8 @@ class WellbeingTest {
 
     @Test fun `work destinations preserve contracts but income does not require a job`() {
         val city = fixture()
-        val people = listOf(Citizen(1, "A", 30, position = 68), Citizen(2, "B", 40, position = 68, wellbeing = Wellbeing(workplace = 18, employedDays = 30)))
-        val path = TravelPath(listOf(68, 72), listOf(0, 5))
+        val people = listOf(Citizen(1, "A", 30, position = 17 * TRAVEL_MODE_COUNT), Citizen(2, "B", 40, position = 17 * TRAVEL_MODE_COUNT, wellbeing = Wellbeing(workplace = 18, employedDays = 30)))
+        val path = TravelPath(listOf(17 * TRAVEL_MODE_COUNT, 18 * TRAVEL_MODE_COUNT), listOf(0, 5))
         val days = people.map { CitizenDay(it.id, 68, emptyList(), listOf(ExecutedLeg(Need.WORK, false, 0, 0, 5, path))) }
         val result = updateWellbeing(city.copy(nextCitizenId = 3, households = listOf(Household(17, people)), mobility = city.mobility!!.copy(homes = listOf(MobilityHome(17, 2, emptyList(), paths = listOf(path), days = days)))), catalog)
         val opinions =
@@ -136,7 +136,7 @@ class WellbeingTest {
         assertEquals(20, household.cell)
         assertEquals(1L, household.people.single().id)
         assertEquals(0.0, household.satisfaction)
-        assertEquals(80, household.people.single().position)
+        assertEquals(20 * TRAVEL_MODE_COUNT, household.people.single().position)
         assertEquals(1, result.stats.population)
         assertEquals(0, result.tiles[17].occupants)
         assertEquals(1, result.tiles[20].occupants)
@@ -147,7 +147,7 @@ class WellbeingTest {
         val home = city.households.single()
         val attached = home.copy(people = home.people.map { it.copy(wellbeing = it.wellbeing.copy(residenceDays = 730)) })
         assertEquals(home.moveProbability() / 2, attached.moveProbability())
-        val away = city.copy(households = listOf(home.copy(people = home.people.map { it.copy(position = 72) })))
+        val away = city.copy(households = listOf(home.copy(people = home.people.map { it.copy(position = 18 * TRAVEL_MODE_COUNT) })))
         assertEquals(away, migrateUnhappyHouseholds(away, catalog))
     }
 

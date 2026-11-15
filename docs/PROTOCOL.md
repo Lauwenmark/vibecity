@@ -1,4 +1,4 @@
-# Protocole TCP v10
+# Protocole TCP v13
 
 Chaque trame est terminée par LF (`\n`). CRLF est également accepté. Les requêtes et les réponses
 de contrôle sont des objets JSON UTF-8 ; les états peuvent être compressés (voir ci-dessous).
@@ -10,7 +10,7 @@ Le serveur accepte des requêtes de 8 192 caractères maximum et le client des r
 Envoyer dans les 10 secondes :
 
 ```json
-{"type":"HELLO","version":12,"name":"Alice","token":"","compressedStates":true}
+{"type":"HELLO","version":13,"name":"Alice","token":"","compressedStates":true}
 ```
 
 Le nom contient 1 à 24 lettres, chiffres, espaces, `_` ou `-`. La version doit correspondre.
@@ -94,10 +94,10 @@ ou ont été invalidés par une construction ou un changement de financement. Ce
 `month`, `homes`, `completedNeeds` et `unmetNeeds`. Chaque domicile dans `homes` contient
 `cell`, `residents`, `options`, `paths`, `loads`, `completedNeeds` et `unmetNeeds`. Les indices
 des options sont locaux à sa liste `paths`. Les chemins encodent leurs
-états par `case * 4 + mode` (marche 0, route 1, rail 2, métro 3), avec leurs minutes cumulées.
+états par `case * TRAVEL_MODE_COUNT + mode` (marche 0, route 1, rail 2, métro 3, vélo 4 ; `TRAVEL_MODE_COUNT = 5`), avec leurs minutes cumulées.
 Les charges portent une case, un mode et 24 compteurs horaires. Le client reconstruit les horaires
 individuels avec le code partagé de `core` ; il n’effectue aucune recherche d’itinéraire.
-Les clients et serveurs doivent tous utiliser la version 12.
+Les clients et serveurs doivent tous utiliser la version 13.
 
 `City.day` est l’indice du prochain jour à exécuter depuis le 01/01/1900, ou `null` dans une ancienne
 ville : sa date de reprise est alors le premier jour indiqué par `month`. `City.nextCitizenId`
@@ -262,4 +262,19 @@ propres à chaque domicile, y compris lorsque les deux participants partagent un
 `happiness` (contribution individuelle au bonheur) et `strengthChange` (bilan commun du couple).
 Ces champs sont inclus dans les états complets et les différences de domiciles. Les anciennes
 sauvegardes restent lisibles grâce aux valeurs absentes par défaut ; serveur et clients doivent
-tous être recompilés en version 12 avant une partie en réseau.
+tous être recompilés en version 13 avant une partie en réseau.
+
+
+## Vélos et stationnement (version 13)
+
+`BuildingDef.bicycleParking` indique la capacité en vélos (0 par défaut), partagée par
+l’ensemble des cases d’un bâtiment. `Citizen.bicycle` conserve la position du vélo,
+les minutes absolues de stationnement et de dernière vérification du vol, l’attribution
+d’une place, l’épargne pour remplacement et le dernier vol. Les champs absents sont
+initialisés de façon déterministe lors de la prochaine simulation.
+
+`City.travelModeCount` est un marqueur obligatoire sur le réseau. Les nœuds utilisent
+maintenant cinq modes ; client et serveur doivent être mis à jour ensemble. Le chargement
+local d’une ancienne sauvegarde sans marqueur convertit les positions, chemins, traces
+et décisions de quatre à cinq modes, sans supprimer les habitants ni leurs souvenirs.
+La migration laisse le fichier original intact jusqu’à une sauvegarde explicite.

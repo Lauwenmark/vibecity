@@ -453,21 +453,22 @@ class CityCanvas(
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
         g.stroke = BasicStroke(3f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
         for (i in 1 until nodes.size) {
-            if (nodes[i] / 4 !in c.tiles.indices || nodes[i - 1] / 4 !in c.tiles.indices) continue
-            val a = point(nodes[i - 1] / 4)
-            val b = point(nodes[i] / 4)
+            if (nodes[i] / TRAVEL_MODE_COUNT !in c.tiles.indices || nodes[i - 1] / TRAVEL_MODE_COUNT !in c.tiles.indices) continue
+            val a = point(nodes[i - 1] / TRAVEL_MODE_COUNT)
+            val b = point(nodes[i] / TRAVEL_MODE_COUNT)
             g.color =
-                when (TravelMode.entries[nodes[i] % 4]) {
+                when (TravelMode.entries[nodes[i] % TRAVEL_MODE_COUNT]) {
                     TravelMode.WALK -> Color(0xffdf70)
                     TravelMode.ROAD -> Color(0xff8b42)
                     TravelMode.RAIL -> Color(0x59caff)
                     TravelMode.METRO -> Color(0xc993ff)
+                    TravelMode.BICYCLE -> Color(0x64e6a0)
                 }
             g.drawLine(a.x, a.y, b.x, b.y)
         }
         for ((index, node) in nodes.withIndex()) {
-            if ((index != 0 && index != nodes.lastIndex) || node / 4 !in c.tiles.indices) continue
-            val at = point(node / 4)
+            if ((index != 0 && index != nodes.lastIndex) || node / TRAVEL_MODE_COUNT !in c.tiles.indices) continue
+            val at = point(node / TRAVEL_MODE_COUNT)
             g.color = Color(0xffdf70)
             g.drawOval(at.x - 5, at.y - 5, 10, 10)
             g.drawString(if (index == 0) "Domicile" else "Destination", at.x + 7, at.y - 7)

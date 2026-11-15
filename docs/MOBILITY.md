@@ -173,3 +173,44 @@ Il s’agit de passages, et non de voyageurs uniques. Avant qu’une simulation 
 disponible, l’inspecteur indique que les données sont en attente. Les statistiques
 sont calculées à partir des traces existantes, sans modifier le protocole ni les
 sauvegardes.
+
+
+## Vélo personnel et stationnement
+
+À partir de dix ans, un habitant peut utiliser son propre vélo. À l’initialisation,
+60 % des habitants éligibles en possèdent un (tirage stable par identité et graine).
+Le choix se fait au départ du domicile, pour une destination déjà choisie : la marche
+reste favorisée à une case, le vélo est surtout attractif entre quatre et seize cases,
+puis son attrait diminue. Le temps relatif au trajet habituel, les pentes, les places
+vélo disponibles à destination et le souvenir d’un vol influencent ce choix.
+
+Le vélo traverse les mêmes cases terrestres praticables que la marche et les ponts
+routiers, sans piste obligatoire. Une case coûte deux minutes, plus deux en montée ;
+monter et descendre du vélo prend une minute. Il ne consomme pas de place automobile,
+ne se combine pas au train/métro et ne peut pas être pris ailleurs que là où il se trouve.
+Les trajets restent limités à trois heures. Leur tracé est vert dans l’inspecteur.
+
+Un bâtiment peut déclarer `bicycleParking` places (zéro par défaut). Écoles, universités,
+bibliothèques, musées, hôpitaux, grands parcs, stades, gares et stations en proposent
+par défaut. La capacité est commune à toute l’emprise du bâtiment. Une place est prise
+à l’arrivée et libérée au départ ou au vol ; les vélos excédentaires sont non protégés.
+Les places déjà prises persistent la nuit et après sauvegarde ; une réduction de capacité
+ou la suppression du bâtiment supprime les protections devenues impossibles.
+
+Le risque pendant le stationnement vaut `1 - exp(-0.000042 × crime/100 × minutes)`.
+Une place protégée divise le taux par dix. À crime 100, huit heures sans place donnent
+environ 2 % de risque ; à crime zéro, le risque est nul. Les tirages sont déterministes
+et indépendants du nombre de travailleurs de simulation. Le risque est vérifié au retour
+et à la fin de journée, uniquement sur le temps non encore vérifié.
+
+Un vol supprime le vélo, retire immédiatement huit points de bonheur et crée un malus
+temporaire de sécurité de huit points, diminuant de 0,5 par jour. La réticence à pédaler
+augmente de 55 points puis diminue de 0,5 par jour. Le retour est recalculé sans vélo ;
+si aucun chemin n’existe, l’habitant reste sur place. Sa fiche affiche le dernier vol,
+le malus restant, la position du vélo et le stationnement. Le carnet du retour signale le vol.
+
+Dix pour cent du revenu disponible quotidien alimentent une épargne dédiée, plafonnée
+à 120 unités. Un habitant sans vélo en rachète un à ce prix lorsqu’il est au domicile ;
+son souvenir du vol persiste. Un vélo simplement laissé ailleurs n’est pas remplacé.
+Les déménagements emportent les vélos présents au domicile. Un trajet ou un stationnement
+inachevé à minuit conserve sa position pour le lendemain, sans téléportation.
