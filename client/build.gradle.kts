@@ -1,3 +1,5 @@
+import java.nio.file.Files
+
 plugins {
     kotlin("jvm")
     application
@@ -14,4 +16,15 @@ tasks.register<JavaExec>("uiSmoke") {
     classpath = sourceSets.test.get().runtimeClasspath
     mainClass.set("city.client.UiSmokeKt")
     systemProperty("java.awt.headless", "false")
+}
+
+// Isolate the malformed plugin and the local save from real user data.
+tasks.register<JavaExec>("uiStartupSmoke") {
+    dependsOn(tasks.testClasses)
+    classpath = sourceSets.test.get().runtimeClasspath
+    mainClass.set("city.client.PluginStartupSmokeKt")
+    systemProperty("java.awt.headless", "false")
+    doFirst {
+        workingDir = Files.createTempDirectory("city-startup-smoke").toFile()
+    }
 }

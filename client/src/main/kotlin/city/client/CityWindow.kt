@@ -482,19 +482,25 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         status.text = "Ouverture de la ville locale…"
         startupJob =
             scope.launch {
+                var pendingLoader: PluginLoader? = null
                 try {
                     val catalog = Catalog()
                     val loader = PluginLoader(Path.of("plugins"), catalog)
+                    pendingLoader = loader
                     val path = Path.of("saves/local-city.json")
                     val city = if (Files.exists(path)) Persistence.load(path, catalog) else demoCity()
                     val server = CityServer(city, catalog, loader.rules, port = 0, savePath = path, systems = loader.systems)
                     SwingUtilities.invokeAndWait {
                         pluginLoader = loader
+                        pendingLoader = null
                         localServer = server
                         starting = false
                         if (!closing) connect("127.0.0.1", server.port, "Maire local")
                     }
                 } catch (e: Exception) {
+                    pendingLoader?.let { loader ->
+                        runCatching { loader.close() }.exceptionOrNull()?.let(e::addSuppressed)
+                    }
                     SwingUtilities.invokeLater {
                         starting = false
                         status.text = "Impossible d’ouvrir la ville : ${e.message}"
