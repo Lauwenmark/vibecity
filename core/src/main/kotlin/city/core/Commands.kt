@@ -1,6 +1,6 @@
 package city.core
 
-/** Pure command transaction: validation failure never changes funds, terrain or revision. */
+/** Pure transaction; a validated no-op returns the original snapshot without invalidating simulation. */
 class Commands(
     private val catalog: Catalog,
     private val ignoreConstructionYears: Boolean = false,
@@ -49,6 +49,7 @@ class Commands(
                     error("Commande inconnue : ${request.type}")
                 }
             }
+        if (updated == city) return city
         return updated.copy(
             revision = city.revision + 1,
             mobility = if (request.type in listOf("BUILD", "FUNDING")) null else city.mobility,

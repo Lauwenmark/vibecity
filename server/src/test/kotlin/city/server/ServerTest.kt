@@ -339,6 +339,56 @@ class ServerTest {
             }
         }
 
+    @Test fun `no op commands acknowledge without cancelling the current simulation or advancing revision`() =
+        runBlocking {
+            val entered = CompletableDeferred<Unit>()
+            val release = CompletableDeferred<Unit>()
+            val completedNormally = CompletableDeferred<Boolean>()
+            val slow =
+                object : CityRule {
+                    override val id = "test.no-op"
+
+                    override suspend fun evolve(
+                        city: City,
+                        catalog: Catalog,
+                    ): City {
+                        entered.complete(Unit)
+                        try {
+                            release.await()
+                            return city
+                        } finally {
+                            completedNormally.complete(currentCoroutineContext().isActive)
+                        }
+                    }
+                }
+            val initial = flat().copy(rules = Rules(speed = 1), tiles = flat().tiles.map { it.copy(pipe = true) })
+            val server = CityServer(initial, port = 0, savePath = null, tickMillis = 250, systems = listOf(slow))
+            try {
+                Peer(server.port).use { peer ->
+                    peer.until { it.type == "STATE" }
+                    withTimeout(5000) { entered.await() }
+                    val requests = listOf(Request("TAX", value = 7), Request("FUNDING", value = 100), Request("SPEED", value = 1), Request("DISASTERS", value = 0), Request("BUILD", tool = "pipe", x = 2, y = 2))
+                    requests.forEachIndexed { index, request ->
+                        peer.send(request.copy(id = index + 1L))
+                        assertEquals("ACK", peer.until { it.id == index + 1L }.type)
+                    }
+                    // No-op requests still consume IDs and reject a replay.
+                    peer.send(Request("TAX", id = requests.size.toLong(), value = 7))
+                    assertEquals("ERROR", peer.until { it.id == requests.size.toLong() }.type)
+                    Peer(server.port, "Observer").use { observer ->
+                        assertEquals(initial, observer.until { it.type == "STATE" }.city)
+                    }
+                    release.complete(Unit)
+                    assertTrue(withTimeout(5000) { completedNormally.await() })
+                    val advanced = peer.until { (it.city?.day ?: 0) > 0 }.city!!
+                    assertEquals(advanced.day!!.toLong(), advanced.revision)
+                }
+            } finally {
+                release.complete(Unit)
+                server.shutdown()
+            }
+        }
+
     @Test fun `joining during successive edits receives a full baseline and retains citizens`() =
         runBlocking {
             val initial = flat().copy(households = listOf(Household(17, listOf(Citizen(1, "Alice", 30, position = 17)))))
@@ -346,7 +396,7 @@ class ServerTest {
             try {
                 Peer(server.port, "Alice").use { a ->
                     assertEquals(initial.households, a.until { it.type == "STATE" }.city!!.households)
-                    repeat(20) { a.send(Request("BUILD", id = it + 1L, tool = "trees", x = 2, y = 2)) }
+                    repeat(20) { a.send(Request("BUILD", id = it + 1L, tool = "trees", x = 2 + it % 10, y = 2 + it / 10)) }
                     Peer(server.port, "Bob").use { b ->
                         assertEquals(initial.households, b.until { it.type == "STATE" }.city!!.households)
                         val built = a.until { it.city?.revision == 20L }.city!!

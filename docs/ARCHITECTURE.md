@@ -36,8 +36,9 @@ son identifiant et l’indice de la même ancre. Le coût et l’entretien sont 
 RCI par case, contrairement aux emprises variables du jeu original.
 
 `Commands.apply` vérifie les coordonnées, les fonds, la disponibilité historique, l’emprise,
-l’occupation et le relief. Elle retourne une nouvelle ville avec une révision incrémentée ; une
-exception laisse la ville d’origine intacte. Les outils idempotents ne facturent pas une deuxième
+l’occupation et le relief. Une modification retourne une nouvelle ville avec une révision incrémentée ; une
+exception laisse la ville d’origine intacte. Une commande validée sans changement retourne le même
+instantané : elle conserve révision, mobilité et calcul de simulation en cours. Les outils idempotents ne facturent pas une deuxième
 fois un réseau déjà présent. Rezoner une zone existante nécessite de la démolir au préalable.
 
 ## Relief partagé

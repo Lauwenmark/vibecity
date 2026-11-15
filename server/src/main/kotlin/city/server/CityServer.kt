@@ -158,10 +158,14 @@ class CityServer(
                                 }
 
                                 else -> {
-                                    city = commands.apply(city, r)
-                                    simulationJob?.cancel()
+                                    val updated = commands.apply(city, r)
+                                    val changed = updated !== city
+                                    if (changed) {
+                                        city = updated
+                                        simulationJob?.cancel()
+                                    }
                                     send(s, Response("ACK", id = r.id, message = "${s.name} : ${r.tool.ifEmpty { r.type }}"))
-                                    broadcast()
+                                    if (changed) broadcast()
                                 }
                             }
                         } catch (e: Exception) {

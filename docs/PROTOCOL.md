@@ -72,6 +72,9 @@ avec au plus une demande en attente en plus de l’écriture active ; une file p
 Pendant la sauvegarde finale d’un arrêt, `PING` reste disponible mais les mutations et nouveaux
 `SAVE` sont refusés. Un échec de cette sauvegarde remet le serveur en service, ville en pause.
 Une sauvegarde ne change pas la révision. Une commande refusée ne change ni la révision ni les fonds.
+Une commande validée sans effet reçoit son ACK et consomme son `id`, mais n’incrémente pas la
+révision, n’invalide pas la mobilité et ne déclenche pas de `STATE`. Elle n’annule pas le calcul
+de simulation en cours. Un coût prélevé ou une modification de terrain reste un changement effectif.
 
 ```json
 {"type":"ERROR","id":2,"message":"Trésorerie insuffisante"}
@@ -79,7 +82,7 @@ Une sauvegarde ne change pas la révision. Une commande refusée ne change ni la
 
 Le message est destiné à un humain. Pour une future interface externe, ajouter des codes d’erreur
 stables avant de dépendre du texte français. `STATE.city.revision` augmente à chaque transaction
-acceptée et à chaque jour simulé ; un événement de présence peut republier la même révision.
+qui modifie la ville et à chaque jour simulé ; un événement de présence peut republier la même révision.
 
 ## Débogage manuel
 
