@@ -2,6 +2,7 @@ package city.client
 
 import city.core.*
 import java.awt.*
+import java.awt.geom.Area
 import kotlin.math.*
 
 /** Pure scene drawing: only cells whose conservative visual bounds meet the clip are visited. */
@@ -34,6 +35,8 @@ internal class CityRenderer(
         val th = projection.th
         val w = tw.roundToInt()
         val h = th.roundToInt()
+        val poles = mutableListOf<Int>()
+        val occluders = mutableListOf<Pair<Point, Shape>>()
         val first = max(0, floor((clip.y - projection.originY - projection.below) / th).toInt())
         val last = min(city.width + city.height - 2, ceil((clip.maxY - projection.originY + projection.above) / th).toInt())
         for (diagonal in first..last) {
@@ -49,6 +52,24 @@ internal class CityRenderer(
                 val surface = city.surface(i)
                 val sy = projection.centerY(x, y, surface)
                 val diamond = projection.polygon(city, i)
+                if (layer == Layer.SURFACE) {
+                    if (t.powerLine) poles.add(i)
+                    val shape =
+                        if (t.building in BuildingSprites.allIds) {
+                            BuildingSprites.silhouette(city, i, catalog[t.building]?.size ?: 1, projection)
+                        } else {
+                            buildingGeometry(t, catalog[t.building], zoom)?.let { (bw, bh, bz) ->
+                                val bottom = sy + bh
+                                Polygon(intArrayOf(sx - bw, sx, sx + bw, sx + bw, sx, sx - bw), intArrayOf(bottom - bh - bz, bottom - 2 * bh - bz, bottom - bh - bz, bottom - bh, bottom, bottom - bh), 6)
+                            }
+                        }
+                    if (shape != null) occluders.add(Point(vx, vy) to shape)
+                    if (t.trees) {
+                        val crown = Area(Polygon(intArrayOf(sx - (6 * zoom).toInt(), sx, sx + (6 * zoom).toInt()), intArrayOf(sy - 3, sy - (19 * zoom).toInt(), sy - 3), 3))
+                        crown.add(Area(Rectangle(sx - 1, sy - 6, 2, 7)))
+                        occluders.add(Point(vx, vy) to crown)
+                    }
+                }
                 if (vx == projection.viewWidth - 1 || vy == projection.viewHeight - 1) {
                     g.color = Color(0x344b3e)
                     val bottom = (projection.originY + (vx + vy) * th + 12 * zoom).toInt()
@@ -167,9 +188,7 @@ internal class CityRenderer(
                             },
                         )
                     }
-                    if (t.powerLine && layer == Layer.SURFACE) {
-                        PowerLineSprites.draw(g, city, i, projection)
-                    } else if (t.powerLine) {
+                    if (t.powerLine && layer != Layer.SURFACE) {
                         g.color = Color(0xe3d785)
                         g.drawLine(sx, sy, sx, sy - (15 * zoom).toInt())
                         g.drawLine(sx - (4 * zoom).toInt(), sy - (12 * zoom).toInt(), sx + (4 * zoom).toInt(), sy - (12 * zoom).toInt())
@@ -185,6 +204,31 @@ internal class CityRenderer(
                     g.color = Color(0xff743e)
                     g.fillOval(sx - 4, sy - 18, 8, 14)
                 }
+            }
+        }
+        // Multi-cell artwork is painted at its front corner. A pole beside either front
+        // edge can precede that corner in diagonal order despite standing in front of it.
+        // Composite poles after scenery, masking only objects whose footprint is in front.
+        for (index in poles) {
+            val at = projection.view(index % city.width, index / city.width)
+            val px = projection.screenX(index % city.width, index / city.width)
+            val py = projection.centerY(index % city.width, index / city.width, city.surface(index))
+            // Include both half-spans and the maximum terrain-height difference.
+            val reach = ceil(64 * zoom + 4).toInt()
+            val bounds = Rectangle(px - reach, py - reach, 2 * reach, 2 * reach).intersection(clip)
+            if (bounds.isEmpty) continue
+            val visible = Area(bounds)
+            for ((front, shape) in occluders) {
+                if (at.x <= front.x && at.y <= front.y && at != front && shape.bounds.intersects(bounds)) {
+                    visible.subtract(Area(shape))
+                }
+            }
+            val copy = g.create() as Graphics2D
+            try {
+                copy.clip(visible)
+                PowerLineSprites.draw(copy, city, index, projection)
+            } finally {
+                copy.dispose()
             }
         }
     }

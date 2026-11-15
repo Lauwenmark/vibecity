@@ -34,18 +34,18 @@ internal object PowerLineSprites {
                 if (!city.tiles[neighbor].powerLine) continue
                 val nx = projection.screenX(neighbor % city.width, neighbor / city.width).toDouble()
                 val ny = projection.centerY(neighbor % city.width, neighbor / city.width, city.surface(neighbor)).toDouble()
-                for (offset in listOf(-2.05, 2.05)) {
+                for (offset in listOf(-1.025, 1.025)) {
                     val ax = x + offset * zoom
-                    val ay = y - 27.7 * zoom
+                    val ay = y - 13.85 * zoom
                     val bx = nx + offset * zoom
-                    val by = ny - 27.7 * zoom
-                    val sag = 1.2 * zoom
+                    val by = ny - 13.85 * zoom
+                    val sag = 0.8 * zoom
                     // Each cell owns half a quadratic span. Both halves meet with identical tangents,
                     // including on slopes, without drawing the same translucent edge twice.
                     graphics.draw(QuadCurve2D.Double(ax, ay, (3 * ax + bx) / 4, (3 * ay + by) / 4 + sag, (ax + bx) / 2, (ay + by) / 2 + sag))
                 }
             }
-            val height = (30 * zoom).roundToInt().coerceAtLeast(1)
+            val height = (15 * zoom).roundToInt().coerceAtLeast(1)
             val width = (height * pole.width.toDouble() / pole.height).roundToInt().coerceAtLeast(1)
             graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR)
             graphics.drawImage(pole, x.roundToInt() - width / 2, y.roundToInt() - height, width, height, null)

@@ -11,6 +11,43 @@ import kotlin.math.abs
 import kotlin.test.*
 
 class PowerLineSpritesTest {
+    @Test fun `poles beside the front edges of a zoo remain in front of its sprite`() {
+        val catalog = standardBuildings().associateBy { it.id }
+        val size = catalog.getValue("zoo").size
+        val base = City.generate(size = 16)
+        for (rotation in 0..3) {
+            val projection = CityProjection(16, 16, 2.0, rotation)
+            val footprint = (6 until 6 + size).flatMap { y -> (6 until 6 + size).map { x -> base.index(x, y) } }
+            val views = footprint.map { projection.view(it % 16, it / 16) }
+            val pole = projection.worldIndex(views.maxOf { it.x } + 1, views.minOf { it.y } + 1)
+            val city =
+                base.copy(
+                    terrain = null,
+                    tiles =
+                        base.tiles.indices.map { i ->
+                            Tile(elevation = 0, building = if (i in footprint) "zoo" else null, anchor = if (i in footprint) base.index(6, 6) else -1, powerLine = i == pole)
+                        },
+                )
+
+            fun render(withPole: Boolean): BufferedImage {
+                val image = BufferedImage(1200, 800, BufferedImage.TYPE_INT_RGB)
+                val g = image.createGraphics()
+                val scene = if (withPole) city else city.copy(tiles = city.tiles.map { it.copy(powerLine = false) })
+                CityRenderer(scene, catalog, Layer.SURFACE, 2.0, rotation = rotation).render(g, Rectangle(0, 0, 1200, 800))
+                if (!withPole) PowerLineSprites.draw(g, city, pole, projection)
+                g.dispose()
+                return image
+            }
+            val actual = render(true)
+            val expected = render(false)
+            assertContentEquals(expected.getRGB(0, 0, 1200, 800, null, 0, 1200), actual.getRGB(0, 0, 1200, 800, null, 0, 1200))
+            if (rotation == 0) {
+                Files.createDirectories(Path.of("build/previews"))
+                ImageIO.write(actual, "png", Path.of("build/previews/power-zoo.png").toFile())
+            }
+        }
+    }
+
     @Test fun `connected poles preserve clipped rendering on slopes at every rotation`() {
         val base = City.generate(size = 16)
         val city =
