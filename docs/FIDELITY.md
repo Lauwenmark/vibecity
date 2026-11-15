@@ -30,7 +30,16 @@ La capacité maximale par case est 12/80 habitants en résidentiel, 8/60 emplois
 12/70 en industriel, respectivement léger/dense. Sans eau, le plafond tombe à 60 %.
 La croissance exige une case plane, de l’électricité, une infrastructure de transport à trois cases au plus,
 une demande positive et une pollution inférieure à 65 sauf en industriel. Les zones mal desservies
-se dépeuplent progressivement. La demande réagit aux habitants, emplois et impôts.
+ne reçoivent plus de nouveaux habitants ; les départs des résidents dépendent de leur satisfaction.
+La demande réagit aux habitants, emplois et impôts.
+
+La croissance résidentielle propose des arrivants uniquement lors du calcul mensuel. Leur installation
+exige un chemin depuis une route située sur un des quatre bords de la carte : route puis marche,
+selon les règles de relief, d’eau et d’incendie des déplacements ordinaires. La portion à pied n’a
+pas de limite de distance supplémentaire. Sans chemin, aucune occupation ni aucun citoyen n’est
+créé et aucune demande n’est conservée en attente ; le mois suivant recalcule la croissance.
+Les habitants présents et les naissances ne sont pas concernés. Cette validation ne simule pas
+encore le trajet physique d’arrivée et ne change pas le peuplement initial des bâtiments spéciaux.
 
 L’influence des services décroît avec la distance de Manhattan. Les services non alimentés ou
 financés à zéro n’améliorent pas le quartier. Les revenus mensuels sont

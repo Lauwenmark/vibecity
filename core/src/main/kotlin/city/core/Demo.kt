@@ -22,7 +22,10 @@ fun demoCity(): City {
         place("pipe", 34, y)
         place("power", 34, y)
     }
-    for (x in 26..46) place("road", x, 28)
+    // The starter district needs an exterior road for residential immigration.
+    city = city.withTerrain(requireNotNull(city.terrain).level(45, 28, 19, 1, 2))
+    city = city.copy(tiles = city.tiles.mapIndexed { i, t -> if (i / 64 == 28 && i % 64 >= 45) Tile(elevation = 2) else t })
+    for (x in 26..63) place("road", x, 28)
     for (y in 24..34) place("road", 45, y)
     for (y in 25..27) {
         for (x in 35..42) {

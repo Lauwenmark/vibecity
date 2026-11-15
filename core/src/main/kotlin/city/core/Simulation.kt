@@ -121,7 +121,19 @@ class Simulation(
                     .filter { it.value.fire > 6 }
                     .map { if (it.value.anchor >= 0) it.value.anchor else it.index }
                     .toSet()
-            val tiles = evolved.mapIndexed { i, t -> if (i in burnt || t.anchor in burnt) t.copy(building = null, residentialOccupancy = null, anchor = -1, occupants = 0, fire = 0, trees = false) else t }
+            val proposedTiles = evolved.mapIndexed { i, t -> if (i in burnt || t.anchor in burnt) t.copy(building = null, residentialOccupancy = null, anchor = -1, occupants = 0, fire = 0, trees = false) else t }
+            // Growth proposes immigration; failed assignments leave no residents or pending backlog.
+            // Evaluate the resulting network, including fires started during this economic step.
+            val hasArrivals = proposedTiles.indices.any { i -> proposedTiles[i].zone.residential && proposedTiles[i].occupants > city.tiles[i].occupants }
+            val exteriorAccess = if (hasArrivals) MobilityRouter(city.copy(tiles = proposedTiles), catalog, null).exteriorRoadAccess() else null
+            val tiles =
+                proposedTiles.mapIndexed { i, tile ->
+                    if (tile.zone.residential && tile.occupants > city.tiles[i].occupants && exteriorAccess?.get(i) != true) {
+                        tile.copy(occupants = city.tiles[i].occupants)
+                    } else {
+                        tile
+                    }
+                }
             val residents =
                 tiles.filter { it.zone.residential }.sumOf { it.occupants } +
                     tiles

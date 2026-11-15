@@ -405,6 +405,41 @@ internal class MobilityRouter(
         }
     }
 
+    /** Exterior arrivals use roads first, then walking, with the same terrain/fire edges as daily travel.
+     * A single multi-source traversal validates every proposed home without per-citizen searches.
+     */
+    fun exteriorRoadAccess(): BooleanArray {
+        val seen = BooleanArray(adjacency.size)
+        val queue = IntArray(adjacency.size)
+        var head = 0
+        var tail = 0
+        for (i in city.tiles.indices) {
+            val x = i % city.width
+            val y = i / city.width
+            if ((x == 0 || y == 0 || x == city.width - 1 || y == city.height - 1) && city.tiles[i].road && city.tiles[i].fire == 0) {
+                val node = i * TRAVEL_MODE_COUNT + TravelMode.ROAD.ordinal
+                seen[node] = true
+                queue[tail++] = node
+            }
+        }
+        while (head < tail) {
+            val node = queue[head++]
+            val mode = node % TRAVEL_MODE_COUNT
+            val edges = adjacency[node]
+            for (edge in edges.indices step 3) {
+                val next = edges[edge]
+                val nextMode = next % TRAVEL_MODE_COUNT
+                // Once on foot, do not board another vehicle or use rail/metro/bicycle shortcuts.
+                if (nextMode != TravelMode.WALK.ordinal && !(mode == TravelMode.ROAD.ordinal && nextMode == mode)) continue
+                if (!seen[next]) {
+                    seen[next] = true
+                    queue[tail++] = next
+                }
+            }
+        }
+        return BooleanArray(size) { seen[it * TRAVEL_MODE_COUNT] }
+    }
+
     fun duration(
         from: Int,
         to: Int,
