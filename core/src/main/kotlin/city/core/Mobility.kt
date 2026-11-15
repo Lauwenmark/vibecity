@@ -245,6 +245,36 @@ internal suspend fun calculateHomes(
     }
 }
 
+/** Select by distance then cell, retaining the same order as a full sort. */
+internal fun nearestDestinations(
+    targets: List<Int>,
+    distances: IntArray,
+): List<Int> {
+    var first = -1
+    var second = -1
+
+    fun before(
+        candidate: Int,
+        current: Int,
+    ): Boolean =
+        current < 0 || distances[candidate * TRAVEL_MODE_COUNT] < distances[current * TRAVEL_MODE_COUNT] ||
+            (distances[candidate * TRAVEL_MODE_COUNT] == distances[current * TRAVEL_MODE_COUNT] && candidate < current)
+    for (target in targets) {
+        if (distances[target * TRAVEL_MODE_COUNT] == Int.MAX_VALUE) continue
+        if (before(target, first)) {
+            second = first
+            first = target
+        } else if (before(target, second)) {
+            second = target
+        }
+    }
+    return when {
+        first < 0 -> emptyList()
+        second < 0 -> listOf(first)
+        else -> listOf(first, second)
+    }
+}
+
 /** Built once before workers start; all graph fields are read-only during searches. */
 internal class MobilityRouter(
     val city: City,
@@ -547,10 +577,7 @@ internal class MobilityRouter(
             search(workspace, home * TRAVEL_MODE_COUNT)
 
             fun nearest(targets: List<Int>): List<TravelPath> =
-                targets
-                    .filter { workspace.distance[it * TRAVEL_MODE_COUNT] < Int.MAX_VALUE }
-                    .sortedWith(compareBy<Int> { workspace.distance[it * TRAVEL_MODE_COUNT] }.thenBy { it })
-                    .take(2)
+                nearestDestinations(targets, workspace.distance)
                     .mapNotNull { reconstruct(it * TRAVEL_MODE_COUNT, workspace.distance, workspace.parent) }
             DestinationChoices(
                 destinations.filterKeys { it != Need.REST }.mapValues { (_, targets) -> nearest(targets) },
