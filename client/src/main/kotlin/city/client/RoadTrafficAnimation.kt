@@ -19,7 +19,14 @@ internal class RoadTrafficAnimation {
         val speed: Double,
         val bounds: Rectangle,
         val visibleRoad: Shape,
-    )
+    ) {
+        val cars by lazy {
+            List(count) { car ->
+                val direction = if (car % 2 == 0) 1 else -1
+                CarArtwork((bx - ax) * direction, (by - ay) * direction, (from + car) % 6)
+            }
+        }
+    }
 
     internal var segments: List<Segment> = emptyList()
         private set
@@ -134,25 +141,12 @@ internal class RoadTrafficAnimation {
                 g.transform =
                     AffineTransform(oldTransform).apply {
                         translate(x, y)
-                        rotate(atan2(dy, dx) + if (reverse) Math.PI else 0.0)
                         scale(zoom, zoom)
                     }
-                // Narrow cars fit the two lanes; roof, windscreen and lamps remain readable at normal zoom.
-                g.color = Color(0x17202a)
-                g.fillRoundRect(-3, -2, 6, 4, 2, 2)
-                g.color = COLORS[(segment.from + car) % COLORS.size]
-                g.fillRoundRect(-3, -1, 6, 2, 1, 1)
-                g.color = Color(0xa8d5df)
-                g.fillRect(0, -1, 1, 2)
-                g.color = Color(0xffefb5)
-                g.fillRect(2, -1, 1, 1)
+                segment.cars[car].paint(g)
             }
         }
         g.transform = oldTransform
         g.clip = oldClip
-    }
-
-    companion object {
-        private val COLORS = listOf(0xe8d9af, 0xd96e50, 0x73a8cf, 0xe2bb56, 0xa9bc9c, 0xd8dde0).map(::Color)
     }
 }
