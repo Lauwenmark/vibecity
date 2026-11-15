@@ -4,6 +4,7 @@ import city.core.*
 import city.server.CityServer
 import kotlinx.coroutines.runBlocking
 import java.awt.*
+import java.awt.event.ActionEvent
 import java.awt.event.MouseEvent
 import java.awt.event.WindowEvent
 import java.awt.image.BufferedImage
@@ -71,15 +72,39 @@ fun main() =
                 check(!canvas.trafficAnimationRunning)
             }
             SwingUtilities.invokeAndWait {
+                val canvas = components(window).filterIsInstance<CityCanvas>().single()
+                val snapshot = requireNotNull(canvas.city)
+                val household = snapshot.households.first { it.people.isNotEmpty() }
+                val home = requireNotNull(snapshot.mobility).homes.single { it.cell == household.cell }
+                val resident = household.people.first()
+                val day = home.days.single { it.citizenId == resident.id }
+                components(window).filterIsInstance<JToggleButton>().single { it.name == "tool:inspect" }.doClick()
+                val projection = CityProjection(snapshot.width, snapshot.height, canvas.zoom, canvas.rotation)
+                val x = household.cell % snapshot.width
+                val y = household.cell / snapshot.width
+                canvas.focusCell(household.cell)
+                val screenX = projection.screenX(x, y)
+                val screenY = projection.centerY(x, y, snapshot.surface(household.cell))
+                canvas.dispatchEvent(MouseEvent(canvas, MouseEvent.MOUSE_PRESSED, System.currentTimeMillis(), 0, screenX, screenY, 1, false, MouseEvent.BUTTON1))
+                canvas.dispatchEvent(MouseEvent(canvas, MouseEvent.MOUSE_RELEASED, System.currentTimeMillis(), 0, screenX, screenY, 1, false, MouseEvent.BUTTON1))
+                check(canvas.selected == household.cell)
                 components(window).filterIsInstance<JButton>().single { it.text == "Habitants / trajets…" }.doClick()
                 val dialog = window.ownedWindows.filterIsInstance<JDialog>().single { it.isVisible }
+                val residents = components(dialog).filterIsInstance<JList<*>>().single()
+                check(residents.isShowing && residents.model.size == household.people.size)
+                residents.selectedIndex = 0
+                check((residents.selectedValue as Citizen).id == resident.id)
+                val open = residents.inputMap.get(KeyStroke.getKeyStroke("ENTER"))
+                residents.actionMap.get(open).actionPerformed(ActionEvent(residents, ActionEvent.ACTION_PERFORMED, "ENTER"))
+                val tabs = components(dialog).filterIsInstance<JTabbedPane>().single()
+                tabs.selectedIndex = tabs.indexOfTab("Déplacements")
+                dialog.validate()
                 val table = components(dialog).filterIsInstance<JTable>().single()
-                check(table.rowCount == 6)
+                check(table.isShowing && table.rowCount == day.activities.size)
                 val courses = (0 until table.rowCount).single { table.getValueAt(it, 0) == "Courses" }
                 table.setRowSelectionInterval(courses, courses)
                 components(dialog).filterIsInstance<JSlider>().single().value = 18 * 60
-                val canvas = components(window).filterIsInstance<CityCanvas>().single()
-                check(canvas.residentPosition != null)
+                check(canvas.residentPosition == day.positionAt(18 * 60) / TRAVEL_MODE_COUNT)
                 dialog.validate()
                 val image = BufferedImage(dialog.width, dialog.height, BufferedImage.TYPE_INT_RGB)
                 val graphics = image.createGraphics()
@@ -87,6 +112,8 @@ fun main() =
                 graphics.dispose()
                 Files.createDirectories(Path.of("build/previews"))
                 ImageIO.write(image, "png", Path.of("build/previews/mobility.png").toFile())
+                components(dialog).filterIsInstance<JButton>().single { it.text == "← Habitants de cette case" }.doClick()
+                check(residents.isShowing && canvas.residentPosition == null)
                 dialog.dispose()
             }
             SwingUtilities.invokeAndWait { components(window).filterIsInstance<JButton>().single { it.text == "Emprunter" }.doClick() }
