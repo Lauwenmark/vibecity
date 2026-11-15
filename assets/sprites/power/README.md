@@ -2,7 +2,7 @@
 
 `proposal-v1.png` conserve le modèle approuvé : béton patiné, petite traverse métallique et isolateurs bruns, sans pylône haute tension ni transformateur américain.
 
-Le sprite transparent utilisé par le client est `client/src/main/resources/city/client/power/concrete-pole.png`, généré avec l'outil intégré `image_gen`. Le fichier original est conservé sans transformation. `PowerLineSprites` sélectionne son rectangle utile `(372, 26, 280, 1483)` et le dessine à 15 pixels de haut au zoom 1. Les câbles sont des courbes indépendantes du sprite, raccordées entre les hauteurs des centres des cases. Chaque case dessine une demi-portée pour préserver les raccords, les rotations et le rendu découpé. Les calques analytiques gardent leur représentation symbolique.
+Le sprite transparent utilisé par le client est `client/src/main/resources/city/client/power/concrete-pole.png`, généré avec l'outil intégré `image_gen`. Le fichier original est conservé sans transformation. `PowerLineSprites` sélectionne son rectangle utile `(372, 26, 280, 1483)` et le dessine à 12 pixels de haut au zoom 1. Les câbles sont des courbes indépendantes du sprite, raccordées entre les hauteurs des centres des cases. Chaque case dessine une demi-portée pour préserver les raccords, les rotations et le rendu découpé. Les calques analytiques gardent leur représentation symbolique.
 
 Prompt exact du sprite (référence : `proposal-v1.png`) :
 
@@ -11,3 +11,5 @@ Prompt exact du sprite (référence : `proposal-v1.png`) :
 Validation : `./gradlew :client:test :client:ktlintCheck`. Le test `PowerLineSpritesTest` produit `client/build/previews/power-lines.png` et compare le rendu complet au rendu découpé sur un réseau en pente, aux quatre rotations et à trois zooms.
 
 Les poteaux sont composés après le décor, avec les silhouettes des bâtiments et arbres au premier plan comme masques. La comparaison des deux coordonnées de leur emprise projetée évite qu’un grand bâtiment masque un poteau situé devant son bord latéral.
+
+Sur une case de route ou de rail, deux supports occupent les coins opposés à 8 % et 92 % de la diagonale du terrain, y compris aux croisements. Une portée interne relie les deux supports ; les cases voisines partagent la portée la plus courte entre leurs supports. Un câble de branchement simple relie le support le plus proche à chaque bâtiment voisin alimenté (y compris les zones occupées). Les changements d’alimentation invalident le cache de surface des bâtiments pour faire apparaître ou disparaître ces branchements.

@@ -3,6 +3,7 @@ package city.client
 import city.core.*
 import java.awt.*
 import java.awt.geom.Area
+import java.awt.image.BufferedImage
 import kotlin.math.*
 
 /** Pure scene drawing: only cells whose conservative visual bounds meet the clip are visited. */
@@ -215,21 +216,26 @@ internal class CityRenderer(
             val py = projection.centerY(index % city.width, index / city.width, city.surface(index))
             // Include both half-spans and the maximum terrain-height difference.
             val reach = ceil(64 * zoom + 4).toInt()
-            val bounds = Rectangle(px - reach, py - reach, 2 * reach, 2 * reach).intersection(clip)
-            if (bounds.isEmpty) continue
+            val bounds = Rectangle(px - reach, py - reach, 2 * reach, 2 * reach)
+            if (!bounds.intersects(clip)) continue
             val visible = Area(bounds)
             for ((front, shape) in occluders) {
                 if (at.x <= front.x && at.y <= front.y && at != front && shape.bounds.intersects(bounds)) {
                     visible.subtract(Area(shape))
                 }
             }
-            val copy = g.create() as Graphics2D
+            // Rasterize the masked overlay before applying the viewport clip. Intersecting
+            // a complex Java2D clip with each chunk can otherwise drop boundary pixels.
+            val overlay = BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_INT_ARGB)
+            val copy = overlay.createGraphics()
             try {
-                copy.clip(visible)
-                PowerLineSprites.draw(copy, city, index, projection)
+                copy.translate(-bounds.x, -bounds.y)
+                copy.clip = visible
+                PowerLineSprites.draw(copy, city, index, projection, catalog)
             } finally {
                 copy.dispose()
             }
+            g.drawImage(overlay, bounds.x, bounds.y, null)
         }
     }
 

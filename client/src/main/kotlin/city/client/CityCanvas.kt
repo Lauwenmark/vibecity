@@ -143,7 +143,13 @@ class CityCanvas(
             val changedTerrain = previous.terrain != value.terrain
             var dirty: Rectangle? = null
             for (i in value.tiles.indices) {
-                if (!sameAppearance(previous.tiles[i], value.tiles[i]) || (changedTerrain && previous.surface(i) != value.surface(i))) {
+                val before = previous.tiles[i]
+                val after = value.tiles[i]
+                val changedDrop =
+                    layer == Layer.SURFACE && before.powered != after.powered &&
+                        (before.building != null || after.building != null || before.occupants > 0 || after.occupants > 0) &&
+                        value.neighbors(i).any { previous.tiles[it].powerLine || value.tiles[it].powerLine }
+                if (changedDrop || !sameAppearance(previous.tiles[i], value.tiles[i]) || (changedTerrain && previous.surface(i) != value.surface(i))) {
                     val bounds = projection!!.visualBounds(i)
                     cache.invalidate(bounds)
                     if (dirty == null) dirty = bounds else dirty.add(bounds)

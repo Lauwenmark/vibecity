@@ -11,6 +11,48 @@ import kotlin.math.abs
 import kotlin.test.*
 
 class PowerLineSpritesTest {
+    @Test fun `transport supports stay in opposite corners at every rotation and elevation`() {
+        val base = City.generate(size = 16)
+        val index = base.index(8, 8)
+        for ((road, rail) in listOf(true to false, false to true, true to true)) {
+            val city = base.copy(tiles = base.tiles.mapIndexed { i, t -> if (i == index) t.copy(road = road, rail = rail, powerLine = true) else t })
+            for (rotation in 0..3) {
+                val projection = CityProjection(16, 16, 1.35, rotation)
+                val points = PowerLineSprites.bases(city, index, projection)
+                val polygon = projection.polygon(city, index)
+                assertEquals(2, points.size)
+                for ((i, fraction) in listOf(0.08, 0.92).withIndex()) {
+                    val n = rotation
+                    val s = (n + 2) % 4
+                    assertEquals(polygon.xpoints[n] * (1 - fraction) + polygon.xpoints[s] * fraction, points[i].x, 0.0001)
+                    assertEquals(polygon.ypoints[n] * (1 - fraction) + polygon.ypoints[s] * fraction, points[i].y, 0.0001)
+                }
+                assertTrue(points[0].distance(points[1]) > 12 * projection.zoom)
+            }
+        }
+        assertEquals(1, PowerLineSprites.bases(base.copy(tiles = base.tiles.map { Tile() }), index, CityProjection(16, 16, 1.0)).size)
+    }
+
+    @Test fun `service drops target only adjacent supplied buildings and occupied zones`() {
+        val base = City.generate(size = 16)
+        val index = base.index(8, 8)
+        val city =
+            base.copy(
+                tiles =
+                    base.tiles.indices.map { i ->
+                        when (i) {
+                            index -> Tile(powerLine = true)
+                            index - 1 -> Tile(building = "school", anchor = index - 1, powered = true)
+                            index + 1 -> Tile(zone = Zone.RESIDENTIAL_LIGHT, occupants = 10, powered = true)
+                            index - 16 -> Tile(building = "school", anchor = index - 16, powered = false)
+                            index + 16 -> Tile(zone = Zone.RESIDENTIAL_LIGHT, powered = true)
+                            else -> Tile()
+                        }
+                    },
+            )
+        assertEquals(setOf(index - 1, index + 1), PowerLineSprites.suppliedBuildings(city, index).toSet())
+    }
+
     @Test fun `poles beside the front edges of a zoo remain in front of its sprite`() {
         val catalog = standardBuildings().associateBy { it.id }
         val size = catalog.getValue("zoo").size
@@ -57,7 +99,15 @@ class PowerLineSpritesTest {
                     base.tiles.indices.map { i ->
                         val x = i % 16
                         val y = i / 16
-                        Tile(elevation = x / 3, powerLine = (x in 4..11 && y == 8) || (x == 8 && y in 5..11), road = y == 9)
+                        Tile(
+                            elevation = x / 3,
+                            powerLine = (x in 4..11 && y == 8) || (x == 8 && y in 5..11),
+                            road = y == 8,
+                            rail = x == 8,
+                            zone = if (y == 7 && x in 4..11 && x != 8) Zone.RESIDENTIAL_LIGHT else Zone.NONE,
+                            occupants = if (y == 7 && x in 4..11 && x != 8) 10 else 0,
+                            powered = x % 2 == 0,
+                        )
                     },
             )
         for (zoom in listOf(0.5, 1.0, 2.0)) {
@@ -86,7 +136,12 @@ class PowerLineSpritesTest {
                         val a = whole.getRGB(x, y)
                         val b = chunks.getRGB(x, y)
                         for (shift in listOf(0, 8, 16)) {
-                            assertTrue(abs(((a ushr shift) and 255) - ((b ushr shift) and 255)) <= 2, "Seam at $x,$y, zoom $zoom, rotation $rotation")
+                            if (abs(((a ushr shift) and 255) - ((b ushr shift) and 255)) > 2) {
+                                Files.createDirectories(Path.of("build/previews"))
+                                ImageIO.write(whole, "png", Path.of("build/previews/power-whole.png").toFile())
+                                ImageIO.write(chunks, "png", Path.of("build/previews/power-chunks.png").toFile())
+                                fail("Seam at $x,$y, zoom $zoom, rotation $rotation: $a vs $b")
+                            }
                         }
                     }
                 }

@@ -125,6 +125,35 @@ class SceneCacheTest {
             }
         }
 
+    @Test fun `supply changes refresh the visible service cable`() =
+        SwingUtilities.invokeAndWait {
+            val base = City.generate(size = 16)
+            val pole = base.index(8, 8)
+            val home = pole + 1
+            val old =
+                base.copy(
+                    terrain = null,
+                    tiles =
+                        base.tiles.indices.map { i ->
+                            when (i) {
+                                pole -> Tile(powerLine = true, road = true)
+                                home -> Tile(zone = Zone.RESIDENTIAL_LIGHT, occupants = 10)
+                                else -> Tile()
+                            }
+                        },
+                )
+            val changed = old.copy(tiles = old.tiles.mapIndexed { i, t -> if (i == home) t.copy(powered = true) else t })
+            val canvas = canvas(old)
+            val region = Rectangle(0, 0, canvas.width, canvas.height)
+            val before = paint(canvas, region)
+            canvas.city = changed
+            val after = paint(canvas, region)
+            assertFalse(before.getRGB(0, 0, before.width, before.height, null, 0, before.width).contentEquals(after.getRGB(0, 0, after.width, after.height, null, 0, after.width)))
+            assertPixels(reference(canvas), after)
+            canvas.city = old
+            assertPixels(before, paint(canvas, region))
+        }
+
     @Test fun `incoming edits invalidate geometry connections overlays and building colors`() =
         SwingUtilities.invokeAndWait {
             val old = fixture()
