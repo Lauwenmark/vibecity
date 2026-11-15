@@ -61,17 +61,20 @@ class ParallelMobilityTest {
                 val homes = (0..5).map { MobilityHome(it, 1, emptyList()) }
                 val started = Channel<Int>(Channel.UNLIMITED)
                 val gates = homes.map { CompletableDeferred<Unit>() }
+                val results = arrayOfNulls<MobilityHome>(homes.size)
                 val active = AtomicInteger()
                 val maximum = AtomicInteger()
                 val task =
                     async {
-                        calculateHomes(homes, 2) { home ->
+                        calculateHomes(homes.size, 2) { index ->
+                            val home = homes[index]
                             val count = active.incrementAndGet()
                             maximum.updateAndGet { maxOf(it, count) }
                             try {
                                 started.send(home.cell)
                                 gates[home.cell].await()
-                                home
+                                check(results[index] == null)
+                                results[index] = home
                             } finally {
                                 active.decrementAndGet()
                             }
@@ -82,7 +85,8 @@ class ParallelMobilityTest {
                 gates[1].complete(Unit)
                 assertEquals(2, started.receive())
                 gates.forEach { it.complete(Unit) }
-                assertEquals(homes, task.await())
+                task.await()
+                assertEquals(homes, results.toList())
                 assertEquals(2, maximum.get())
                 assertEquals(0, active.get())
             }
@@ -95,7 +99,7 @@ class ParallelMobilityTest {
                 val stopped = AtomicInteger()
                 val task =
                     async {
-                        calculateHomes((0..9).map { MobilityHome(it, 1, emptyList()) }, 2) {
+                        calculateHomes(10, 2) {
                             try {
                                 started.send(Unit)
                                 awaitCancellation()
@@ -117,8 +121,8 @@ class ParallelMobilityTest {
                 val siblingStarted = CompletableDeferred<Unit>()
                 val stopped = CompletableDeferred<Unit>()
                 assertFailsWith<IllegalStateException> {
-                    calculateHomes(listOf(MobilityHome(0, 1, emptyList()), MobilityHome(1, 1, emptyList())), 2) { home ->
-                        if (home.cell == 0) {
+                    calculateHomes(2, 2) { index ->
+                        if (index == 0) {
                             siblingStarted.await()
                             error("routing failure")
                         }

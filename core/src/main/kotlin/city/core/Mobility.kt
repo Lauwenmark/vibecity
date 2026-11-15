@@ -226,27 +226,24 @@ fun Mobility.aggregateLoads(): List<TrafficLoad> {
     return totals.map { (node, hours) -> TrafficLoad(node / TRAVEL_MODE_COUNT, TravelMode.entries[node % TRAVEL_MODE_COUNT], hours.toList()) }
 }
 
-/** A bounded number of workers claim homes dynamically; each worker owns its result list. */
+/** Bounded workers claim disjoint output slots; the caller owns the result storage. */
 internal suspend fun calculateHomes(
-    homes: List<MobilityHome>,
+    count: Int,
     workers: Int,
-    calculate: suspend (MobilityHome) -> MobilityHome,
-): List<MobilityHome> =
-    coroutineScope {
-        val next = AtomicInteger()
-        List(workers.coerceAtLeast(1).coerceAtMost(homes.size)) {
-            async(Dispatchers.Default) {
-                val results = mutableListOf<MobilityHome>()
-                while (true) {
-                    ensureActive()
-                    val index = next.getAndIncrement()
-                    if (index >= homes.size) break
-                    results.add(calculate(homes[index]))
-                }
-                results
+    calculate: suspend (Int) -> Unit,
+) = coroutineScope {
+    val next = AtomicInteger()
+    repeat(workers.coerceAtLeast(1).coerceAtMost(count)) {
+        launch(Dispatchers.Default) {
+            while (true) {
+                ensureActive()
+                val index = next.getAndIncrement()
+                if (index >= count) break
+                calculate(index)
             }
-        }.awaitAll().flatten().sortedBy { it.cell }
+        }
     }
+}
 
 /** Built once before workers start; all graph fields are read-only during searches. */
 internal class MobilityRouter(

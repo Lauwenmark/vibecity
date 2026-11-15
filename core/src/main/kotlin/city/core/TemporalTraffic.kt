@@ -71,11 +71,10 @@ class MobilitySimulation(
             val nextId = populated.nextCitizenId
             val households = populated.households
             val prepared = arrayOfNulls<PreparedHome>(households.size)
-            val byCell = households.withIndex().associate { it.value.cell to it.index }
             // Workers write disjoint slots; no mutable path registry or citizen is shared between homes.
-            calculateHomes(households.map { MobilityHome(it.cell, it.people.size, emptyList()) }, workers) { home ->
-                val index = byCell.getValue(home.cell)
+            calculateHomes(households.size, workers) { index ->
                 val household = households[index]
+                val home = MobilityHome(household.cell, household.people.size, emptyList())
                 val registry = HomeRoutes(household.paths)
                 val destinations = router.destinationsFrom(home.cell)
                 val choices = destinations.needs
@@ -193,7 +192,6 @@ class MobilitySimulation(
                     }
                 val result = home.copy(options = options, paths = registry.paths, days = activities)
                 prepared[index] = PreparedHome(result, people, registry)
-                result
             }
             val coordinated = planStudentDates(city, router, prepared.map { requireNotNull(it) })
             val executor = DayExecutor(city, router, coordinated, day)
