@@ -52,6 +52,42 @@ class ServerTest {
         override fun close() = socket.close()
     }
 
+    @Test fun `failed shutdown keeps latest city available and retries after destination repair`() =
+        runBlocking {
+            val directory = Files.createTempDirectory("city-shutdown-retry")
+            val blocked = directory.resolve("blocked")
+            Files.writeString(blocked, "not a directory")
+            val path = blocked.resolve("city.json")
+            val server = CityServer(flat(), port = 0, savePath = path)
+            try {
+                Peer(server.port).use { peer ->
+                    peer.until { it.type == "STATE" }
+                    peer.send(Request("BUILD", id = 1, tool = "park", x = 2, y = 2))
+                    peer.until { it.city?.revision == 1L }
+                    assertFailsWith<java.io.IOException> { withTimeout(5000) { server.shutdown() } }
+                    val retained = peer.until { it.city?.notices?.any { notice -> notice.startsWith("Échec de la sauvegarde à l’arrêt") } == true }.city!!
+                    assertEquals("park", retained.tiles[34].building)
+                    assertEquals(0, retained.rules.speed)
+                    assertEquals(2, retained.revision)
+                    peer.send(Request("TAX", id = 2, value = 9))
+                    val latest = peer.until { it.city?.rules?.taxRate == 9 }.city!!
+                    // A new peer can also reconnect after the failed attempt.
+                    Peer(server.port, "Retry").use { assertEquals(latest, it.until { r -> r.type == "STATE" }.city) }
+                    Files.delete(blocked)
+                    Files.createDirectory(blocked)
+                    withTimeout(5000) { server.shutdown() }
+                    assertEquals(latest, Persistence.load(path, Catalog()))
+                    // Repeated successful shutdown is harmless and does not rewrite the save.
+                    server.shutdown()
+                }
+            } finally {
+                server.close()
+                if (Files.isDirectory(blocked)) Files.deleteIfExists(path)
+                Files.deleteIfExists(blocked)
+                Files.delete(directory)
+            }
+        }
+
     @Test fun `test mode bypasses years but preserves construction costs and occupancy`() =
         runBlocking {
             for (testMode in listOf(false, true)) {

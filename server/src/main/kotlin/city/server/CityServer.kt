@@ -13,6 +13,7 @@ import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 
 private const val MAX_CLIENTS = 32
 
@@ -44,6 +45,7 @@ class CityServer(
         }
     val port: Int get() = listener.localPort
     private val running = AtomicBoolean(true)
+    private val shutdownAttempt = AtomicReference<CompletableDeferred<Unit>?>(null)
     private val sockets = ConcurrentHashMap.newKeySet<Socket>()
     private val clientCount = AtomicInteger()
     private val events = Channel<Event>(256)
@@ -200,11 +202,19 @@ class CityServer(
                         simulationJob?.cancel()
                         try {
                             if (savePath != null) withContext(Dispatchers.IO) { Persistence.save(savePath, city) }
+                            running.set(false)
+                            listener.close()
+                            closeResources()
                             event.done.complete(Unit)
+                            break
                         } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            // Retain the authoritative city and connections so saving can be retried.
+                            city = city.copy(revision = city.revision + 1, rules = city.rules.copy(speed = 0), notices = city.notices + "Échec de la sauvegarde à l’arrêt : ${e.message}")
+                            broadcast()
+                            shutdownAttempt.compareAndSet(event.done, null)
                             event.done.completeExceptionally(e)
                         }
-                        break
                     }
                 }
             }
@@ -355,15 +365,20 @@ class CityServer(
 
     /** Drains commands already admitted, then saves; socket closure unblocks all blocking IO. */
     suspend fun shutdown() {
-        if (!running.compareAndSet(true, false)) return
-        listener.close()
-        try {
+        while (true) {
+            shutdownAttempt.get()?.let {
+                it.await()
+                return
+            }
+            if (!running.get()) return
             val done = CompletableDeferred<Unit>()
-            events.send(Event.Stop(done))
+            if (!shutdownAttempt.compareAndSet(null, done)) continue
+            // The attempt belongs to the server, not to a caller that may stop waiting.
+            scope.launch { events.send(Event.Stop(done)) }.invokeOnCompletion { failure ->
+                if (failure != null) done.completeExceptionally(failure)
+            }
             done.await()
-            actor.join()
-        } finally {
-            closeResources()
+            return
         }
     }
 
@@ -375,6 +390,7 @@ class CityServer(
 
     override fun close() {
         running.set(false)
+        shutdownAttempt.get()?.completeExceptionally(CancellationException("Server closed without saving"))
         runCatching { listener.close() }
         closeResources()
     }

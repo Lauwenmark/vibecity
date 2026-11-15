@@ -528,11 +528,11 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
         closing = true
         isEnabled = false
         status.text = "Sauvegarde et arrêt…"
-        connection?.close()
         scope.launch {
             try {
                 startupJob?.join()
                 localServer?.shutdown()
+                connection?.close()
                 pluginLoader?.close()
                 SwingUtilities.invokeLater { dispose() }
                 scope.cancel()
