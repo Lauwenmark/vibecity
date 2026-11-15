@@ -11,23 +11,34 @@ import kotlin.math.abs
 import kotlin.test.*
 
 class PowerLineSpritesTest {
-    @Test fun `transport supports stay in opposite corners at every rotation and elevation`() {
+    @Test fun `transport supports face each other across straight roads and rails`() {
         val base = City.generate(size = 16)
         val index = base.index(8, 8)
         for ((road, rail) in listOf(true to false, false to true, true to true)) {
-            val city = base.copy(tiles = base.tiles.mapIndexed { i, t -> if (i == index) t.copy(road = road, rail = rail, powerLine = true) else t })
-            for (rotation in 0..3) {
-                val projection = CityProjection(16, 16, 1.35, rotation)
-                val points = PowerLineSprites.bases(city, index, projection)
-                val polygon = projection.polygon(city, index)
-                assertEquals(2, points.size)
-                for ((i, fraction) in listOf(0.08, 0.92).withIndex()) {
-                    val n = rotation
-                    val s = (n + 2) % 4
-                    assertEquals(polygon.xpoints[n] * (1 - fraction) + polygon.xpoints[s] * fraction, points[i].x, 0.0001)
-                    assertEquals(polygon.ypoints[n] * (1 - fraction) + polygon.ypoints[s] * fraction, points[i].y, 0.0001)
+            for (neighbor in listOf(index + 1, index + 16)) {
+                val city =
+                    base.copy(
+                        terrain = null,
+                        tiles =
+                            base.tiles.indices.map { i ->
+                                Tile(road = road && i in listOf(index, neighbor), rail = rail && i in listOf(index, neighbor), powerLine = i == index)
+                            },
+                    )
+                for (rotation in 0..3) {
+                    val projection = CityProjection(16, 16, 1.35, rotation)
+                    val points = PowerLineSprites.bases(city, index, projection)
+                    assertEquals(2, points.size)
+                    val dx = points[1].x - points[0].x
+                    val dy = points[1].y - points[0].y
+                    val roadX = projection.screenX(neighbor % 16, neighbor / 16) - projection.screenX(8, 8)
+                    val roadY = projection.screenY(neighbor % 16, neighbor / 16, 0) - projection.screenY(8, 8, 0)
+                    // The two ground-plane axes have opposite screen slopes. A diagonal
+                    // corner-to-corner span would instead have dx or dy equal to zero.
+                    assertTrue(dx * dy * roadX * roadY < 0)
+                    assertEquals(projection.screenX(8, 8).toDouble(), (points[0].x + points[1].x) / 2, 0.0001)
+                    assertEquals(projection.centerY(8, 8, city.surface(index)).toDouble(), (points[0].y + points[1].y) / 2, 0.0001)
+                    assertTrue(points[0].distance(points[1]) > 12 * projection.zoom)
                 }
-                assertTrue(points[0].distance(points[1]) > 12 * projection.zoom)
             }
         }
         assertEquals(1, PowerLineSprites.bases(base.copy(tiles = base.tiles.map { Tile() }), index, CityProjection(16, 16, 1.0)).size)

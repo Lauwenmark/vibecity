@@ -51,7 +51,7 @@ internal object BuildingSprites {
     // Trace source alpha once: the mask cost and detail do not depend on camera zoom.
     private val silhouettes = mutableMapOf<String, Shape>()
 
-    private fun placement(
+    fun placement(
         city: City,
         index: Int,
         size: Int,

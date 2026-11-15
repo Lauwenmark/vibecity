@@ -6,12 +6,14 @@ import city.core.surface
 import java.awt.BasicStroke
 import java.awt.Color
 import java.awt.Graphics2D
+import java.awt.Rectangle
 import java.awt.RenderingHints
 import java.awt.geom.Point2D
 import java.awt.geom.QuadCurve2D
 import java.awt.image.BufferedImage
 import javax.imageio.ImageIO
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /** A small concrete distribution pole; cables remain geometry so they follow terrain and connections. */
@@ -25,7 +27,7 @@ internal object PowerLineSprites {
     private const val ATTACHMENT_HEIGHT = HEIGHT * 13.85 / 15
     private const val INSULATOR_OFFSET = HEIGHT * 1.025 / 15
 
-    /** Transport poles occupy opposite corners, outside both straight corridors and junctions. */
+    /** Facing supports cross a straight corridor at right angles in the ground plane. */
     fun bases(
         city: City,
         index: Int,
@@ -35,17 +37,44 @@ internal object PowerLineSprites {
         if (!tile.road && !tile.rail) {
             return listOf(Point2D.Double(projection.screenX(index % city.width, index / city.width).toDouble(), projection.centerY(index % city.width, index / city.width, city.surface(index)).toDouble()))
         }
+        val mask =
+            (if (tile.road) TransportSprites.mask(city, index, 0, rail = false) else 0) or
+                (if (tile.rail) TransportSprites.mask(city, index, 0, rail = true) else 0)
+        val alongX = Integer.bitCount(mask and 10)
+        val alongY = Integer.bitCount(mask and 5)
+        // At bends/junctions move the crossing towards the edge, keeping the supports
+        // on free corners without ever using a diagonal span across the ground plane.
+        val lateral = if (alongX > 0 && alongY > 0) 0.08 else 0.5
+        val positions = if (alongX > alongY) listOf(lateral to 0.08, lateral to 0.92) else listOf(0.08 to lateral, 0.92 to lateral)
         val polygon = projection.polygon(city, index)
-        // Both points lie on the terrain's north/south triangle diagonal. Interpolate
-        // the actual projected vertices, including their elevations and camera rotation.
-        val north = Math.floorMod(projection.rotation, 4)
-        val south = (north + 2) % 4
-        return listOf(0.08, 0.92).map { fraction ->
+        return positions.map { (u, v) ->
+            val weights = if (u >= v) doubleArrayOf(1 - u, u - v, v, 0.0) else doubleArrayOf(1 - v, 0.0, u, v - u)
             Point2D.Double(
-                polygon.xpoints[north] * (1 - fraction) + polygon.xpoints[south] * fraction,
-                polygon.ypoints[north] * (1 - fraction) + polygon.ypoints[south] * fraction,
+                weights.indices.sumOf { weights[it] * polygon.xpoints[(it + projection.rotation) % 4] },
+                weights.indices.sumOf { weights[it] * polygon.ypoints[(it + projection.rotation) % 4] },
             )
         }
+    }
+
+    /** Tight, clip-independent bounds for the poles, spans and service drops. */
+    fun bounds(
+        city: City,
+        index: Int,
+        projection: CityProjection,
+    ): Rectangle {
+        val points = bases(city, index, projection).toMutableList()
+        for (neighbor in city.neighbors(index)) {
+            if (city.tiles[neighbor].powerLine) points.addAll(bases(city, neighbor, projection))
+        }
+        for (neighbor in suppliedBuildings(city, index)) {
+            points.add(Point2D.Double(projection.screenX(neighbor % city.width, neighbor / city.width).toDouble(), projection.centerY(neighbor % city.width, neighbor / city.width, city.surface(neighbor)).toDouble()))
+        }
+        val margin = 3 * projection.zoom + 2
+        val left = floor(points.minOf { it.x } - margin).toInt()
+        val top = floor(points.minOf { it.y } - HEIGHT * projection.zoom - margin).toInt()
+        val right = ceil(points.maxOf { it.x } + margin).toInt()
+        val bottom = ceil(points.maxOf { it.y } + margin).toInt()
+        return Rectangle(left, top, right - left, bottom - top)
     }
 
     /** One drop per neighboring building, even when two adjacent footprint cells touch the line. */
@@ -72,11 +101,10 @@ internal object PowerLineSprites {
     ) {
         // Rasterize curves independently of the scene clip: Java2D can otherwise
         // round a clipped quadratic differently at a cache-chunk boundary.
-        val zoom = projection.zoom
-        val reach = ceil(64 * zoom + 4).toInt()
-        val x = projection.screenX(index % city.width, index / city.width) - reach
-        val y = projection.centerY(index % city.width, index / city.width, city.surface(index)) - reach
-        val image = BufferedImage(2 * reach, 2 * reach, BufferedImage.TYPE_INT_ARGB)
+        val bounds = bounds(city, index, projection)
+        val x = bounds.x
+        val y = bounds.y
+        val image = BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_INT_ARGB)
         val graphics = image.createGraphics()
         try {
             graphics.translate(-x, -y)
@@ -88,7 +116,7 @@ internal object PowerLineSprites {
         g.drawImage(image, x, y, null)
     }
 
-    private fun drawVectors(
+    fun drawVectors(
         g: Graphics2D,
         city: City,
         index: Int,

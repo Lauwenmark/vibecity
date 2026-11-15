@@ -2,7 +2,6 @@ package city.client
 
 import city.core.*
 import java.awt.*
-import java.awt.geom.Area
 import java.awt.image.BufferedImage
 import kotlin.math.*
 
@@ -26,6 +25,13 @@ internal class CityRenderer(
             null
         }
 
+    private data class Occluder(
+        val front: Point,
+        val index: Int,
+        val bounds: Rectangle,
+        val shape: Shape?,
+    )
+
     fun render(
         g: Graphics2D,
         clip: Rectangle,
@@ -37,7 +43,7 @@ internal class CityRenderer(
         val w = tw.roundToInt()
         val h = th.roundToInt()
         val poles = mutableListOf<Int>()
-        val occluders = mutableListOf<Pair<Point, Shape>>()
+        val occluders = mutableListOf<Occluder>()
         val first = max(0, floor((clip.y - projection.originY - projection.below) / th).toInt())
         val last = min(city.width + city.height - 2, ceil((clip.maxY - projection.originY + projection.above) / th).toInt())
         for (diagonal in first..last) {
@@ -55,20 +61,22 @@ internal class CityRenderer(
                 val diamond = projection.polygon(city, i)
                 if (layer == Layer.SURFACE) {
                     if (t.powerLine) poles.add(i)
-                    val shape =
-                        if (t.building in BuildingSprites.allIds) {
-                            BuildingSprites.silhouette(city, i, catalog[t.building]?.size ?: 1, projection)
-                        } else {
-                            buildingGeometry(t, catalog[t.building], zoom)?.let { (bw, bh, bz) ->
-                                val bottom = sy + bh
-                                Polygon(intArrayOf(sx - bw, sx, sx + bw, sx + bw, sx, sx - bw), intArrayOf(bottom - bh - bz, bottom - 2 * bh - bz, bottom - bh - bz, bottom - bh, bottom, bottom - bh), 6)
-                            }
+                    if (t.building in BuildingSprites.allIds) {
+                        BuildingSprites.placement(city, i, catalog[t.building]?.size ?: 1, projection)?.let { bounds ->
+                            occluders.add(Occluder(Point(vx, vy), i, bounds, null))
                         }
-                    if (shape != null) occluders.add(Point(vx, vy) to shape)
+                    } else {
+                        buildingGeometry(t, catalog[t.building], zoom)?.let { (bw, bh, bz) ->
+                            val bottom = sy + bh
+                            val shape = Polygon(intArrayOf(sx - bw, sx, sx + bw, sx + bw, sx, sx - bw), intArrayOf(bottom - bh - bz, bottom - 2 * bh - bz, bottom - bh - bz, bottom - bh, bottom, bottom - bh), 6)
+                            occluders.add(Occluder(Point(vx, vy), i, shape.bounds, shape))
+                        }
+                    }
                     if (t.trees) {
-                        val crown = Area(Polygon(intArrayOf(sx - (6 * zoom).toInt(), sx, sx + (6 * zoom).toInt()), intArrayOf(sy - 3, sy - (19 * zoom).toInt(), sy - 3), 3))
-                        crown.add(Area(Rectangle(sx - 1, sy - 6, 2, 7)))
-                        occluders.add(Point(vx, vy) to crown)
+                        val crown = Polygon(intArrayOf(sx - (6 * zoom).toInt(), sx, sx + (6 * zoom).toInt()), intArrayOf(sy - 3, sy - (19 * zoom).toInt(), sy - 3), 3)
+                        val trunk = Rectangle(sx - 1, sy - 6, 2, 7)
+                        occluders.add(Occluder(Point(vx, vy), i, crown.bounds, crown))
+                        occluders.add(Occluder(Point(vx, vy), i, trunk, trunk))
                     }
                 }
                 if (vx == projection.viewWidth - 1 || vy == projection.viewHeight - 1) {
@@ -212,26 +220,28 @@ internal class CityRenderer(
         // Composite poles after scenery, masking only objects whose footprint is in front.
         for (index in poles) {
             val at = projection.view(index % city.width, index / city.width)
-            val px = projection.screenX(index % city.width, index / city.width)
-            val py = projection.centerY(index % city.width, index / city.width, city.surface(index))
-            // Include both half-spans and the maximum terrain-height difference.
-            val reach = ceil(64 * zoom + 4).toInt()
-            val bounds = Rectangle(px - reach, py - reach, 2 * reach, 2 * reach)
+            val bounds = PowerLineSprites.bounds(city, index, projection)
             if (!bounds.intersects(clip)) continue
-            val visible = Area(bounds)
-            for ((front, shape) in occluders) {
-                if (at.x <= front.x && at.y <= front.y && at != front && shape.bounds.intersects(bounds)) {
-                    visible.subtract(Area(shape))
-                }
-            }
-            // Rasterize the masked overlay before applying the viewport clip. Intersecting
-            // a complex Java2D clip with each chunk can otherwise drop boundary pixels.
+            // One small raster per pole tile. Erase foreground pixels directly rather
+            // than tracing sprite silhouettes and subtracting thousands of vector paths.
             val overlay = BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_INT_ARGB)
             val copy = overlay.createGraphics()
             try {
                 copy.translate(-bounds.x, -bounds.y)
-                copy.clip = visible
-                PowerLineSprites.draw(copy, city, index, projection, catalog)
+                copy.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                PowerLineSprites.drawVectors(copy, city, index, projection, catalog)
+                copy.composite = AlphaComposite.DstOut
+                copy.color = Color.BLACK
+                for (occluder in occluders) {
+                    val front = occluder.front
+                    if (at.x <= front.x && at.y <= front.y && at != front && occluder.bounds.intersects(bounds)) {
+                        if (occluder.shape != null) {
+                            copy.fill(occluder.shape)
+                        } else {
+                            BuildingSprites.draw(copy, city, occluder.index, catalog[city.tiles[occluder.index].building]?.size ?: 1, projection)
+                        }
+                    }
+                }
             } finally {
                 copy.dispose()
             }
