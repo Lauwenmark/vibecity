@@ -10,7 +10,7 @@ Le serveur accepte des requêtes de 8 192 caractères maximum et le client des r
 Envoyer dans les 10 secondes :
 
 ```json
-{"type":"HELLO","version":11,"name":"Alice","token":"","compressedStates":true}
+{"type":"HELLO","version":12,"name":"Alice","token":"","compressedStates":true}
 ```
 
 Le nom contient 1 à 24 lettres, chiffres, espaces, `_` ou `-`. La version doit correspondre.
@@ -97,7 +97,7 @@ des options sont locaux à sa liste `paths`. Les chemins encodent leurs
 états par `case * 4 + mode` (marche 0, route 1, rail 2, métro 3), avec leurs minutes cumulées.
 Les charges portent une case, un mode et 24 compteurs horaires. Le client reconstruit les horaires
 individuels avec le code partagé de `core` ; il n’effectue aucune recherche d’itinéraire.
-Les clients et serveurs doivent tous utiliser la version 11.
+Les clients et serveurs doivent tous utiliser la version 12.
 
 `City.day` est l’indice du prochain jour à exécuter depuis le 01/01/1900, ou `null` dans une ancienne
 ville : sa date de reprise est alors le premier jour indiqué par `month`. `City.nextCitizenId`
@@ -243,3 +243,23 @@ Les options communes du domicile restent indicatives : le plan individuel impose
 le campus d’inscription. Les autres établissements ne peuvent pas valider la présence à un cursus.
 
 Serveur, clients et plugins doivent être reconstruits ensemble (protocole 11).
+
+
+## Relations étudiantes et rendez-vous (version 12)
+
+`CitizenLife.studentRelationship` est optionnel et contient `partner`, `started` (jour absolu)
+et `strength` (0 à 100). Il est distinct de `partner`, réservé aux couples adultes ; les liens
+étudiants sont réciproques, avec la même date initiale et la même solidité.
+
+Une activité de loisirs supplémentaire peut porter `appointment` : `id` (le plus petit identifiant
+du couple, unique dans la journée), `partner`, `kind` (`VISIT` ou `OUTING`), `destination`, `meeting`
+et `end` (minutes de la journée). Les jambes exécutées portent `appointmentId`. L'association d'une
+activité à ses trajets utilise **le besoin et l'identifiant de rendez-vous**, jamais le besoin seul.
+L'activité de loisirs ordinaire conserve un identifiant absent. Les registres de chemins restent
+propres à chaque domicile, y compris lorsque les deux participants partagent une destination.
+
+`CitizenDay.dateOutcome` conserve `status` (`SUCCESS`, `LATE`, `MISSED`), `togetherMinutes`,
+`happiness` (contribution individuelle au bonheur) et `strengthChange` (bilan commun du couple).
+Ces champs sont inclus dans les états complets et les différences de domiciles. Les anciennes
+sauvegardes restent lisibles grâce aux valeurs absentes par défaut ; serveur et clients doivent
+tous être recompilés en version 12 avant une partie en réseau.

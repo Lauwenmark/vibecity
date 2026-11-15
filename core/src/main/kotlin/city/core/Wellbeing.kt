@@ -135,8 +135,8 @@ fun updateWellbeing(
                         var missed = 0
                         var needsPenalty = 0.0
                         val fulfillmentTimes = mutableListOf<Int>()
-                        for (activity in activities) {
-                            val leg = legs.firstOrNull { it.need == activity.need && !it.returning && it.arrival != null }
+                        for (activity in activities.filter { it.appointment == null }) {
+                            val leg = legs.firstOrNull { activity.matches(it) && !it.returning && it.arrival != null }
                             val fulfilled = if (activity.need == Need.REST) person.position == home.cell * 4 else leg?.arrival?.let { it + activity.stay < 1440 } == true
                             if (fulfilled && activity.need != Need.REST && leg?.arrival != null) fulfillmentTimes.add((leg.arrival + activity.stay - activity.departure).coerceAtLeast(0))
                             if (!fulfilled) {
@@ -161,7 +161,7 @@ fun updateWellbeing(
                             }
                         val delays =
                             legs.map { leg ->
-                                val activity = activities.firstOrNull { it.need == leg.need }
+                                val activity = activities.firstOrNull { it.matches(leg) }
                                 val scheduledDeparture = if (!leg.returning) activity?.departure ?: leg.departure else leg.departure
                                 max(0, (leg.arrival ?: 1440) - scheduledDeparture - (execution?.paths?.getOrNull(leg.planned)?.duration ?: 0))
                             }
@@ -207,7 +207,7 @@ fun updateWellbeing(
                         val pressure = old.pressure * .8 + penalties.sum().coerceAtMost(100.0) * .2
                         val target = (100 - pressure).coerceIn(0.0, 100.0)
                         val difference = target - old.satisfaction
-                        val change = if (difference >= 0) min(.35, difference) else max(-4.0, difference * .12)
+                        val change = (if (difference >= 0) min(.35, difference) else max(-4.0, difference * .12)) + (day?.dateOutcome?.happiness ?: 0.0)
                         val score = (old.satisfaction + change).coerceIn(0.0, 100.0)
                         person.copy(
                             wellbeing =

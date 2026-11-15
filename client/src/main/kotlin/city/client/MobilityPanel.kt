@@ -13,6 +13,8 @@ internal class MobilityPanel(
     private var homes = emptyList<MobilityHome>()
     private var cohortHomes: List<Household>? = null
     private var cohorts = emptyMap<String, Pair<Int, Double>>()
+    private var socialMobility: Mobility? = null
+    private var socialStatistics: StudentDateStatistics? = null
     private var refreshing = false
     private val home = JComboBox<String>()
     private val resident = JSpinner(SpinnerNumberModel(1, 1, 1, 1))
@@ -121,9 +123,9 @@ internal class MobilityPanel(
         if (c != null && h != null && day != null) {
             for (activity in day.activities) {
                 val path = activity.route?.let { h.paths[it] }
-                val leg = day.legs.firstOrNull { it.need == activity.need && !it.returning }
-                val status = leg?.status ?: if (activity.scheduled && activity.route != null) "Non effectué" else activity.reason
-                model.addRow(arrayOf(activity.need.label, if (activity.scheduled) time(activity.departure) else "—", path?.destination?.let { "${it % c.width}, ${it / c.width}" } ?: "—", path?.let { "${it.duration} min" } ?: "—", status))
+                val leg = day.legs.firstOrNull { activity.matches(it) && !it.returning }
+                val status = (if (activity.appointment != null) day.dateOutcome?.status?.label else null) ?: leg?.status ?: if (activity.scheduled && activity.route != null) "Non effectué" else activity.reason
+                model.addRow(arrayOf(activity.appointment?.kind?.label ?: activity.need.label, if (activity.scheduled) time(activity.departure) else "—", path?.destination?.let { "${it % c.width}, ${it / c.width}" } ?: "—", path?.let { "${it.duration} min" } ?: "—", status))
             }
             if (model.rowCount > 0) table.setRowSelectionInterval(selected.coerceAtMost(model.rowCount - 1), selected.coerceAtMost(model.rowCount - 1))
         }
@@ -180,7 +182,7 @@ internal class MobilityPanel(
                 ?.people
                 ?.getOrNull(slot)
         val activity = day.activities.getOrNull(table.selectedRow)
-        val leg = day.legs.firstOrNull { it.need == activity?.need && it.returning == returning.isSelected }
+        val leg = day.legs.firstOrNull { activity?.matches(it) == true && it.returning == returning.isSelected }
         val path =
             when (view.selectedIndex) {
                 1 -> leg?.trace
@@ -201,8 +203,13 @@ internal class MobilityPanel(
                     life.study?.let { study -> append("${study.course.label} : année ${study.year}/${study.course.years}, %.1f / %.0f points, ${study.attendedDays}/${study.scheduledDays} présences, ${if (study.repeated) "redoublement" else "première inscription"}.\n".format(study.points, LifeRules.ANNUAL_PASS_POINTS)) }
                     if (life.lastExam.isNotEmpty()) append("${life.lastExam}\n")
                     append("Partenaire : ${life.partner?.let { "#$it" } ?: "aucun"} · parents : ${life.parents.joinToString { "#$it" }.ifEmpty { "non renseignés" }}\n")
+                    life.studentRelationship?.let { relation ->
+                        append("Relation étudiante : #${relation.partner}, depuis ${epoch.plusDays(relation.started.toLong())} ; solidité %.1f / 100 ; rupture hebdomadaire %.1f %%\n".format(relation.strength, StudentRomanceRules.breakupChance(relation.strength) * 100))
+                    }
                     life.pregnancyDue?.let { append("Naissance prévue : ${epoch.plusDays(it.toLong())}\n") }
                 }
+                day.dateOutcome?.let { outcome -> append("${outcome.status.label} : ${outcome.togetherMinutes} min ensemble ; bonheur %+.2f ; solidité %+.1f.\n".format(outcome.happiness, outcome.strengthChange)) }
+                activity?.appointment?.let { date -> append("Rendez-vous avec #${date.partner} à ${time(date.meeting)}, fin ${time(date.end)}.\n") }
                 person?.wellbeing?.let { w ->
                     append("Satisfaction : %.1f %% (%+.2f / jour), %d jours d’insatisfaction, ancienneté %d jours.\n".format(w.satisfaction, w.trend, w.unhappyDays, w.residenceDays))
                     append("Emploi : ${w.workplace?.let { "${it % c.width}, ${it / c.width}" } ?: "aucun"} ; revenus et dépenses du foyer par personne : %.1f / %.1f $ par jour.\n".format(w.income, w.costs))
@@ -224,6 +231,20 @@ internal class MobilityPanel(
                 }
                 append("\nCarnet : choisissez un jour et un itinéraire pour consulter son score et son tracé, aller ou retour.\n")
                 append("Instruction par âge (effectif, NI moyen) : " + cohorts.entries.joinToString(" ; ") { (age, values) -> "$age ans : ${values.first}, %.1f".format(values.second) } + "\n")
+                if (socialMobility !== mobility) {
+                    socialMobility = mobility
+                    socialStatistics = mobility.studentDateStatistics(c.width)
+                }
+                val social = requireNotNull(socialStatistics)
+                append("Rendez-vous étudiants : ${social.appointments}, dont ${social.missed} manqués ; ${social.completedTrips}/${social.trips} trajets accomplis, ${social.distance} cases parcourues.\n")
+                append(
+                    "Départs des rendez-vous : " +
+                        social.departureHours
+                            .withIndex()
+                            .filter { it.value > 0 }
+                            .joinToString(" ; ") { "${it.index} h : ${it.value}" }
+                            .ifEmpty { "aucun" } + "\n",
+                )
                 append("Ville : ${mobility.completedNeeds} besoins satisfaits, ${mobility.unmetNeeds} non satisfaits. Les voitures illustrent les passages effectivement admis.")
             }
         show(path, position, minute / 60)

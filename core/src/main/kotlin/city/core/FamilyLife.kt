@@ -68,7 +68,7 @@ internal fun monthlyFamilies(
     val occupants = city.households.associate { it.cell to it.people.map { p -> p.id }.toMutableList() }.toMutableMap()
     val candidates =
         people.values
-            .filter { it.age >= 18 && it.life?.stage in listOf(LifeStage.WORKER, LifeStage.RETIRED) && it.life?.partner == null }
+            .filter { it.age >= 18 && it.life?.stage in listOf(LifeStage.WORKER, LifeStage.RETIRED) && it.life?.partner == null && it.life?.studentRelationship == null }
             .map { it.id }
             .sorted()
     for (id in candidates) {

@@ -65,6 +65,7 @@ data class CitizenLife(
     val pregnancyAncestors: List<Long> = emptyList(),
     val children: Int = 0,
     val lastExam: String = "",
+    val studentRelationship: StudentRelationship? = null,
 )
 
 /** Initial tuning, expressed as probabilities per month/year rather than per simulation frame. */
@@ -88,6 +89,10 @@ fun CitizenLife.validate(
     require((pregnancyDue == null) == (pregnancyFather == null))
     require(pregnancyDue == null || sex == Sex.FEMALE)
     require((stage == LifeStage.STUDENT) == (study != null))
+    studentRelationship?.let {
+        require(partner == null && it.partner in 1 until city.nextCitizenId && it.partner != person.id)
+        require(it.started in 0..city.nextDay() && it.strength.isFinite() && it.strength in 0.0..100.0)
+    }
     study?.let {
         require(it.campus in city.tiles.indices && it.year in 1..it.course.years && it.started in 0..city.nextDay())
         require(it.points.isFinite() && it.points >= 0 && it.scheduledDays >= 0 && it.attendedDays in 0..it.scheduledDays)

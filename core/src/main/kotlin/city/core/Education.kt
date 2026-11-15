@@ -34,12 +34,14 @@ internal fun finishEducationDay(city: City): City {
             ?.homes
             ?.associateBy { it.cell }
             .orEmpty()
-    return city.copy(
-        households =
-            city.households.map { home ->
-                val days = executions[home.cell]?.days?.associateBy { it.citizenId }.orEmpty()
-                home.copy(people = home.people.map { person -> advanceEducation(person, days[person.id], city) })
-            },
+    return repairStudentRelationships(
+        city.copy(
+            households =
+                city.households.map { home ->
+                    val days = executions[home.cell]?.days?.associateBy { it.citizenId }.orEmpty()
+                    home.copy(people = home.people.map { person -> advanceEducation(person, days[person.id], city) })
+                },
+        ),
     )
 }
 

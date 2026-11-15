@@ -34,4 +34,38 @@ class LifePersistenceTest {
                 Files.deleteIfExists(file)
             }
         }
+
+    @Test fun `student relationship appointments and outcomes survive disk and deterministic continuation`() =
+        runBlocking {
+            val catalog = Catalog()
+            val tiles = MutableList(256) { Tile(powered = true, watered = true) }
+            val homes =
+                listOf(17, 20).mapIndexed { index, cell ->
+                    tiles[cell] = tiles[cell].copy(zone = Zone.RESIDENTIAL_DENSE, occupants = 1)
+                    val id = index + 1L
+                    Household(cell, listOf(Citizen(id, "Student $id", 15, position = cell * 4, life = CitizenLife(-5500, Sex.FEMALE, 80.0, 1.0, LifeStage.SCHOOL, studentRelationship = StudentRelationship(3 - id, 0)))))
+                }
+            val input = City(width = 16, height = 16, tiles = tiles, terrain = Terrain.flat(16, 16, 2), households = homes, nextCitizenId = 3, day = 5)
+            var result: City? = null
+            for (seed in 0L..100L) {
+                val candidate = MobilitySimulation(catalog, 1).simulate(input.copy(seed = seed))
+                if (candidate.mobility!!.homes.any { h -> h.days.any { it.dateOutcome != null } }) {
+                    result = candidate.copy(day = 6)
+                    break
+                }
+            }
+            val snapshot = assertNotNull(result)
+            val file = Files.createTempFile("student-romance", ".json")
+            try {
+                Persistence.save(file, snapshot)
+                val loaded = Persistence.load(file, catalog)
+                assertEquals(snapshot, loaded)
+                assertEquals(Simulation(catalog, workers = 1).step(snapshot), Simulation(catalog, workers = 4).step(loaded))
+                val broken = snapshot.copy(households = snapshot.households.map { h -> h.copy(people = h.people.map { p -> if (p.id == 1L) p.copy(life = p.life!!.copy(studentRelationship = null)) else p }) })
+                Persistence.save(file, broken)
+                assertFailsWith<IllegalArgumentException> { Persistence.load(file, catalog) }
+            } finally {
+                Files.deleteIfExists(file)
+            }
+        }
 }

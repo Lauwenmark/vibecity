@@ -195,13 +195,14 @@ class MobilitySimulation(
                 prepared[index] = PreparedHome(result, people, registry)
                 result
             }
-            val executor = DayExecutor(city, router, prepared.map { requireNotNull(it) }, day)
+            val coordinated = planStudentDates(city, router, prepared.map { requireNotNull(it) })
+            val executor = DayExecutor(city, router, coordinated, day)
             executor.execute()
             val finalHomes = executor.homes()
             val mobility = Mobility(city.month, finalHomes, finalHomes.sumOf { it.completedNeeds }, finalHomes.sumOf { it.unmetNeeds }, day = day, roadPeakOccupancy = executor.peaks(), roadOccupancyLimit = city.trafficRules.roadSlots)
             val peak = IntArray(city.tiles.size)
             for (load in mobility.aggregateLoads()) peak[load.cell] = max(peak[load.cell], (load.hours.max().toLong() * 100 / load.hourlyCapacity(city)).coerceAtMost(100).toInt())
-            city.copy(mobility = mobility, households = executor.households(), nextCitizenId = nextId, tiles = city.tiles.mapIndexed { i, tile -> tile.copy(traffic = peak[i]) })
+            finishStudentDates(city.copy(mobility = mobility, households = executor.households(), nextCitizenId = nextId, tiles = city.tiles.mapIndexed { i, tile -> tile.copy(traffic = peak[i]) }))
         }
 }
 
@@ -238,6 +239,7 @@ internal class DayExecutor(
         val need: Need,
         val returning: Boolean,
         val planned: Int,
+        val appointmentId: Long?,
         val departure: Int,
         var path: TravelPath,
         var index: Int = 0,
@@ -344,19 +346,17 @@ internal class DayExecutor(
         for (agent in agents) {
             if (agent.leg != null) finish(agent, null)
             // Every still-pending scheduled activity is unsatisfied; no midnight teleportation.
-            val finished =
-                agent.legs
-                    .filter {
-                        !it.returning && it.arrival != null && it.arrival + (
-                            agent.plan.activities
-                                .firstOrNull { a -> a.need == it.need }
-                                ?.stay ?: 0
-                        ) < 1440
-                    }.map { it.need }
-                    .toSet()
             val activities = agent.plan.activities.filter { it.scheduled }
-            completed[agent.home] += activities.count { if (it.need == Need.REST) agent.node == homeNode(agent) else it.need in finished }
-            unmet[agent.home] += activities.count { if (it.need == Need.REST) agent.node != homeNode(agent) else it.need !in finished }
+            val satisfied =
+                activities.count { activity ->
+                    if (activity.need == Need.REST) {
+                        agent.node == homeNode(agent)
+                    } else {
+                        agent.legs.any { activity.matches(it) && !it.returning && it.arrival != null && it.arrival + activity.stay < 1440 }
+                    }
+                }
+            completed[agent.home] += satisfied
+            unmet[agent.home] += activities.size - satisfied
             agent.person = agent.person.copy(position = agent.node)
         }
     }
@@ -377,6 +377,10 @@ internal class DayExecutor(
                 enqueue(agent, departure)
                 return
             }
+            if (activity.appointment != null && minute > activity.appointment.end - StudentRomanceRules.MINIMUM_TOGETHER) {
+                agent.activity++
+                continue
+            }
             start(agent, activity.need, false, activity.route, minute)
             return
         }
@@ -392,7 +396,24 @@ internal class DayExecutor(
         val path = registry(agent).paths[pathId]
         check(path.nodes.first() == agent.node)
         agent.returningAt = -1
-        agent.leg = ActiveLeg(need, returning, pathId, minute, path, nextDecision = minute + rules.reconsiderMinutes, nodes = mutableListOf(agent.node), times = mutableListOf(0))
+        agent.leg =
+            ActiveLeg(
+                need,
+                returning,
+                pathId,
+                if (agent.recovery) {
+                    null
+                } else {
+                    agent.plan.activities[agent.activity]
+                        .appointment
+                        ?.id
+                },
+                minute,
+                path,
+                nextDecision = minute + rules.reconsiderMinutes,
+                nodes = mutableListOf(agent.node),
+                times = mutableListOf(0),
+            )
         enqueue(agent, minute + if (path.nodes.size > 1) path.minutes[1] else 0)
     }
 
@@ -426,7 +447,7 @@ internal class DayExecutor(
             if (occupancy[cell] >= rules.roadSlots || admitted[cell] >= rules.roadEntriesPerMinute) {
                 leg.waiting++
                 leg.attemptWait++
-                if (!agent.recovery && leg.attemptWait % 5 == 0) leg.selectedMemory?.let { adjust(agent, it, leg.need, leg.returning, -1) }
+                if (!agent.recovery && leg.appointmentId == null && leg.attemptWait % 5 == 0) leg.selectedMemory?.let { adjust(agent, it, leg.need, leg.returning, -1) }
                 if (leg.waitSince < 0) leg.waitSince = minute
                 var retry = 1
                 if (minute >= leg.nextDecision) {
@@ -484,7 +505,7 @@ internal class DayExecutor(
             leg.decisions.add(RouteDecision(minute, agent.node, "Aucun détour accessible"))
             return null
         }
-        if (!agent.recovery) leg.selectedMemory?.let { adjust(agent, it, leg.need, leg.returning, -rules.abandonmentPenalty - if (leg.attemptWait % 5 > 0) 1 else 0) }
+        if (!agent.recovery && leg.appointmentId == null) leg.selectedMemory?.let { adjust(agent, it, leg.need, leg.returning, -rules.abandonmentPenalty - if (leg.attemptWait % 5 > 0) 1 else 0) }
         leg.selectedMemory = known?.path
         leg.attemptWait = 0
         leg.rerouted = true
@@ -511,7 +532,10 @@ internal class DayExecutor(
             nextActivity(agent, minute)
         } else {
             val stay = agent.plan.activities[agent.activity].stay
-            agent.returningAt = minute + stay
+            agent.returningAt = agent.plan.activities[agent.activity]
+                .appointment
+                ?.end
+                ?.let { max(minute, it) } ?: (minute + stay)
             enqueue(agent, agent.returningAt)
         }
     }
@@ -534,7 +558,7 @@ internal class DayExecutor(
         val elapsed = (arrival ?: 1440) - leg.departure
         val plannedDuration = registry(agent).paths[leg.planned].duration
         val late = (elapsed - plannedDuration).coerceAtLeast(0)
-        if (!agent.recovery) {
+        if (!agent.recovery && leg.appointmentId == null) {
             leg.selectedMemory?.let { id ->
                 val delta =
                     if (arrival == null) {
@@ -575,6 +599,7 @@ internal class DayExecutor(
                     "Arrivé"
                 },
                 leg.decisions.toList(),
+                leg.appointmentId,
             ),
         )
         agent.leg = null

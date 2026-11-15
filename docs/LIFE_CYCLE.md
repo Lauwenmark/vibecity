@@ -111,7 +111,69 @@ parents ou partenaires : seuls les liens établis par la simulation sont enregis
 Une case résidentielle reste l’unité de logement et de budget collectif ; il n’existe pas encore
 de découpage d’un immeuble en appartements. Les filiations sont individuelles, et plusieurs familles
 peuvent partager une case. Les nouveaux liens, grossesses, résultats scolaires et revenus sont sauvegardés
-et transmis dans les états complets comme dans les différences réseau (protocole 11).
+et transmis dans les états complets comme dans les différences réseau (protocole 12).
 
 Les tests couvrent seuils, accès réel aux établissements, assiduité, examens, redoublement, diplômes,
 anniversaires, décès, grossesses, couples/déménagements, persistance et déterminisme parallèle.
+
+## Relations étudiantes
+
+Dès 13 ans, les élèves et étudiants célibataires peuvent former un couple étudiant. Chaque lundi,
+une personne a 5 % de chances de faire une proposition à un autre élève ou étudiant d'au moins
+13 ans, avec un écart d'âge d'au plus un an, sans parenté connue incompatible. Les deux doivent
+avoir le même établissement comme destination de cours dans le plan du jour. Les adultes qui
+suivent une visite culturelle hebdomadaire ne sont pas éligibles. Les études supérieures restent
+éligibles sans limite supérieure d'âge ; le sexe n'est pas un critère de sélection.
+
+La sélection examine au plus 32 candidats dans les groupes du même établissement et des trois
+âges admissibles. Chaque personne reçoit au plus une proposition par semaine ; l'acceptation vaut
+50 %. Un refus ne déclenche pas de deuxième recherche pour l'initiateur. Ces taux concernent
+les tentatives et les réponses, pas directement la proportion de personnes en couple.
+
+La relation étudiante est distincte du couple adulte : pas de cohabitation automatique ni de
+conception. Elle commence avec une solidité de 50/100. Chaque lundi, une décision unique par
+couple peut la terminer avec une probabilité de `10 % − 9 % × solidité / 100` (donc 1 à 10 %).
+Les partenaires séparés ne reforment pas un couple ce même lundi. La sortie des études de l'un
+d'eux, son décès ou son départ de la ville met fin au lien des deux côtés. Les résultats d'examen
+sont traités le jour même. Le passage immédiat de l'école à l'université et un changement de campus
+ne mettent pas fin à une relation existante ; ils n'imposent pas de rester dans le même établissement.
+
+### Rendez-vous et transports
+
+Un ou deux jours distincts sont tirés par semaine pour chaque couple. Chaque rendez-vous est
+une visite au domicile d'un partenaire (hôte variable), ou une sortie commune dans un lieu de
+loisirs ouvert. Sans lieu de loisirs, une visite est choisie. Les créneaux commencent à 16 h en
+semaine ou à 10 h le week-end, par pas de quinze minutes ; les trajets prévus doivent permettre
+le retour avant 22 h. La recherche de créneau conserve toutes les activités ordinaires et leurs
+retours. Sans créneau commun, aucun rendez-vous n'est pris et aucune pénalité n'est appliquée.
+
+Les deux partenaires ont la même destination et la même heure de rencontre, mais des heures de
+départ adaptées à leurs trajets. L'hôte reste chez lui pendant le créneau réservé ; cette présence
+ne compte pas comme un déplacement. Les autres allers-retours sont exécutés par le moteur habituel,
+avec congestion, détours, capacité des routes et transports collectifs. Un itinéraire inaccessible
+n'annule pas silencieusement un rendez-vous : si les agendas permettent de le prévoir, il sera manqué.
+Les visites ne sont pas apprises comme des destinations de loisirs ordinaires.
+
+Le rendez-vous réserve 75 minutes ; il faut au moins 30 minutes de présence simultanée effective.
+Un retard de plus de 15 minutes est pénalisé même si les deux se rencontrent. Une arrivée après la
+fin prévue ne crée pas de présence fictive. Le retour difficile n'annule pas une rencontre accomplie.
+
+| Bilan partagé du rendez-vous | Bonheur de chacun | Solidité commune |
+|---|---:|---:|
+| Réussi et ponctuel | +0,7 | +4 |
+| Réalisé avec retard | −0,4 | −6 |
+| Manqué | −1,2 | −8 |
+
+Chaque aller ou retour non stationnaire ajoute aussi +0,15 de bonheur à son voyageur et +1 de
+solidité s'il réussit avec au plus 15 minutes de retard ; sinon −0,3 et −2. Un trajet prévu mais
+non effectué est un échec. Les contributions des deux partenaires sont réunies une seule fois
+pour modifier la solidité commune, bornée entre 0 et 100. Le bonheur s'ajoute au changement
+quotidien habituel, qui continue à tenir compte du temps de transport. Les rendez-vous ne
+reçoivent pas en plus la pénalité de besoin de loisirs ordinaire.
+
+L'inspecteur affiche le partenaire étudiant, la solidité, le risque de rupture, le créneau, les
+tracés distincts, la présence commune et les effets du rendez-vous. Il donne également les totaux
+du jour : rendez-vous manqués, trajets prévus/accomplis, distance et départs par heure. Tous les
+tirages sont déterministes et indépendants du nombre de workers. Relations, rendez-vous et bilans
+sont conservés en sauvegarde et dans les états complets/différences réseau du protocole 12 ; les
+anciennes sauvegardes chargent ces champs à leur valeur absente.

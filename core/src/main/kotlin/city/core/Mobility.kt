@@ -133,8 +133,8 @@ fun Mobility.itinerary(
     val executed = home.days.getOrNull(resident.slot)
     if (executed != null) {
         return executed.activities.map { activity ->
-            val outbound = executed.legs.firstOrNull { it.need == activity.need && !it.returning }
-            val inbound = executed.legs.firstOrNull { it.need == activity.need && it.returning }
+            val outbound = executed.legs.firstOrNull { activity.matches(it) && !it.returning }
+            val inbound = executed.legs.firstOrNull { activity.matches(it) && it.returning }
             NeedJourney(activity.need, activity.route, activity.scheduled, activity.departure, inbound?.departure ?: activity.departure, inbound?.arrival ?: 1439, outbound?.status ?: activity.reason)
         }
     }

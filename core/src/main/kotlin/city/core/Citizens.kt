@@ -69,6 +69,7 @@ data class PlannedActivity(
     val returnRoute: Int? = null,
     val scheduled: Boolean = true,
     val reason: String = "Prévu",
+    val appointment: StudentAppointment? = null,
 )
 
 @Serializable
@@ -89,6 +90,7 @@ data class ExecutedLeg(
     val waitMinutes: Int = 0,
     val status: String = "En cours",
     val decisions: List<RouteDecision> = emptyList(),
+    val appointmentId: Long? = null,
 )
 
 @Serializable
@@ -97,6 +99,7 @@ data class CitizenDay(
     val startNode: Int,
     val activities: List<PlannedActivity>,
     val legs: List<ExecutedLeg> = emptyList(),
+    val dateOutcome: StudentDateOutcome? = null,
 ) {
     fun positionAt(minute: Int): Int {
         val leg = legs.lastOrNull { it.departure <= minute } ?: return startNode
@@ -163,6 +166,14 @@ fun City.validateCitizens() {
             }
         }
     }
+    val citizensById = households.flatMap { it.people }.associateBy { it.id }
+    for (person in citizensById.values) {
+        person.life?.studentRelationship?.let { relation ->
+            val other = requireNotNull(citizensById[relation.partner]?.life?.studentRelationship)
+            require(other.partner == person.id && other.started == relation.started && other.strength == relation.strength)
+            require(person.life.stage in listOf(LifeStage.SCHOOL, LifeStage.STUDENT, LifeStage.APPLICANT) && person.age >= 13)
+        }
+    }
     mobility?.let { traffic ->
         require(traffic.day >= 0 && traffic.roadOccupancyLimit in 1..1000)
         require(traffic.roadPeakOccupancy.all { (cell, count) -> cell in tiles.indices && count in 0..traffic.roadOccupancyLimit })
@@ -174,15 +185,26 @@ fun City.validateCitizens() {
                 require(personDay.startNode in 0 until tiles.size * 4)
                 require(
                     personDay.activities
-                        .map { it.need }
+                        .map { it.need to it.appointment?.id }
                         .distinct()
                         .size == personDay.activities.size,
                 )
+                require(personDay.activities.count { it.appointment != null } <= 1)
+                personDay.dateOutcome?.let { outcome ->
+                    require(personDay.activities.any { it.appointment != null })
+                    require(outcome.togetherMinutes in 0..StudentRomanceRules.DATE_MINUTES && outcome.happiness.isFinite() && outcome.strengthChange.isFinite())
+                }
                 for (activity in personDay.activities) {
+                    activity.appointment?.let { date ->
+                        require(activity.need == Need.LEISURE && date.id == minOf(personDay.citizenId, date.partner))
+                        require(date.partner in 1 until nextCitizenId && date.partner != personDay.citizenId)
+                        require(date.destination in tiles.indices && date.meeting in 0..1245 && date.end == date.meeting + StudentRomanceRules.DATE_MINUTES)
+                    }
                     require(activity.route == null || activity.route in home.paths.indices)
                     require(activity.returnRoute == null || activity.returnRoute in home.paths.indices)
                 }
                 for (leg in personDay.legs) {
+                    require(leg.appointmentId == null || personDay.activities.any { it.matches(leg) })
                     require(leg.planned in home.paths.indices && leg.departure in 0..1439 && (leg.arrival == null || leg.arrival in leg.departure..1439))
                     require(leg.trace.nodes.isNotEmpty() && leg.trace.nodes.size == leg.trace.minutes.size)
                     require(leg.trace.nodes.all { it in 0 until tiles.size * 4 })
@@ -201,3 +223,6 @@ fun City.validateCitizens() {
         }
     }
 }
+
+/** A social appointment is distinct from the ordinary leisure activity. */
+fun PlannedActivity.matches(leg: ExecutedLeg): Boolean = need == leg.need && appointment?.id == leg.appointmentId

@@ -392,3 +392,17 @@ Les tirages utilisent exclusivement graine, identifiant, jour et sel d’événe
 familiales se font dans l’ordre des identifiants ; chaque couple ne décide qu’une fois par mois.
 La planification parallèle est indépendante de ces mutations et reste déterministe.
 Les moyennes de NI sont dérivées des citoyens et mises en cache par instantané dans l’inspecteur.
+
+
+### Coordination des rendez-vous étudiants
+
+Après les plans individuels parallèles, `planStudentDates` effectue une phase déterministe de
+coordination entre domiciles. L'orientation est déjà résolue : l'établissement des candidats est
+la destination du cours prévu. Les groupes établissement/âge bornent les recherches à 32 candidats.
+Les agendas communs sont insérés dans les créneaux libres sans partager les registres de chemins.
+Le `DayExecutor` conserve l'identité des rendez-vous dans chaque jambe, réserve la présence de
+l'hôte et termine les séjours à l'heure commune prévue. `finishStudentDates` mesure le recouvrement
+des présences exécutées, corrige les compteurs d'activités, actualise la solidité réciproque et
+produit le bilan individuel utilisé par `updateWellbeing`. `finishEducationDay` nettoie les liens
+dès qu'un partenaire quitte les études. Les statistiques sociales de l'inspecteur sont calculées
+une fois par instantané de mobilité, et non à chaque déplacement du curseur horaire.
