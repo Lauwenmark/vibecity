@@ -1,5 +1,25 @@
 # Sprites des services publics
 
+## Zoo, parcs, bibliothèque et château d’eau
+
+Sources créées avec l’outil intégré `image_gen` : `zoo-v1.png` (4 × 4 cases),
+`park-v1.png` (1 × 1), `large_park-v1.png` (3 × 3), `library-v1.png` (2 × 2)
+et `tower-v1.png` (1 × 1). Les prompts complets sont dans
+`prompts-parks-culture-v1.json`. Les sources transparentes sont conservées intactes.
+
+`java -Djava.awt.headless=true tools/PrepareParkCultureSprites.java` produit les
+cinq ressources correspondantes dans `client/src/main/resources/city/client/civic/`.
+Le script recadre l’alpha, réduit la largeur à 512 pixels et calibre séparément
+la hauteur à partir des coins latéraux mesurés du terrain pour obtenir une
+demi-emprise avant de 128 pixels. Une marge transparente inférieure contient les
+irrégularités du contour sans couper le dessin. Cette normalisation globale
+ne garantit pas le parallélisme exact de chaque corniche, banc ou marche.
+
+`BuildingSprites` utilise les emprises du catalogue, sans modifier leur taille.
+Les tests `UtilitySpritesTest` couvrent automatiquement ces cinq ressources :
+alpha, limites avant et égalité du rendu complet/découpé aux quatre rotations.
+La galerie de contrôle est `client/build/previews/utility-sprites.png`.
+
 ## Station d’épuration
 
 `treatment-v1.png` représente la station d’épuration (2 × 2 cases), générée avec l’outil intégré `image_gen`. Le prompt est conservé dans `treatment-v1.prompt.txt`. L’entrée regarde vers le bas gauche.

@@ -11,7 +11,26 @@ import kotlin.math.roundToInt
 internal object BuildingSprites {
     val ids = setOf("coal", "oil", "gas", "nuclear", "wind", "solar", "fusion", "hydro", "microwave", "pump")
     private val civicIds =
-        setOf("fire", "police", "school", "cityhall", "mayor", "hospital", "prison", "station", "stadium", "airport", "college", "treatment", "museum")
+        setOf(
+            "fire",
+            "police",
+            "school",
+            "cityhall",
+            "mayor",
+            "hospital",
+            "prison",
+            "station",
+            "stadium",
+            "airport",
+            "college",
+            "treatment",
+            "museum",
+            "zoo",
+            "park",
+            "large_park",
+            "library",
+            "tower",
+        )
     val allIds = ids + civicIds
 
     fun resourcePath(id: String) = "/city/client/${if (id in civicIds) "civic" else "utilities"}/$id.png"
