@@ -46,6 +46,7 @@ class LifeInspectorTest {
         SwingUtilities.invokeAndWait {
             val panel = MobilityPanel { _, _, _ -> }
             panel.updateSnapshot(city)
+            panel.openResident(0)
             val text = texts(panel).joinToString("\n")
             for (expected in listOf("NI", "CA", "Informatique", "40/45", "Partenaire : #2", "Naissance prévue", "18–24 ans : 1")) assertContains(text, expected)
             panel.updateSnapshot(city.copy(households = listOf(Household(17, listOf(p.copy(age = 25))))))
@@ -71,6 +72,7 @@ class LifeInspectorTest {
             var shown: TravelPath? = null
             val panel = MobilityPanel { path, _, _ -> shown = path }
             panel.updateSnapshot(city)
+            panel.openResident(0)
             assertEquals("Loisirs", panel.table.getValueAt(0, 0))
             assertEquals("Visite au partenaire", panel.table.getValueAt(1, 0))
             panel.table.setRowSelectionInterval(1, 1)

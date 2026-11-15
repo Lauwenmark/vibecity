@@ -339,7 +339,8 @@ class CityWindow : JFrame("Shared City 2000 · atelier municipal") {
             mobilityDialog =
                 JDialog(this, "Habitants · besoins et déplacements", false).apply {
                     contentPane = content
-                    size = Dimension(860, 700)
+                    size = Dimension(900, 900)
+                    minimumSize = Dimension(640, 480)
                     setLocationRelativeTo(this@CityWindow)
                     defaultCloseOperation = DISPOSE_ON_CLOSE
                     addWindowListener(

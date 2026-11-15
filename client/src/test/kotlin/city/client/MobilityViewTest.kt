@@ -29,6 +29,7 @@ class MobilityViewTest {
                 }
             val c = city()
             panel.updateSnapshot(c, 17)
+            panel.openResident(0)
             assertEquals(6, panel.table.rowCount)
             val row = (0 until panel.table.rowCount).single { panel.table.getValueAt(it, 0) == "Courses" }
             panel.table.setRowSelectionInterval(row, row)
@@ -38,7 +39,7 @@ class MobilityViewTest {
             assertEquals(8, hour)
 
             fun children(root: Container): List<Component> = root.components.flatMap { listOf(it) + if (it is Container) children(it) else emptyList() }
-            children(panel).filterIsInstance<JSpinner>().single().value = 12
+            panel.openResident(11)
             children(panel).filterIsInstance<JSlider>().single().value = 23 * 60
             assertEquals(17, position)
             assertEquals(23, hour)
@@ -116,6 +117,7 @@ class MobilityViewTest {
             val c = city()
             val panel = MobilityPanel { p, _, _ -> path = p }
             panel.updateSnapshot(c, 17)
+            panel.openResident(0)
             val food = (0 until panel.table.rowCount).single { panel.table.getValueAt(it, 0) == "Courses" }
             panel.table.setRowSelectionInterval(food, food)
 
