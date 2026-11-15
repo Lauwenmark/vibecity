@@ -316,10 +316,26 @@ class CityServer(
                 socket.soTimeout = 10000
                 val reader = socket.getInputStream().bufferedReader(Charsets.UTF_8)
                 val writer = socket.getOutputStream().bufferedWriter(Charsets.UTF_8)
-                val hello = wireJson.decodeFromString<Request>(readFrame(reader, 8192) ?: return@coroutineScope)
-                require(hello.type == "HELLO" && hello.version == PROTOCOL_VERSION) { "HELLO version $PROTOCOL_VERSION attendu" }
-                require(hello.name.matches(Regex("[\\p{L}\\p{N} _-]{1,24}"))) { "Nom invalide" }
-                require(MessageDigest.isEqual(token.toByteArray(Charsets.UTF_8), hello.token.toByteArray(Charsets.UTF_8))) { "Jeton incorrect" }
+                // A read timeout alone restarts on each fragment. Close the socket at
+                // an absolute deadline, including while the blocking reader waits.
+                val handshakeFinished = AtomicBoolean(false)
+                val deadline =
+                    launch(Dispatchers.Default, start = CoroutineStart.UNDISPATCHED) {
+                        delay(10_000)
+                        if (handshakeFinished.compareAndSet(false, true)) socket.close()
+                    }
+                val hello =
+                    try {
+                        val hello = wireJson.decodeFromString<Request>(readFrame(reader, 8192) ?: return@coroutineScope)
+                        require(hello.type == "HELLO" && hello.version == PROTOCOL_VERSION) { "HELLO version $PROTOCOL_VERSION attendu" }
+                        require(hello.name.matches(Regex("[\\p{L}\\p{N} _-]{1,24}"))) { "Nom invalide" }
+                        require(MessageDigest.isEqual(token.toByteArray(Charsets.UTF_8), hello.token.toByteArray(Charsets.UTF_8))) { "Jeton incorrect" }
+                        check(handshakeFinished.compareAndSet(false, true)) { "HELLO timeout" }
+                        hello
+                    } finally {
+                        handshakeFinished.set(true)
+                        deadline.cancel()
+                    }
                 val connected = Session(socket, hello.name, hello.compressedStates)
                 session = connected
                 val writerJob =
