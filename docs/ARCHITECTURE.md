@@ -321,7 +321,23 @@ retransmettent plus tous les registres inchangés. La reconstruction restitue to
 y compris lors d’une migration, d’un changement d’ordre ou d’un élagage de registres.
 Le client reconstruit chaque état dans l’ordre avant le regroupement des notifications Swing.
 Les états en attente restent bornés par client ; un transfert lent ne bloque pas les autres sessions.
-L’encodage est désormais propre à chaque client, ce qui augmente son coût CPU avec le nombre de clients.
+Chaque écrivain conserve sa propre base entièrement envoyée. Les clients recevant le même objet
+`Response`, avec le même objet de base (ou sans base) et le même format de compression, partagent
+le calcul du delta et son encodage via `SharedStateEncoder`. Les clés utilisent l’identité des objets,
+pas la seule révision ni un hachage profond de la ville ; les changements de liste des joueurs restent
+ainsi distincts. Le protocole et les octets transmis ne changent pas.
+
+Au plus 32 encodages sont en cours ou prêts à démarrer. Le cache des résultats conserve uniquement
+la dernière diffusion, au plus 8 trames et 64 Mio comptés à deux octets par caractère. Une trame plus
+grande peut être partagée pendant son calcul, puis n’est pas conservée dans le cache. Les clés ne
+retiennent les anciennes villes que faiblement. Ces bornes concernent le cache : chaque connexion
+peut encore conserver sa trame en cours d’écriture et sa propre base.
+
+Le serveur possède les tâches partagées : la déconnexion d’un client n’annule pas l’encodage attendu
+par les autres. Une nouvelle diffusion vide les résultats conservés sans interrompre les anciens
+calculs attendus ; ceux-ci ne peuvent pas réintroduire leurs résultats dans le cache courant.
+Les erreurs sont transmises aux seuls clients attendant cet encodage, puis la clé peut être retentée.
+L’arrêt du serveur vide le cache et annule ses tâches.
 
 ## Satisfaction et déménagements
 

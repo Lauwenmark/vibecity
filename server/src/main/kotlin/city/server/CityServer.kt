@@ -39,6 +39,7 @@ class CityServer(
     // Enough blocking-IO slots for both directions of every peer plus the listener.
     // The transaction actor stays on IO; expensive simulation and encoding use Default.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO.limitedParallelism(MAX_CLIENTS * 2 + 4))
+    private val stateEncoder = SharedStateEncoder(scope)
     private val listener =
         ServerSocket().apply {
             reuseAddress = true
@@ -368,11 +369,7 @@ class CityServer(
                                     }
 
                                     is Response -> {
-                                        val frame =
-                                            withContext(Dispatchers.Default) {
-                                                val response = next.compactState(previous)
-                                                if (connected.compressedStates) encodeCompressedFrame(response) else wireJson.encodeToString(response)
-                                            }
+                                        val frame = stateEncoder.encode(next, previous, connected.compressedStates)
                                         writer.write(frame)
                                         writer.newLine()
                                         writer.flush()
@@ -433,6 +430,7 @@ class CityServer(
 
     private fun broadcast() {
         val response = Response("STATE", city = city, players = sessions.map { it.name })
+        stateEncoder.publish(response)
         sessions.forEach { it.states.trySend(response) }
     }
 
@@ -468,6 +466,7 @@ class CityServer(
     }
 
     private fun closeResources() {
+        stateEncoder.clear()
         sockets.forEach { runCatching { it.close() } }
         saves.cancel()
         events.close()
