@@ -73,7 +73,7 @@ protections et coûts que les joueurs, passer par les commandes de terrassement.
 reste responsable de ne pas déformer des emprises occupées et de préserver les statistiques.
 
 Le changement du modèle `City` nécessite de **recompiler les JAR de plugins** contre cette version
-de `core`. Le protocole réseau courant est **14**, défini par
+de `core`. Le protocole réseau courant est **15**, défini par
 [`PROTOCOL_VERSION`](../core/src/main/kotlin/city/core/Protocol.kt). L’API de plugins reste **1** :
 ce sont deux numérotations distinctes. Comme
 annoncé, cette API ne garantit pas une compatibilité binaire des modèles entre versions du jeu.

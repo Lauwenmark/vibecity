@@ -1,0 +1,724 @@
+{
+  "version": 1,
+  "portrait_size": [
+    256,
+    256
+  ],
+  "classes": [
+    "enfant",
+    "adolescent",
+    "adulte",
+    "age-mur",
+    "age"
+  ],
+  "sexes": [
+    "feminin",
+    "masculin"
+  ],
+  "bank_count": 10,
+  "partition_parts_per_bank": 13,
+  "banks": [
+    {
+      "id": "01-fille",
+      "age_class": "enfant",
+      "sex": "feminin",
+      "manifest": "enfant/feminin/manifest.json",
+      "sheet": "enfant/feminin/planche-pieces.png"
+    },
+    {
+      "id": "02-garcon",
+      "age_class": "enfant",
+      "sex": "masculin",
+      "manifest": "enfant/masculin/manifest.json",
+      "sheet": "enfant/masculin/planche-pieces.png"
+    },
+    {
+      "id": "03-adolescente",
+      "age_class": "adolescent",
+      "sex": "feminin",
+      "manifest": "adolescent/feminin/manifest.json",
+      "sheet": "adolescent/feminin/planche-pieces.png"
+    },
+    {
+      "id": "04-adolescent",
+      "age_class": "adolescent",
+      "sex": "masculin",
+      "manifest": "adolescent/masculin/manifest.json",
+      "sheet": "adolescent/masculin/planche-pieces.png"
+    },
+    {
+      "id": "05-femme-adulte",
+      "age_class": "adulte",
+      "sex": "feminin",
+      "manifest": "adulte/feminin/manifest.json",
+      "sheet": "adulte/feminin/planche-pieces.png"
+    },
+    {
+      "id": "06-homme-adulte",
+      "age_class": "adulte",
+      "sex": "masculin",
+      "manifest": "adulte/masculin/manifest.json",
+      "sheet": "adulte/masculin/planche-pieces.png"
+    },
+    {
+      "id": "07-femme-age-mur",
+      "age_class": "age-mur",
+      "sex": "feminin",
+      "manifest": "age-mur/feminin/manifest.json",
+      "sheet": "age-mur/feminin/planche-pieces.png"
+    },
+    {
+      "id": "08-homme-age-mur",
+      "age_class": "age-mur",
+      "sex": "masculin",
+      "manifest": "age-mur/masculin/manifest.json",
+      "sheet": "age-mur/masculin/planche-pieces.png"
+    },
+    {
+      "id": "09-femme-agee",
+      "age_class": "age",
+      "sex": "feminin",
+      "manifest": "age/feminin/manifest.json",
+      "sheet": "age/feminin/planche-pieces.png"
+    },
+    {
+      "id": "10-homme-age",
+      "age_class": "age",
+      "sex": "masculin",
+      "manifest": "age/masculin/manifest.json",
+      "sheet": "age/masculin/planche-pieces.png"
+    }
+  ],
+  "by_part": {
+    "fond": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/fond.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/fond.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/fond.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/fond.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/fond.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/fond.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/fond.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/fond.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/fond.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/fond.png"
+      }
+    ],
+    "chevelure": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/chevelure.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/chevelure.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/chevelure.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/chevelure.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/chevelure.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/chevelure.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/chevelure.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/chevelure.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/chevelure.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/chevelure.png"
+      }
+    ],
+    "visage": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/visage.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/visage.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/visage.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/visage.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/visage.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/visage.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/visage.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/visage.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/visage.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/visage.png"
+      }
+    ],
+    "cou-buste": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/cou-buste.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/cou-buste.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/cou-buste.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/cou-buste.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/cou-buste.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/cou-buste.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/cou-buste.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/cou-buste.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/cou-buste.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/cou-buste.png"
+      }
+    ],
+    "oreille-g": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/oreille-g.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/oreille-g.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/oreille-g.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/oreille-g.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/oreille-g.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/oreille-g.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/oreille-g.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/oreille-g.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/oreille-g.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/oreille-g.png"
+      }
+    ],
+    "oreille-d": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/oreille-d.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/oreille-d.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/oreille-d.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/oreille-d.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/oreille-d.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/oreille-d.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/oreille-d.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/oreille-d.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/oreille-d.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/oreille-d.png"
+      }
+    ],
+    "sourcil-g": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/sourcil-g.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/sourcil-g.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/sourcil-g.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/sourcil-g.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/sourcil-g.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/sourcil-g.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/sourcil-g.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/sourcil-g.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/sourcil-g.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/sourcil-g.png"
+      }
+    ],
+    "sourcil-d": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/sourcil-d.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/sourcil-d.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/sourcil-d.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/sourcil-d.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/sourcil-d.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/sourcil-d.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/sourcil-d.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/sourcil-d.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/sourcil-d.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/sourcil-d.png"
+      }
+    ],
+    "oeil-g": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/oeil-g.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/oeil-g.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/oeil-g.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/oeil-g.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/oeil-g.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/oeil-g.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/oeil-g.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/oeil-g.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/oeil-g.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/oeil-g.png"
+      }
+    ],
+    "oeil-d": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/oeil-d.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/oeil-d.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/oeil-d.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/oeil-d.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/oeil-d.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/oeil-d.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/oeil-d.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/oeil-d.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/oeil-d.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/oeil-d.png"
+      }
+    ],
+    "nez": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/nez.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/nez.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/nez.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/nez.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/nez.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/nez.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/nez.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/nez.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/nez.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/nez.png"
+      }
+    ],
+    "bouche": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/bouche.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/bouche.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/bouche.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/bouche.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/bouche.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/bouche.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/bouche.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/bouche.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/bouche.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/bouche.png"
+      }
+    ],
+    "raccords": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/raccords.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/raccords.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/raccords.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/raccords.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/raccords.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/raccords.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/raccords.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/raccords.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/raccords.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/raccords.png"
+      }
+    ],
+    "paire-yeux": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/paire-yeux.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/paire-yeux.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/paire-yeux.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/paire-yeux.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/paire-yeux.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/paire-yeux.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/paire-yeux.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/paire-yeux.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/paire-yeux.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/paire-yeux.png"
+      }
+    ],
+    "paire-sourcils": [
+      {
+        "bank": "01-fille",
+        "file": "enfant/feminin/elements/paire-sourcils.png"
+      },
+      {
+        "bank": "02-garcon",
+        "file": "enfant/masculin/elements/paire-sourcils.png"
+      },
+      {
+        "bank": "03-adolescente",
+        "file": "adolescent/feminin/elements/paire-sourcils.png"
+      },
+      {
+        "bank": "04-adolescent",
+        "file": "adolescent/masculin/elements/paire-sourcils.png"
+      },
+      {
+        "bank": "05-femme-adulte",
+        "file": "adulte/feminin/elements/paire-sourcils.png"
+      },
+      {
+        "bank": "06-homme-adulte",
+        "file": "adulte/masculin/elements/paire-sourcils.png"
+      },
+      {
+        "bank": "07-femme-age-mur",
+        "file": "age-mur/feminin/elements/paire-sourcils.png"
+      },
+      {
+        "bank": "08-homme-age-mur",
+        "file": "age-mur/masculin/elements/paire-sourcils.png"
+      },
+      {
+        "bank": "09-femme-agee",
+        "file": "age/feminin/elements/paire-sourcils.png"
+      },
+      {
+        "bank": "10-homme-age",
+        "file": "age/masculin/elements/paire-sourcils.png"
+      }
+    ]
+  }
+}

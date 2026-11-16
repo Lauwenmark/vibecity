@@ -19,7 +19,24 @@ fun main() =
     runBlocking {
         exportToolIcons()
         var initial = demoCity()
-        repeat(18) { initial = Simulation(Catalog()).step(initial) }
+        val simulation = Simulation(Catalog())
+
+        fun hasResidentsAndTraffic(city: City): Boolean =
+            city.households.any { it.people.isNotEmpty() } &&
+                city.mobility?.aggregateLoads()?.any { it.mode == TravelMode.ROAD && it.hours.any { count -> count > 0 } } == true
+        // The starter district now has real construction delays (at least 36
+        // days). Eighteen days used to assert car animation in an empty town.
+        for (day in 0 until 180) {
+            initial = simulation.step(initial)
+            if (hasResidentsAndTraffic(initial)) break
+        }
+        check(hasResidentsAndTraffic(initial)) { "Smoke fixture did not develop residents and road traffic" }
+        val firstResident =
+            initial.households
+                .first { it.people.isNotEmpty() }
+                .people
+                .first()
+        ResidentPortraits.image(ResidentPortraits.key(firstResident)) // Prepare screenshot pixels off the EDT.
         val server = CityServer(initial.copy(rules = initial.rules.copy(speed = 0)), port = 0, savePath = null)
         try {
             SwingUtilities.invokeAndWait {
@@ -96,6 +113,9 @@ fun main() =
                 check((residents.selectedValue as Citizen).id == resident.id)
                 val open = residents.inputMap.get(KeyStroke.getKeyStroke("ENTER"))
                 residents.actionMap.get(open).actionPerformed(ActionEvent(residents, ActionEvent.ACTION_PERFORMED, "ENTER"))
+                val portrait = components(dialog).filterIsInstance<ResidentPortrait>().single { it.preferredSize.width == 256 }
+                check(portrait.portraitKey == ResidentPortraits.key(resident))
+                check(ResidentPortraits.cached(requireNotNull(portrait.portraitKey)) != null)
                 val tabs = components(dialog).filterIsInstance<JTabbedPane>().single()
                 tabs.selectedIndex = tabs.indexOfTab("Déplacements")
                 dialog.validate()

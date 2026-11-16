@@ -109,7 +109,7 @@ des options sont locaux à sa liste `paths`. Les chemins encodent leurs
 états par `case * TRAVEL_MODE_COUNT + mode` (marche 0, route 1, rail 2, métro 3, vélo 4 ; `TRAVEL_MODE_COUNT = 5`), avec leurs minutes cumulées.
 Les charges portent une case, un mode et 24 compteurs horaires. Le client reconstruit les horaires
 individuels avec le code partagé de `core` ; il n’effectue aucune recherche d’itinéraire.
-Les clients et serveurs doivent tous utiliser la version 14.
+Les clients et serveurs doivent tous utiliser la version 15.
 
 `City.day` est l’indice du prochain jour à exécuter depuis le 01/01/1900, ou `null` dans une ancienne
 ville : sa date de reprise est alors le premier jour indiqué par `month`. `City.nextCitizenId`
@@ -275,7 +275,7 @@ propres à chaque domicile, y compris lorsque les deux participants partagent un
 `happiness` (contribution individuelle au bonheur) et `strengthChange` (bilan commun du couple).
 Ces champs sont inclus dans les états complets et les différences de domiciles. Les anciennes
 sauvegardes restent lisibles grâce aux valeurs absentes par défaut ; serveur et clients doivent
-tous être recompilés en version 14 avant une partie en réseau.
+tous être recompilés en version 15 avant une partie en réseau.
 
 
 ## Vélos et stationnement (version 13)
@@ -301,3 +301,19 @@ Les cases résidentielles transmettent `housingCapacity` (capacité construite),
 Une capacité absente dans une ancienne sauvegarde est déduite de l'occupation au
 premier jour simulé ; une case vide sans capacité explicite est un terrain non bâti.
 Les deltas de carte transportent ces champs avec la case complète.
+
+## Portraits des habitants (version 15)
+
+`Citizen.portraitCode` est un entier `Long` qui encode une version de banque, une
+famille de peau, un sexe et sept choix de variantes. L'âge ne figure pas dans
+ce code : le client choisit la tranche dans `Citizen.age` au moment de composer
+le portrait. Aucun pixel n'est transmis par le serveur.
+
+Le code est présent dans les sauvegardes, les états complets et les deltas de
+domiciles, qui transportent déjà `Citizen`. En son absence dans une ancienne
+sauvegarde, le constructeur sérialisable le déduit de façon déterministe de
+l'identifiant et du sexe connu, sans dépendre de l'âge ni de la date de chargement.
+Si le cycle de vie était lui aussi absent, sa première initialisation synchronise
+le bit de sexe du code avec le sexe simulé, sans modifier les choix de traits.
+Les codes dont la version, la famille ou les variantes sont invalides sont rejetés
+par la validation des habitants. Le format est décrit dans [PORTRAITS.md](PORTRAITS.md).

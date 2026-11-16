@@ -106,6 +106,7 @@ class LifeCycleTest {
                 .people
                 .single()
         assertEquals(65, retired.age)
+        assertEquals(worker.portraitCode, retired.portraitCode)
         assertEquals(LifeStage.RETIRED, retired.life!!.stage)
         assertEquals(60.0, retired.dailyIncome)
         assertFalse(applicable(retired, Need.WORK, 0))

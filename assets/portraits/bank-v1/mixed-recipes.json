@@ -1,0 +1,80 @@
+[
+  {
+    "family": 0,
+    "sex": "female",
+    "variants": {
+      "frame": 1,
+      "face": 3,
+      "ears": 0,
+      "brows": 2,
+      "eyes": 4,
+      "nose": 1,
+      "mouth": 3
+    }
+  },
+  {
+    "family": 0,
+    "sex": "male",
+    "variants": {
+      "frame": 1,
+      "face": 0,
+      "ears": 3,
+      "brows": 4,
+      "eyes": 2,
+      "nose": 3,
+      "mouth": 0
+    }
+  },
+  {
+    "family": 1,
+    "sex": "female",
+    "variants": {
+      "frame": 1,
+      "face": 3,
+      "ears": 0,
+      "brows": 2,
+      "eyes": 4,
+      "nose": 1,
+      "mouth": 3
+    }
+  },
+  {
+    "family": 1,
+    "sex": "male",
+    "variants": {
+      "frame": 1,
+      "face": 0,
+      "ears": 3,
+      "brows": 4,
+      "eyes": 2,
+      "nose": 3,
+      "mouth": 0
+    }
+  },
+  {
+    "family": 2,
+    "sex": "female",
+    "variants": {
+      "frame": 1,
+      "face": 3,
+      "ears": 0,
+      "brows": 2,
+      "eyes": 4,
+      "nose": 1,
+      "mouth": 3
+    }
+  },
+  {
+    "family": 2,
+    "sex": "male",
+    "variants": {
+      "frame": 1,
+      "face": 0,
+      "ears": 3,
+      "brows": 4,
+      "eyes": 2,
+      "nose": 3,
+      "mouth": 0
+    }
+  }
+]

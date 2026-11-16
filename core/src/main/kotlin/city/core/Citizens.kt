@@ -52,6 +52,8 @@ data class Citizen(
     val wellbeing: Wellbeing = Wellbeing(),
     val life: CitizenLife? = null,
     val bicycle: BicycleState? = null,
+    // The default is also the deterministic, additive migration for older saves.
+    val portraitCode: Long = PortraitCodes.create(id, life?.sex ?: Sex.entries[noise(id, 611, 0) % 2]),
 )
 
 @Serializable
@@ -160,6 +162,7 @@ fun City.validateCitizens() {
         for (person in household.people) {
             require(person.id in 1 until nextCitizenId && ids.add(person.id))
             require(person.name.length in 1..120 && person.age in 0..120 && person.position in 0 until tiles.size * TRAVEL_MODE_COUNT)
+            require(PortraitCodes.valid(person.portraitCode)) { "Code de portrait invalide" }
             person.life?.validate(person, this)
             if (person.position % TRAVEL_MODE_COUNT == TravelMode.BICYCLE.ordinal) require(person.bicycle?.cell == person.position / TRAVEL_MODE_COUNT)
             person.bicycle?.let { bike ->

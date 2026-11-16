@@ -1,0 +1,455 @@
+{
+  "size": [
+    256,
+    256
+  ],
+  "resize": "NEAREST",
+  "references": [
+    {
+      "source": ".codex-attachments/79e925c3-b2ac-445d-802c-811b206e7a7c/2e31a51a-7f7d-44fc-91fa-fcf454567bbd/4275.png",
+      "pieces": {
+        "fond": {
+          "file": "pieces/1-fond.png",
+          "bbox": [
+            0,
+            0,
+            256,
+            254
+          ],
+          "opaque_pixels": 29693
+        },
+        "chevelure": {
+          "file": "pieces/1-chevelure.png",
+          "bbox": [
+            39,
+            9,
+            215,
+            205
+          ],
+          "opaque_pixels": 15820
+        },
+        "visage": {
+          "file": "pieces/1-visage.png",
+          "bbox": [
+            78,
+            62,
+            178,
+            193
+          ],
+          "opaque_pixels": 4604
+        },
+        "cou": {
+          "file": "pieces/1-cou.png",
+          "bbox": [
+            0,
+            176,
+            256,
+            256
+          ],
+          "opaque_pixels": 10420
+        },
+        "oreille_g": {
+          "file": "pieces/1-oreille_g.png",
+          "bbox": [
+            62,
+            110,
+            83,
+            149
+          ],
+          "opaque_pixels": 600
+        },
+        "oreille_d": {
+          "file": "pieces/1-oreille_d.png",
+          "bbox": [
+            176,
+            111,
+            196,
+            149
+          ],
+          "opaque_pixels": 475
+        },
+        "sourcil_g": {
+          "file": "pieces/1-sourcil_g.png",
+          "bbox": [
+            82,
+            97,
+            122,
+            107
+          ],
+          "opaque_pixels": 400
+        },
+        "sourcil_d": {
+          "file": "pieces/1-sourcil_d.png",
+          "bbox": [
+            137,
+            96,
+            177,
+            106
+          ],
+          "opaque_pixels": 400
+        },
+        "oeil_g": {
+          "file": "pieces/1-oeil_g.png",
+          "bbox": [
+            84,
+            107,
+            120,
+            127
+          ],
+          "opaque_pixels": 720
+        },
+        "oeil_d": {
+          "file": "pieces/1-oeil_d.png",
+          "bbox": [
+            137,
+            107,
+            173,
+            127
+          ],
+          "opaque_pixels": 720
+        },
+        "nez": {
+          "file": "pieces/1-nez.png",
+          "bbox": [
+            115,
+            127,
+            143,
+            151
+          ],
+          "opaque_pixels": 672
+        },
+        "bouche": {
+          "file": "pieces/1-bouche.png",
+          "bbox": [
+            106,
+            153,
+            150,
+            176
+          ],
+          "opaque_pixels": 1012
+        }
+      },
+      "traits": {
+        "sourcil_g": [
+          82,
+          97,
+          122,
+          107
+        ],
+        "sourcil_d": [
+          137,
+          96,
+          177,
+          106
+        ],
+        "oeil_g": [
+          84,
+          107,
+          120,
+          127
+        ],
+        "oeil_d": [
+          137,
+          107,
+          173,
+          127
+        ],
+        "nez": [
+          115,
+          127,
+          143,
+          151
+        ],
+        "bouche": [
+          106,
+          153,
+          150,
+          176
+        ]
+      }
+    },
+    {
+      "source": ".codex-attachments/79e925c3-b2ac-445d-802c-811b206e7a7c/95210c4f-7a2e-42ec-af61-14a04a9a5e39/4269.png",
+      "pieces": {
+        "fond": {
+          "file": "pieces/2-fond.png",
+          "bbox": [
+            0,
+            0,
+            256,
+            247
+          ],
+          "opaque_pixels": 30944
+        },
+        "chevelure": {
+          "file": "pieces/2-chevelure.png",
+          "bbox": [
+            41,
+            1,
+            211,
+            205
+          ],
+          "opaque_pixels": 13216
+        },
+        "visage": {
+          "file": "pieces/2-visage.png",
+          "bbox": [
+            76,
+            80,
+            180,
+            206
+          ],
+          "opaque_pixels": 5757
+        },
+        "cou": {
+          "file": "pieces/2-cou.png",
+          "bbox": [
+            0,
+            176,
+            256,
+            256
+          ],
+          "opaque_pixels": 10434
+        },
+        "oreille_g": {
+          "file": "pieces/2-oreille_g.png",
+          "bbox": [
+            57,
+            111,
+            80,
+            154
+          ],
+          "opaque_pixels": 662
+        },
+        "oreille_d": {
+          "file": "pieces/2-oreille_d.png",
+          "bbox": [
+            179,
+            113,
+            200,
+            155
+          ],
+          "opaque_pixels": 599
+        },
+        "sourcil_g": {
+          "file": "pieces/2-sourcil_g.png",
+          "bbox": [
+            80,
+            101,
+            120,
+            111
+          ],
+          "opaque_pixels": 400
+        },
+        "sourcil_d": {
+          "file": "pieces/2-sourcil_d.png",
+          "bbox": [
+            137,
+            101,
+            177,
+            111
+          ],
+          "opaque_pixels": 400
+        },
+        "oeil_g": {
+          "file": "pieces/2-oeil_g.png",
+          "bbox": [
+            84,
+            111,
+            120,
+            131
+          ],
+          "opaque_pixels": 720
+        },
+        "oeil_d": {
+          "file": "pieces/2-oeil_d.png",
+          "bbox": [
+            137,
+            111,
+            173,
+            131
+          ],
+          "opaque_pixels": 720
+        },
+        "nez": {
+          "file": "pieces/2-nez.png",
+          "bbox": [
+            115,
+            132,
+            143,
+            156
+          ],
+          "opaque_pixels": 672
+        },
+        "bouche": {
+          "file": "pieces/2-bouche.png",
+          "bbox": [
+            106,
+            161,
+            150,
+            184
+          ],
+          "opaque_pixels": 1012
+        }
+      },
+      "traits": {
+        "sourcil_g": [
+          80,
+          101,
+          120,
+          111
+        ],
+        "sourcil_d": [
+          137,
+          101,
+          177,
+          111
+        ],
+        "oeil_g": [
+          84,
+          111,
+          120,
+          131
+        ],
+        "oeil_d": [
+          137,
+          111,
+          173,
+          131
+        ],
+        "nez": [
+          115,
+          132,
+          143,
+          156
+        ],
+        "bouche": [
+          106,
+          161,
+          150,
+          184
+        ]
+      }
+    }
+  ],
+  "recipes": [
+    {
+      "file": "essais/01.png",
+      "support": 1,
+      "donor": 2,
+      "replaced": [],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/02.png",
+      "support": 1,
+      "donor": 2,
+      "replaced": [
+        "sourcil_g",
+        "sourcil_d"
+      ],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/03.png",
+      "support": 1,
+      "donor": 2,
+      "replaced": [
+        "oeil_g",
+        "oeil_d"
+      ],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/04.png",
+      "support": 1,
+      "donor": 2,
+      "replaced": [
+        "nez"
+      ],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/05.png",
+      "support": 1,
+      "donor": 2,
+      "replaced": [
+        "bouche"
+      ],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/06.png",
+      "support": 1,
+      "donor": 2,
+      "replaced": [
+        "sourcil_g",
+        "sourcil_d",
+        "oeil_g",
+        "oeil_d",
+        "nez",
+        "bouche"
+      ],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/07.png",
+      "support": 2,
+      "donor": 1,
+      "replaced": [],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/08.png",
+      "support": 2,
+      "donor": 1,
+      "replaced": [
+        "sourcil_g",
+        "sourcil_d"
+      ],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/09.png",
+      "support": 2,
+      "donor": 1,
+      "replaced": [
+        "oeil_g",
+        "oeil_d"
+      ],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/10.png",
+      "support": 2,
+      "donor": 1,
+      "replaced": [
+        "nez"
+      ],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/11.png",
+      "support": 2,
+      "donor": 1,
+      "replaced": [
+        "bouche"
+      ],
+      "exact_copy_verified": true
+    },
+    {
+      "file": "essais/12.png",
+      "support": 2,
+      "donor": 1,
+      "replaced": [
+        "sourcil_g",
+        "sourcil_d",
+        "oeil_g",
+        "oeil_d",
+        "nez",
+        "bouche"
+      ],
+      "exact_copy_verified": true
+    }
+  ]
+}

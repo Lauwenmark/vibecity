@@ -37,9 +37,14 @@ finances et données des plugins sont conservés. Les secteurs développés sont
 planes ; leur altitude et le relief voisin peuvent être relevés pour réconcilier les anciennes cases.
 Les anciens barrages sont conservés, même s’ils étaient construits sur de l’eau plate.
 
-Le protocole passe en **version 14** : redémarrer **le serveur et tous les clients** avec cette version.
+Le protocole passe en **version 15** : redémarrer **le serveur et tous les clients** avec cette version.
 Les états réseau sont compressés et les registres des habitants transmis par différences pour limiter
-la latence sur réseau distant. Recompiler les plugins contre le nouveau `core` avant de les redéployer, car le modèle `City` a changé.
+la latence sur réseau distant. Recompiler les plugins contre le nouveau `core` avant de les redéployer, car les modèles `City` et `Citizen` ont changé.
+
+Chaque habitant possède un code de portrait persistant. Sa famille de peau et ses choix de traits
+restent fixes ; les versions des éléments évoluent avec son âge, de l'enfance au grand âge.
+Les portraits sont composés dans le client et affichés dans la liste des habitants et leur fiche.
+Voir [la banque et le format des portraits](docs/PORTRAITS.md).
 
 ## Habitants et trafic
 

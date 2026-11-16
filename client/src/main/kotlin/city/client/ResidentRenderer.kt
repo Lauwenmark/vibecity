@@ -2,7 +2,6 @@ package city.client
 
 import city.core.*
 import java.awt.*
-import javax.imageio.ImageIO
 import javax.swing.*
 
 internal fun residentSex(person: Citizen): String =
@@ -46,35 +45,6 @@ internal fun residentOccupation(person: Citizen): String =
         }
     }
 
-/** Shared provisional portrait, displayed without smoothing at both UI sizes. */
-internal class PortraitPlaceholder(
-    size: Int,
-) : JPanel() {
-    init {
-        preferredSize = Dimension(size, size)
-        minimumSize = preferredSize
-        maximumSize = preferredSize
-        background = UIManager.getColor("TextField.inactiveBackground")
-        getAccessibleContext().accessibleName = "Portrait provisoire"
-    }
-
-    override fun paintComponent(g: Graphics) {
-        super.paintComponent(g)
-        val graphics = g.create() as Graphics2D
-        try {
-            graphics.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR)
-            val side = minOf(width, height)
-            graphics.drawImage(portrait, (width - side) / 2, (height - side) / 2, side, side, null)
-        } finally {
-            graphics.dispose()
-        }
-    }
-
-    companion object {
-        private val portrait = ImageIO.read(requireNotNull(PortraitPlaceholder::class.java.getResource("/city/client/portraits/placeholder.png")))
-    }
-}
-
 internal class ResidentRenderer :
     JPanel(BorderLayout(12, 4)),
     ListCellRenderer<Citizen> {
@@ -83,12 +53,13 @@ internal class ResidentRenderer :
     private val occupation = JLabel()
     private val happiness = JProgressBar(0, 100)
     private val labels = JPanel(GridLayout(3, 1))
+    private val residentPortrait = ResidentPortrait(64)
 
     init {
         border = BorderFactory.createEmptyBorder(10, 10, 10, 10)
         val portrait = JPanel(GridBagLayout())
         portrait.isOpaque = false
-        portrait.add(PortraitPlaceholder(64))
+        portrait.add(residentPortrait)
         add(portrait, BorderLayout.WEST)
         labels.isOpaque = false
         labels.add(name)
@@ -127,6 +98,7 @@ internal class ResidentRenderer :
         isSelected: Boolean,
         cellHasFocus: Boolean,
     ): Component {
+        residentPortrait.show(value, list)
         background = if (isSelected) list.selectionBackground else list.background
         val ink = if (isSelected) list.selectionForeground else list.foreground
         for (label in listOf(name, identity, occupation)) label.foreground = ink

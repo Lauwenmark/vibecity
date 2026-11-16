@@ -38,6 +38,7 @@ class ResidentNavigationTest {
     }
 
     @Test fun `render actual index and portrait sheet with Metal`() {
+        for (person in listOf(alice, bob)) ResidentPortraits.image(ResidentPortraits.key(person))
         SwingUtilities.invokeAndWait {
             UIManager.setLookAndFeel(UIManager.getCrossPlatformLookAndFeelClassName())
             val panel = MobilityPanel { _, _, _ -> }
@@ -63,13 +64,17 @@ class ResidentNavigationTest {
             panel.openResident(0)
             capture("details")
 
-            fun portraits(c: Container): List<PortraitPlaceholder> =
+            fun portraits(c: Container): List<ResidentPortrait> =
                 c.components.flatMap {
-                    (if (it is PortraitPlaceholder) listOf(it) else emptyList()) + (if (it is Container) portraits(it) else emptyList())
+                    (if (it is ResidentPortrait) listOf(it) else emptyList()) + (if (it is Container) portraits(it) else emptyList())
                 }
             val portrait = portraits(panel).single { it.preferredSize.width == 256 }
             assertEquals(256, portrait.width)
             assertEquals(256, portrait.height)
+            assertEquals(ResidentPortraits.key(alice), portrait.portraitKey)
+            panel.updateSnapshot(city(listOf(alice.copy(age = 85), bob)))
+            assertEquals(ResidentPortraits.key(alice.copy(age = 85)), portrait.portraitKey)
+            assertEquals(alice.portraitCode, portrait.portraitKey!!.code)
         }
     }
 }

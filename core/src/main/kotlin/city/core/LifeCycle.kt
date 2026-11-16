@@ -48,6 +48,7 @@ internal fun Citizen.initialized(city: City): Citizen {
             ?.let { it.getOrNull(n % max(1, it.size)) }
     val salary = diploma?.salary ?: 50.0
     return copy(
+        portraitCode = PortraitCodes.withSex(portraitCode, if (n % 2 == 0) Sex.FEMALE else Sex.MALE),
         life =
             CitizenLife(
                 dateDay(birthday),

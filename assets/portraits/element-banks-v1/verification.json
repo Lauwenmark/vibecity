@@ -1,0 +1,70 @@
+{
+  "portraits": 10,
+  "partition_parts": 130,
+  "derived_pairs": 20,
+  "derived_supports": 10,
+  "recompositions": [
+    {
+      "id": "01-fille",
+      "different_pixels": 0,
+      "partition_exactly_once": true,
+      "binary_alpha": true
+    },
+    {
+      "id": "02-garcon",
+      "different_pixels": 0,
+      "partition_exactly_once": true,
+      "binary_alpha": true
+    },
+    {
+      "id": "03-adolescente",
+      "different_pixels": 0,
+      "partition_exactly_once": true,
+      "binary_alpha": true
+    },
+    {
+      "id": "04-adolescent",
+      "different_pixels": 0,
+      "partition_exactly_once": true,
+      "binary_alpha": true
+    },
+    {
+      "id": "05-femme-adulte",
+      "different_pixels": 0,
+      "partition_exactly_once": true,
+      "binary_alpha": true
+    },
+    {
+      "id": "06-homme-adulte",
+      "different_pixels": 0,
+      "partition_exactly_once": true,
+      "binary_alpha": true
+    },
+    {
+      "id": "07-femme-age-mur",
+      "different_pixels": 0,
+      "partition_exactly_once": true,
+      "binary_alpha": true
+    },
+    {
+      "id": "08-homme-age-mur",
+      "different_pixels": 0,
+      "partition_exactly_once": true,
+      "binary_alpha": true
+    },
+    {
+      "id": "09-femme-agee",
+      "different_pixels": 0,
+      "partition_exactly_once": true,
+      "binary_alpha": true
+    },
+    {
+      "id": "10-homme-age",
+      "different_pixels": 0,
+      "partition_exactly_once": true,
+      "binary_alpha": true
+    }
+  ],
+  "fixed_window_swaps_verified": 600,
+  "colour_matching_or_seamless_structural_interchangeability_claimed": false
+}

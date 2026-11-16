@@ -27,6 +27,7 @@ internal class MobilityPanel(
     private val listScroll = JScrollPane(residentList)
     internal val back = JButton("← Habitants de cette case")
     private val identity = JLabel()
+    internal val residentPortrait = ResidentPortrait(256)
     private val happiness = JProgressBar(0, 100)
     private val summary = textArea()
     private val biography = textArea()
@@ -78,7 +79,7 @@ internal class MobilityPanel(
         )
         val sheet = JPanel(BorderLayout(8, 12))
         val header = JPanel(BorderLayout(16, 8))
-        header.add(PortraitPlaceholder(256), BorderLayout.WEST)
+        header.add(residentPortrait, BorderLayout.WEST)
         val labels = JPanel().apply { layout = BoxLayout(this, BoxLayout.Y_AXIS) }
         heading.font = heading.font.deriveFont(Font.BOLD, 24f)
         labels.add(Box.createVerticalStrut(24))
@@ -258,6 +259,7 @@ internal class MobilityPanel(
         val h = selectedHome()
         val day = h?.days?.firstOrNull { it.citizenId == selectedId }
         val person = selectedPerson()
+        residentPortrait.show(person)
         val minute = hour.value
         heading.text = person?.name ?: "Aucun habitant à inspecter"
         identity.text = person?.let { "${it.age} ans · ${residentSex(it)} · ${residentOccupation(it)}" } ?: ""

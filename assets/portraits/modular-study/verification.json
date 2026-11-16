@@ -1,0 +1,20 @@
+{
+  "recompositions": [
+    {
+      "reference": 1,
+      "differing_pixels": 0,
+      "pixels": 65536,
+      "partition_exactly_once": true,
+      "alpha_binary": true
+    },
+    {
+      "reference": 2,
+      "differing_pixels": 0,
+      "pixels": 65536,
+      "partition_exactly_once": true,
+      "alpha_binary": true
+    }
+  ],
+  "trials_exact_copy_verified": 12,
+  "generated_or_interpolated_pixels_after_resize": 0
+}

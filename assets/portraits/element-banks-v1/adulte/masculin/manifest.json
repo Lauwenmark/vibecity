@@ -1,0 +1,459 @@
+{
+  "id": "06-homme-adulte",
+  "age_class": "adulte",
+  "sex": "masculin",
+  "size": [
+    256,
+    256
+  ],
+  "source": "portrait.png",
+  "origin": "../../../generations-v1/portraits/06-homme-adulte.png",
+  "support_without_six_traits": "support-traits.png",
+  "source_sha256": "57e38bbdb74a0a79827928bfcce449f70279427e5428bf527a96e4a3c80b77dd",
+  "axes": "x right, y down; g/d refer to image sides",
+  "layer_order": [
+    "fond",
+    "chevelure",
+    "visage",
+    "cou-buste",
+    "oreille-g",
+    "oreille-d",
+    "sourcil-g",
+    "sourcil-d",
+    "oeil-g",
+    "oeil-d",
+    "nez",
+    "bouche",
+    "raccords"
+  ],
+  "parts": {
+    "fond": {
+      "layer": "calques/fond.png",
+      "crop": "elements/fond.png",
+      "mask": "masques/fond.png",
+      "source_box": [
+        0,
+        0,
+        256,
+        243
+      ],
+      "paste_at": [
+        0,
+        0
+      ],
+      "size": [
+        256,
+        243
+      ],
+      "local_anchor": [
+        128,
+        121
+      ],
+      "source_anchor": [
+        128,
+        121
+      ],
+      "pixels": 30967,
+      "compatibility": "source-specific-contour"
+    },
+    "chevelure": {
+      "layer": "calques/chevelure.png",
+      "crop": "elements/chevelure.png",
+      "mask": "masques/chevelure.png",
+      "source_box": [
+        55,
+        4,
+        200,
+        100
+      ],
+      "paste_at": [
+        55,
+        4
+      ],
+      "size": [
+        145,
+        96
+      ],
+      "local_anchor": [
+        72,
+        48
+      ],
+      "source_anchor": [
+        127,
+        52
+      ],
+      "pixels": 7857,
+      "compatibility": "source-specific-contour"
+    },
+    "visage": {
+      "layer": "calques/visage.png",
+      "crop": "elements/visage.png",
+      "mask": "masques/visage.png",
+      "source_box": [
+        76,
+        59,
+        181,
+        199
+      ],
+      "paste_at": [
+        76,
+        59
+      ],
+      "size": [
+        105,
+        140
+      ],
+      "local_anchor": [
+        52,
+        70
+      ],
+      "source_anchor": [
+        128,
+        129
+      ],
+      "pixels": 6807,
+      "compatibility": "source-specific-contour"
+    },
+    "cou-buste": {
+      "layer": "calques/cou-buste.png",
+      "crop": "elements/cou-buste.png",
+      "mask": "masques/cou-buste.png",
+      "source_box": [
+        0,
+        176,
+        256,
+        256
+      ],
+      "paste_at": [
+        0,
+        176
+      ],
+      "size": [
+        256,
+        80
+      ],
+      "local_anchor": [
+        128,
+        40
+      ],
+      "source_anchor": [
+        128,
+        216
+      ],
+      "pixels": 11498,
+      "compatibility": "source-specific-contour"
+    },
+    "oreille-g": {
+      "layer": "calques/oreille-g.png",
+      "crop": "elements/oreille-g.png",
+      "mask": "masques/oreille-g.png",
+      "source_box": [
+        57,
+        102,
+        81,
+        141
+      ],
+      "paste_at": [
+        57,
+        102
+      ],
+      "size": [
+        24,
+        39
+      ],
+      "local_anchor": [
+        12,
+        19
+      ],
+      "source_anchor": [
+        69,
+        121
+      ],
+      "pixels": 664,
+      "compatibility": "source-specific-contour"
+    },
+    "oreille-d": {
+      "layer": "calques/oreille-d.png",
+      "crop": "elements/oreille-d.png",
+      "mask": "masques/oreille-d.png",
+      "source_box": [
+        178,
+        102,
+        200,
+        141
+      ],
+      "paste_at": [
+        178,
+        102
+      ],
+      "size": [
+        22,
+        39
+      ],
+      "local_anchor": [
+        11,
+        19
+      ],
+      "source_anchor": [
+        189,
+        121
+      ],
+      "pixels": 660,
+      "compatibility": "source-specific-contour"
+    },
+    "sourcil-g": {
+      "layer": "calques/sourcil-g.png",
+      "crop": "elements/sourcil-g.png",
+      "mask": "masques/sourcil-g.png",
+      "source_box": [
+        78,
+        86,
+        122,
+        100
+      ],
+      "paste_at": [
+        78,
+        86
+      ],
+      "size": [
+        44,
+        14
+      ],
+      "local_anchor": [
+        22,
+        7
+      ],
+      "source_anchor": [
+        100,
+        93
+      ],
+      "pixels": 616,
+      "compatibility": "equal-sized-copy-window"
+    },
+    "sourcil-d": {
+      "layer": "calques/sourcil-d.png",
+      "crop": "elements/sourcil-d.png",
+      "mask": "masques/sourcil-d.png",
+      "source_box": [
+        134,
+        86,
+        178,
+        100
+      ],
+      "paste_at": [
+        134,
+        86
+      ],
+      "size": [
+        44,
+        14
+      ],
+      "local_anchor": [
+        22,
+        7
+      ],
+      "source_anchor": [
+        156,
+        93
+      ],
+      "pixels": 616,
+      "compatibility": "equal-sized-copy-window"
+    },
+    "oeil-g": {
+      "layer": "calques/oeil-g.png",
+      "crop": "elements/oeil-g.png",
+      "mask": "masques/oeil-g.png",
+      "source_box": [
+        80,
+        100,
+        120,
+        124
+      ],
+      "paste_at": [
+        80,
+        100
+      ],
+      "size": [
+        40,
+        24
+      ],
+      "local_anchor": [
+        20,
+        12
+      ],
+      "source_anchor": [
+        100,
+        112
+      ],
+      "pixels": 960,
+      "compatibility": "equal-sized-copy-window"
+    },
+    "oeil-d": {
+      "layer": "calques/oeil-d.png",
+      "crop": "elements/oeil-d.png",
+      "mask": "masques/oeil-d.png",
+      "source_box": [
+        136,
+        100,
+        176,
+        124
+      ],
+      "paste_at": [
+        136,
+        100
+      ],
+      "size": [
+        40,
+        24
+      ],
+      "local_anchor": [
+        20,
+        12
+      ],
+      "source_anchor": [
+        156,
+        112
+      ],
+      "pixels": 960,
+      "compatibility": "equal-sized-copy-window"
+    },
+    "nez": {
+      "layer": "calques/nez.png",
+      "crop": "elements/nez.png",
+      "mask": "masques/nez.png",
+      "source_box": [
+        110,
+        124,
+        146,
+        148
+      ],
+      "paste_at": [
+        110,
+        124
+      ],
+      "size": [
+        36,
+        24
+      ],
+      "local_anchor": [
+        18,
+        12
+      ],
+      "source_anchor": [
+        128,
+        136
+      ],
+      "pixels": 864,
+      "compatibility": "equal-sized-copy-window"
+    },
+    "bouche": {
+      "layer": "calques/bouche.png",
+      "crop": "elements/bouche.png",
+      "mask": "masques/bouche.png",
+      "source_box": [
+        102,
+        150,
+        154,
+        174
+      ],
+      "paste_at": [
+        102,
+        150
+      ],
+      "size": [
+        52,
+        24
+      ],
+      "local_anchor": [
+        26,
+        12
+      ],
+      "source_anchor": [
+        128,
+        162
+      ],
+      "pixels": 1248,
+      "compatibility": "equal-sized-copy-window"
+    },
+    "raccords": {
+      "layer": "calques/raccords.png",
+      "crop": "elements/raccords.png",
+      "mask": "masques/raccords.png",
+      "source_box": [
+        55,
+        100,
+        200,
+        219
+      ],
+      "paste_at": [
+        55,
+        100
+      ],
+      "size": [
+        145,
+        119
+      ],
+      "local_anchor": [
+        72,
+        59
+      ],
+      "source_anchor": [
+        127,
+        159
+      ],
+      "pixels": 1819,
+      "compatibility": "source-specific-contour"
+    },
+    "paire-yeux": {
+      "layer": "calques/paire-yeux.png",
+      "crop": "elements/paire-yeux.png",
+      "source_box": [
+        80,
+        100,
+        176,
+        124
+      ],
+      "paste_at": [
+        80,
+        100
+      ],
+      "size": [
+        96,
+        24
+      ],
+      "derived_from": [
+        "oeil-g",
+        "oeil-d"
+      ],
+      "included_in_recomposition": false
+    },
+    "paire-sourcils": {
+      "layer": "calques/paire-sourcils.png",
+      "crop": "elements/paire-sourcils.png",
+      "source_box": [
+        78,
+        86,
+        178,
+        100
+      ],
+      "paste_at": [
+        78,
+        86
+      ],
+      "size": [
+        100,
+        14
+      ],
+      "derived_from": [
+        "sourcil-g",
+        "sourcil-d"
+      ],
+      "included_in_recomposition": false
+    }
+  },
+  "verification": {
+    "different_pixels": 0,
+    "partition_exactly_once": true,
+    "binary_alpha": true
+  }
+}

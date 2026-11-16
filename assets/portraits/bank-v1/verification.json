@@ -1,0 +1,10 @@
+{
+  "portraits": 180,
+  "layers": 1260,
+  "identical_recompositions": 180,
+  "shared_binary_partition": true,
+  "families": 3,
+  "sexes": 2,
+  "ages": 6,
+  "variants_per_part_and_sex": 5
+}
